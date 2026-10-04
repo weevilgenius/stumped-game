@@ -1,0 +1,27 @@
+{
+  "extends": "@tsconfig/recommended/tsconfig.json",
+    "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": [
+      "vitest/globals" // vitest globals for test files
+    ],
+    "useDefineForClassFields": true,
+    "noEmit": true,
+    "paths": {
+      "src/*": ["./src/*"]
+    },
+
+    /* Vite-specific Best Practices */
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+  },
+  "include": [
+    "src",
+    "tests",
+    "e2e",
+    "scripts",
+    "*.config.ts"
+  ]
+}
