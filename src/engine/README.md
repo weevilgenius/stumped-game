@@ -81,7 +81,7 @@ Each attempt does the following, all drawn from one `mulberry32(seed)` stream:
 
 ## Seed codes
 
-A seed code is 11 Crockford base32 characters, such as `1D9R7BF6HAE`. It packs
+A seed code is 11 Crockford base32 characters, such as `2D9R7BF6HAD`. It packs
 50 bits, most significant first:
 
 | Field | Bits |
@@ -105,3 +105,6 @@ single-character typo.
 - **Generator version:** bump `GENERATOR_VERSION` whenever a change to the
   generator would turn the same code into a different board. Old codes are
   refused until something keeps the old generator around.
+
+Generator version 2 assigns the first N palette colors to an N × N board.
+Version 1 codes are rejected because they used any N colors from all ten.

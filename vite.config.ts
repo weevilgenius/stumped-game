@@ -1,11 +1,12 @@
 import { defineConfig, type PluginOption, type UserConfig } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { env } from 'node:process';
+import { offlinePlugin } from './scripts/offline.ts';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
 
-  const plugins: PluginOption[] = [];
+  const plugins: PluginOption[] = [offlinePlugin()];
 
   if (command === 'build' && env.ANALYZE === '1') {
     // add the visualizer to see the module break-down
@@ -32,6 +33,8 @@ export default defineConfig(({ command }) => {
 
   const config: UserConfig = {
     plugins,
+    server: { host: '127.0.0.1', port: 5178, strictPort: true },
+    preview: { host: '127.0.0.1', port: 4178, strictPort: true },
     build: {
       // browser target
       target: 'baseline-widely-available',

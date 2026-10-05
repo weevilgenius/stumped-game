@@ -13,10 +13,11 @@ export default defineConfig({
   // Use a distinct suffix so these never collide with the Vitest unit tests.
   testMatch: '**/*.e2e.ts',
   fullyParallel: true,
+  workers: 2,
   reporter: 'list',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5178',
     // Capture a trace on first retry to aid debugging failures.
     trace: 'on-first-retry',
   },
@@ -33,10 +34,15 @@ export default defineConfig({
   ],
 
   // Start the Vite dev server for tests, reusing one if already running.
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
+  webServer: [{
+    command: 'pnpm dev --host 127.0.0.1 --port 5178 --strictPort',
+    url: 'http://127.0.0.1:5178',
     reuseExistingServer: true,
     timeout: 60_000,
-  },
+  }, {
+    command: 'pnpm run build && pnpm preview --host 127.0.0.1 --port 4178 --strictPort',
+    url: 'http://127.0.0.1:4178',
+    reuseExistingServer: !process.env.CI,
+    timeout: 60_000,
+  }],
 });

@@ -43,6 +43,13 @@ for the capture and stopped afterwards.
   - `--wait <selector>` wait for a CSS selector before capturing
   - `--delay <ms>` extra settle delay before capturing
   - `--url <base>` target an explicit base URL (disables auto-start)
+  - `--code <code>` open a seeded puzzle and wait for the Phaser board
+  - `--click <selector>` click before capture; repeat for a sequence
+  - `--storage <file>` restore a `stumped.v1` JSON save fixture before loading
+  - `--landscape` swap the device or viewport to landscape
+
+  Screenshots and browser tests use `127.0.0.1:5178`; production offline tests
+  use `127.0.0.1:4178`. Both servers use strict ports to avoid other Vite apps.
 
   Examples:
   ```sh

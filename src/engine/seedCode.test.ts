@@ -8,9 +8,9 @@ const MID: GeneratorSettings = { size: 8, tier: 'medium', silver: false, sizeMix
 describe('encodeSeedCode', () => {
   // Vectors computed independently; changing them breaks every shared code.
   it('matches known vectors', () => {
-    expect(encodeSeedCode(MIN, 0)).toBe('1000000000Z');
-    expect(encodeSeedCode(MAX, 0xFFFFFFFF)).toBe('1PZZZZZZZYW');
-    expect(encodeSeedCode(MID, 123456789)).toBe('1D9R7BF6HAE');
+    expect(encodeSeedCode(MIN, 0)).toBe('2000000000Y');
+    expect(encodeSeedCode(MAX, 0xFFFFFFFF)).toBe('2PZZZZZZZYV');
+    expect(encodeSeedCode(MID, 123456789)).toBe('2D9R7BF6HAD');
   });
 
   it('rejects out-of-range settings', () => {
@@ -29,13 +29,13 @@ describe('decodeSeedCode', () => {
   });
 
   it('is lenient about case, separators, and look-alike letters', () => {
-    expect(decodeSeedCode(' 1d9r7-bf6ha-e ')).toEqual({ settings: MID, seed: 123456789 });
-    expect(decodeSeedCode('i0000ooooOZ')).toEqual({ settings: MIN, seed: 0 });
-    expect(decodeSeedCode('L000000000z')).toEqual({ settings: MIN, seed: 0 });
+    expect(decodeSeedCode(' 2d9r7-bf6ha-d ')).toEqual({ settings: MID, seed: 123456789 });
+    expect(decodeSeedCode('2oooooooI0X')).toEqual({ settings: MIN, seed: 16 });
+    expect(decodeSeedCode('2oooooooL0x')).toEqual({ settings: MIN, seed: 16 });
   });
 
   it('rejects every single-character typo', () => {
-    const code = '1D9R7BF6HAE';
+    const code = '2D9R7BF6HAD';
     const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
     for (let i = 0; i < code.length; i++) {
       for (const ch of alphabet) {
@@ -49,17 +49,18 @@ describe('decodeSeedCode', () => {
   it('rejects malformed codes', () => {
     expect(decodeSeedCode('')).toBeNull();
     expect(decodeSeedCode('1D9R7BF6HA')).toBeNull(); // too short
-    expect(decodeSeedCode('1D9R7BF6HAEE')).toBeNull(); // too long
+    expect(decodeSeedCode('2D9R7BF6HADE')).toBeNull(); // too long
     expect(decodeSeedCode('1D9R7BF6HA!')).toBeNull(); // bad character
     expect(decodeSeedCode('1D9R7BF6HAU')).toBeNull(); // U is not in the alphabet
   });
 
   it('rejects codes with valid checks but unsupported contents', () => {
     expect(decodeSeedCode(withCheck('0000000000'))).toBeNull(); // version 0
+    expect(decodeSeedCode('1000000000Z')).toBeNull(); // version 1 used a different color assignment
     expect(decodeSeedCode(withCheck('Z000000000'))).toBeNull(); // version 31
-    expect(decodeSeedCode(withCheck('1R00000000'))).toBeNull(); // size 11
-    expect(decodeSeedCode(withCheck('1300000000'))).toBeNull(); // tier 3
-    expect(decodeSeedCode(withCheck('1000000001'))).toBeNull(); // padding bit set
+    expect(decodeSeedCode(withCheck('2R00000000'))).toBeNull(); // size 11
+    expect(decodeSeedCode(withCheck('2300000000'))).toBeNull(); // tier 3
+    expect(decodeSeedCode(withCheck('2000000001'))).toBeNull(); // padding bit set
   });
 });
 

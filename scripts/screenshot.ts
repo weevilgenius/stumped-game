@@ -27,17 +27,21 @@
  *    --url <base>    Base URL to use; disables auto-start      *
  *    --wait <sel>    Wait for a CSS selector before capturing  *
  *    --delay <ms>    Extra settle delay before capturing       *
+ *    --code <code>  Open a reproducible puzzle                 *
+ *    --click <sel>  Click a selector (repeat for a sequence)    *
+ *    --storage <f>  Load a saved stumped.v1 JSON fixture        *
+ *    --landscape    Use the landscape device/viewport shape    *
 \* ========================================================= */
 
 import { parseArgs } from 'node:util';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
 import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
 
 /** Default base URL probed for an already-running dev server. */
-const DEFAULT_BASE_URL = 'http://localhost:5173';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:5178';
 
 /** Milliseconds to wait when probing for an existing dev server. */
 const PROBE_TIMEOUT_MS = 600;
@@ -60,6 +64,10 @@ const { values } = parseArgs({
     url: { type: 'string' },
     wait: { type: 'string' },
     delay: { type: 'string' },
+    code: { type: 'string' },
+    click: { type: 'string', multiple: true },
+    storage: { type: 'string' },
+    landscape: { type: 'boolean', default: false },
   },
 });
 
@@ -115,14 +123,16 @@ let targetBaseUrl = baseUrl;
 
 if (!reuseExisting) {
   console.log('No dev server detected; starting a temporary Vite server...');
-  server = await createServer({ server: { port: 5173 } });
+  server = await createServer({ server: { host: '127.0.0.1', port: 5178, strictPort: true } });
   await server.listen();
   targetBaseUrl = server.resolvedUrls?.local[0] ?? baseUrl;
 } else {
   console.log(`Using existing server at ${baseUrl}`);
 }
 
-const targetUrl = new URL(values.path, targetBaseUrl).toString();
+const target = new URL(values.path, targetBaseUrl);
+if (values.code) target.searchParams.set('code', values.code);
+const targetUrl = target.toString();
 
 const browser = await chromium.launch();
 try {
@@ -134,13 +144,27 @@ try {
       ? { viewport: PRINT_PNG_VIEWPORT }
       : values.device ? {} : { viewport: { width: Number(values.width), height: Number(values.height) } }),
   });
+  if (values.storage) {
+    const raw = await readFile(resolve(values.storage), 'utf8');
+    JSON.parse(raw); // Fail early on malformed capture fixtures.
+    await context.addInitScript((save: string) => localStorage.setItem('stumped.v1', save), raw);
+  }
   const page = await context.newPage();
+  if (values.landscape) {
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: Math.max(viewport.width, viewport.height), height: Math.min(viewport.width, viewport.height) });
+  }
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
 
   if (printPng) {
     await page.emulateMedia({ media: 'print' });
   }
 
   await page.goto(targetUrl, { waitUntil: 'networkidle' });
+  if (values.code) await page.waitForSelector('#board canvas[data-ready="true"]', { timeout: 60_000 });
+  for (const selector of values.click ?? []) await page.locator(selector).click();
+  await page.waitForFunction(() => !document.querySelector<HTMLElement>('#home')?.inert, undefined, { timeout: 60_000 });
 
   if (values.wait) {
     await page.waitForSelector(values.wait);
@@ -148,6 +172,15 @@ try {
   if (values.delay) {
     await page.waitForTimeout(Number(values.delay));
   }
+  if (await page.locator('#puzzle-screen').isVisible()) {
+    await page.waitForSelector('#board canvas[data-ready="true"]', { timeout: 60_000 });
+  }
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all([...document.images].map((img) => img.decode().catch(() => undefined)));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+  if (errors.length) throw new Error(`Page errors during capture:\n${errors.join('\n')}`);
 
   await mkdir(dirname(outPath), { recursive: true });
   if (printPng) {
