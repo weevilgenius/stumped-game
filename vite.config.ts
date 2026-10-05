@@ -6,13 +6,16 @@ import { env } from 'node:process';
 /**
  * Service worker source. It precaches every built file and answers from the
  * cache first, so the installed app starts and plays with no connection. Each
- * build gets its own cache, which replaces the previous one.
+ * build gets its own cache, which replaces the previous one. Caches carry a
+ * `stumped-fable-` prefix and only those are touched, so other apps hosted on
+ * the same origin keep their offline caches.
  * @param version unique per build
  * @param files every file to cache, relative to the app root
  * @returns the script
  */
 const serviceWorkerSource = (version: string, files: string[]): string => `
-const CACHE = 'stumped-${version}';
+const PREFIX = 'stumped-fable-';
+const CACHE = PREFIX + '${version}';
 const FILES = ${JSON.stringify(files)};
 
 self.addEventListener('install', (event) => {
@@ -21,14 +24,15 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+    .then((keys) => Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key))))
     .then(() => self.clients.claim()));
 });
 
 // A link with a seed code is the same page with a query, hence ignoreSearch. Hosts that answer
 // with "Vary: Origin" would otherwise miss for the script and stylesheet, hence ignoreVary.
 self.addEventListener('fetch', (event) => {
-  event.respondWith(caches.match(event.request, { ignoreSearch: true, ignoreVary: true })
+  event.respondWith(caches.open(CACHE)
+    .then((cache) => cache.match(event.request, { ignoreSearch: true, ignoreVary: true }))
     .then((hit) => hit ?? fetch(event.request)));
 });
 `;
