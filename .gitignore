@@ -1,0 +1,24 @@
+# locally installed dependencies
+node_modules/
+
+# environment files
+.env
+.env.development
+.env.production
+.env.test
+
+# typescript build output
+/dist
+
+# unit test coverage
+/coverage
+
+# playwright / screenshots
+/screenshots
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
+# AI stuff
+.claude
