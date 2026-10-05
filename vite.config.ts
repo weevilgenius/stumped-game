@@ -27,7 +27,22 @@ export default defineConfig(({ command }) => {
       transformIndexHtml(html) {
         return html.replace(/<!--[\s\S]*?-->\n?/g, '');
       },
-    }
+    },
+    {
+      name: 'stumped-service-worker',
+      apply: 'build',
+      generateBundle(_options, bundle) {
+        const assets = ['/', '/index.html', '/manifest.webmanifest', '/icon-512.jpg'];
+        for (const fileName of Object.keys(bundle)) {
+          assets.push(`/${fileName}`);
+        }
+        this.emitFile({
+          type: 'asset',
+          fileName: 'sw.js',
+          source: serviceWorker(assets),
+        });
+      },
+    },
   );
 
   const config: UserConfig = {
@@ -79,3 +94,35 @@ export default defineConfig(({ command }) => {
 
   return config;
 });
+
+/**
+ * A small offline cache. The built file names are hashed, so the list is
+ * written at build time and the old cache is dropped on the next install.
+ * @param assets paths to precache
+ * @returns the service worker source
+ */
+function serviceWorker(assets: readonly string[]): string {
+  return `const CACHE = 'stumped-${Date.now()}';
+const ASSETS = ${JSON.stringify(assets)};
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim()),
+  );
+});
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    caches.match(event.request).then((hit) => hit || fetch(event.request).then((response) => {
+      const copy = response.clone();
+      void caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match('/'))),
+  );
+});
+`;
+}

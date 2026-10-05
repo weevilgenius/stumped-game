@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/** Override when another Vite app already has 5173. */
+const port = process.env.STUMPED_PORT ?? '5173';
+const baseURL = `http://127.0.0.1:${port}`;
+
 /**
  * Playwright configuration for end-to-end / visual tests.
  *
@@ -16,7 +20,7 @@ export default defineConfig({
   reporter: 'list',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     // Capture a trace on first retry to aid debugging failures.
     trace: 'on-first-retry',
   },
@@ -34,8 +38,8 @@ export default defineConfig({
 
   // Start the Vite dev server for tests, reusing one if already running.
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
+    command: `pnpm dev --host 127.0.0.1 --port ${port}`,
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 60_000,
   },

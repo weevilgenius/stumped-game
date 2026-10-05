@@ -27,6 +27,17 @@
  *    --url <base>    Base URL to use; disables auto-start      *
  *    --wait <sel>    Wait for a CSS selector before capturing  *
  *    --delay <ms>    Extra settle delay before capturing       *
+ *    --click <sel>   Click a selector; repeat for a sequence   *
+ *    --eval <js>     Run a page expression; repeat to chain    *
+ *    --storage <json> localStorage entries, applied before load*
+ *                                                           *
+ *  The game publishes window.__stumped once it has booted, so *
+ *  a puzzle shot can wait on the board:                       *
+ *    pnpm screenshot --wait '[data-screen=main]'              *
+ *    pnpm screenshot --eval 'window.__stumped.setSize(5)' \   *
+ *      --eval 'window.__stumped.setTier("easy")' \            *
+ *      --eval 'window.__stumped.startNew()' \                 *
+ *      --wait '[data-screen=puzzle]'                          *
 \* ========================================================= */
 
 import { parseArgs } from 'node:util';
@@ -60,6 +71,9 @@ const { values } = parseArgs({
     url: { type: 'string' },
     wait: { type: 'string' },
     delay: { type: 'string' },
+    click: { type: 'string', multiple: true },
+    eval: { type: 'string', multiple: true },
+    storage: { type: 'string' },
   },
 });
 
@@ -134,6 +148,14 @@ try {
       ? { viewport: PRINT_PNG_VIEWPORT }
       : values.device ? {} : { viewport: { width: Number(values.width), height: Number(values.height) } }),
   });
+  if (values.storage) {
+    const entries = JSON.parse(values.storage) as Record<string, string>;
+    await context.addInitScript((items) => {
+      for (const [key, value] of Object.entries(items)) {
+        localStorage.setItem(key, value);
+      }
+    }, entries);
+  }
   const page = await context.newPage();
 
   if (printPng) {
@@ -142,6 +164,16 @@ try {
 
   await page.goto(targetUrl, { waitUntil: 'networkidle' });
 
+  for (const expression of values.eval ?? []) {
+    await page.evaluate(async (source) => {
+      // The caller supplies the expression; it runs in the page, not the tool.
+      const result: unknown = (0, eval)(source);
+      await result;
+    }, expression);
+  }
+  for (const selector of values.click ?? []) {
+    await page.click(selector);
+  }
   if (values.wait) {
     await page.waitForSelector(values.wait);
   }

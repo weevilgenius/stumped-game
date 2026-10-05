@@ -11,7 +11,36 @@ import { test, expect } from '@playwright/test';
  * and view the resulting PNG rather than pixel-diff assertions.
  */
 
-test('home page renders its heading', async ({ page }) => {
+test('main screen is ready', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#app')).toHaveAttribute('data-screen', 'main');
+  await expect(page.locator('canvas')).toBeVisible();
+});
+
+test('a new puzzle opens the board', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__stumped?.ready);
+  await page.evaluate(() => {
+    window.__stumped?.setSize(5);
+    window.__stumped?.setTier('easy');
+  });
+  await page.evaluate(() => window.__stumped?.startNew());
+  await expect(page.locator('#app')).toHaveAttribute('data-screen', 'puzzle');
+  await expect(page.locator('#app')).toHaveAttribute('data-stumps', /\d\/5/);
+});
+
+test('a seed link reopens that puzzle', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__stumped?.ready);
+  await page.evaluate(() => {
+    window.__stumped?.setSize(5);
+    window.__stumped?.setTier('easy');
+  });
+  await page.evaluate(() => window.__stumped?.startNew());
+  const code = await page.locator('#app').getAttribute('data-code');
+  expect(code).toBeTruthy();
+  await page.goto(`/?code=${code}`);
+  await expect(page.locator('#app')).toHaveAttribute('data-screen', 'puzzle');
+  await expect(page.locator('#app')).toHaveAttribute('data-code', code ?? '');
 });
