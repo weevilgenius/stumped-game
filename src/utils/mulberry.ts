@@ -6,7 +6,7 @@
  * @param seed seed number
  * @returns function which returns a random number each time it is called
  */
-export function mulberry32(seed: number) {
+export function mulberry32(seed: number): () => number {
   return function() {
     let t = seed += 0x6D2B79F5;
     t = Math.imul(t ^ t >>> 15, t | 1);

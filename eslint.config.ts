@@ -173,6 +173,19 @@ export default defineConfig(
   // override any legacy style/formatting rules included above
   stylistic.configs["disable-legacy"],
 
+  // the puzzle engine is a standalone library: no Phaser or other UI code
+  {
+    files: ["src/engine/**"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [
+          { group: ["phaser", "phaser/*"], message: "The engine must not depend on Phaser." },
+          { group: ["**/assets/*", "*.css"], message: "The engine must not import UI assets." },
+        ],
+      }],
+    },
+  },
+
   // disable type-aware rules for javascript files which have no types
   {
     files: ['**/*.{js,mjs,cjs}'],
