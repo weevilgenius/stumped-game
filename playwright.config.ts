@@ -1,4 +1,8 @@
+import process from 'node:process';
 import { defineConfig, devices } from '@playwright/test';
+
+const port = process.env.PORT ?? '5188';
+const baseURL = `http://localhost:${port}`;
 
 /**
  * Playwright configuration for end-to-end / visual tests.
@@ -16,7 +20,7 @@ export default defineConfig({
   reporter: 'list',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     // Capture a trace on first retry to aid debugging failures.
     trace: 'on-first-retry',
   },
@@ -35,7 +39,7 @@ export default defineConfig({
   // Start the Vite dev server for tests, reusing one if already running.
   webServer: {
     command: 'pnpm dev',
-    url: 'http://localhost:5173',
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 60_000,
   },

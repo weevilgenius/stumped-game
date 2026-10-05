@@ -36,8 +36,11 @@ import process from 'node:process';
 import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
 
+/** Default dev server port. */
+const DEFAULT_PORT = Number(process.env.PORT ?? '5188');
+
 /** Default base URL probed for an already-running dev server. */
-const DEFAULT_BASE_URL = 'http://localhost:5173';
+const DEFAULT_BASE_URL = `http://localhost:${DEFAULT_PORT}`;
 
 /** Milliseconds to wait when probing for an existing dev server. */
 const PROBE_TIMEOUT_MS = 600;
@@ -60,6 +63,11 @@ const { values } = parseArgs({
     url: { type: 'string' },
     wait: { type: 'string' },
     delay: { type: 'string' },
+    code: { type: 'string' },
+    scene: { type: 'string' },
+    modal: { type: 'string' },
+    hypothesis: { type: 'boolean', default: false },
+    status: { type: 'string' },
   },
 });
 
@@ -115,14 +123,30 @@ let targetBaseUrl = baseUrl;
 
 if (!reuseExisting) {
   console.log('No dev server detected; starting a temporary Vite server...');
-  server = await createServer({ server: { port: 5173 } });
+  server = await createServer({ server: { port: DEFAULT_PORT } });
   await server.listen();
   targetBaseUrl = server.resolvedUrls?.local[0] ?? baseUrl;
 } else {
   console.log(`Using existing server at ${baseUrl}`);
 }
 
-const targetUrl = new URL(values.path, targetBaseUrl).toString();
+const urlObj = new URL(values.path, targetBaseUrl);
+if (values.code) {
+  urlObj.searchParams.set('code', values.code);
+}
+if (values.scene) {
+  urlObj.searchParams.set('scene', values.scene);
+}
+if (values.modal) {
+  urlObj.searchParams.set('modal', values.modal);
+}
+if (values.hypothesis) {
+  urlObj.searchParams.set('hypothesis', 'true');
+}
+if (values.status) {
+  urlObj.searchParams.set('status', values.status);
+}
+const targetUrl = urlObj.toString();
 
 const browser = await chromium.launch();
 try {
@@ -142,11 +166,12 @@ try {
 
   await page.goto(targetUrl, { waitUntil: 'networkidle' });
 
-  if (values.wait) {
-    await page.waitForSelector(values.wait);
-  }
-  if (values.delay) {
-    await page.waitForTimeout(Number(values.delay));
+  const waitSelector = values.wait ?? 'canvas';
+  await page.waitForSelector(waitSelector);
+
+  const delayMs = values.delay !== undefined ? Number(values.delay) : 400;
+  if (delayMs > 0) {
+    await page.waitForTimeout(delayMs);
   }
 
   await mkdir(dirname(outPath), { recursive: true });

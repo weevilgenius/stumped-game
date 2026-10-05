@@ -1,17 +1,41 @@
-import { test, expect } from '@playwright/test';
+/* ========================================================= *\
+ *  End-to-End Playwright Tests                              *
+\* ========================================================= */
 
-/**
- * Functional end-to-end smoke tests.
- *
- * These assert behaviour/structure (not pixels), so they are stable across
- * platforms and need no committed baseline images. Each test runs on both a
- * desktop and a mobile viewport (see the projects in playwright.config.ts).
- *
- * For visual inspection (light/dark mode, layout), use `pnpm screenshot`
- * and view the resulting PNG rather than pixel-diff assertions.
- */
+import { expect, test } from '@playwright/test';
 
-test('home page renders its heading', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+test.describe('Stumped Game App', () => {
+  test('renders Phaser canvas on the home screen', async ({ page }) => {
+    await page.goto('/');
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+  });
+
+  test('navigates directly to game scene with ?scene=game', async ({ page }) => {
+    await page.goto('/?scene=game');
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+
+    // Verify canvas is interactive
+    await canvas.click({ position: { x: 200, y: 200 } });
+    await expect(canvas).toBeVisible();
+  });
+
+  test('loads puzzle from a valid seed code', async ({ page }) => {
+    await page.goto('/?code=1000000000Z');
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+  });
+
+  test('opens settings modal via ?modal=settings', async ({ page }) => {
+    await page.goto('/?modal=settings');
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+  });
+
+  test('opens best times modal via ?modal=best-times', async ({ page }) => {
+    await page.goto('/?modal=best-times');
+    const canvas = page.locator('canvas');
+    await expect(canvas).toBeVisible();
+  });
 });

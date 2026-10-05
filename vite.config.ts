@@ -30,8 +30,13 @@ export default defineConfig(({ command }) => {
     }
   );
 
+  const port = Number(env.PORT ?? '5188');
+
   const config: UserConfig = {
     plugins,
+    server: {
+      port,
+    },
     build: {
       // browser target
       target: 'baseline-widely-available',
