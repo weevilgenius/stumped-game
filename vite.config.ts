@@ -32,9 +32,9 @@ export default defineConfig(({ command }) => {
       name: 'stumped-service-worker',
       apply: 'build',
       generateBundle(_options, bundle) {
-        const assets = ['/', '/index.html', '/manifest.webmanifest', '/icon-512.jpg'];
+        const assets = ['./', './index.html', './manifest.webmanifest', './icon-512.jpg'];
         for (const fileName of Object.keys(bundle)) {
-          assets.push(`/${fileName}`);
+          assets.push(`./${fileName}`);
         }
         this.emitFile({
           type: 'asset',
@@ -47,6 +47,8 @@ export default defineConfig(({ command }) => {
 
   const config: UserConfig = {
     plugins,
+    // relative asset URLs so the build works from any subpath (e.g. GitHub Pages)
+    base: './',
     build: {
       // browser target
       target: 'baseline-widely-available',
@@ -98,11 +100,14 @@ export default defineConfig(({ command }) => {
 /**
  * A small offline cache. The built file names are hashed, so the list is
  * written at build time and the old cache is dropped on the next install.
+ * Cache names carry a `stumped-grok-` prefix and only those caches are touched,
+ * so other apps hosted on the same origin keep their offline caches.
  * @param assets paths to precache
  * @returns the service worker source
  */
 function serviceWorker(assets: readonly string[]): string {
-  return `const CACHE = 'stumped-${Date.now()}';
+  return `const PREFIX = 'stumped-grok-';
+const CACHE = PREFIX + '${Date.now()}';
 const ASSETS = ${JSON.stringify(assets)};
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -110,19 +115,18 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((hit) => hit || fetch(event.request).then((response) => {
-      const copy = response.clone();
-      void caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+  event.respondWith(caches.open(CACHE).then((cache) =>
+    cache.match(event.request).then((hit) => hit || fetch(event.request).then((response) => {
+      void cache.put(event.request, response.clone());
       return response;
-    }).catch(() => caches.match('/'))),
-  );
+    }).catch(() => cache.match('./'))),
+  ));
 });
 `;
 }

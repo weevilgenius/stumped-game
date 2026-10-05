@@ -2,14 +2,14 @@
   "name": "Stumped",
   "short_name": "Stumped",
   "description": "A woodland puzzle of stumps, rows, and patches.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#1E3326",
   "theme_color": "#1E3326",
   "icons": [
     {
-      "src": "/icon-512.jpg",
+      "src": "icon-512.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any"

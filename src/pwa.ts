@@ -7,6 +7,6 @@ export function registerServiceWorker(): void {
     return;
   }
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js');
+    void navigator.serviceWorker.register('./sw.js');
   });
 }
