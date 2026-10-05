@@ -31,9 +31,6 @@ const FREEBIE_CHANCE = [0, 0.15, 0.3, 0.5];
 /** Region repairs allowed per attempt before giving up on it. */
 const MAX_REPAIRS = 60;
 
-/** Number of distinct region colors in the palette. */
-const PALETTE_SIZE = 10;
-
 /* ========================================================= *\
  *  Random helpers                                           *
 \* ========================================================= */
@@ -243,7 +240,8 @@ export function generate(settings: GeneratorSettings, seed: number): Puzzle {
   if (!best) {
     throw new Error('unreachable: the loop runs until a board is found');
   }
-  const colors = shuffle(rng, Array.from({ length: PALETTE_SIZE }, (_, i) => i)).slice(0, size);
+  // The palette is in priority order: a board of size N uses its first N colors.
+  const colors = shuffle(rng, Array.from({ length: size }, (_, i) => i));
   const { board, solution, givens, tier: rated } = best;
   return { ...board, solution, givens, colors, tier: rated, silver: settings.silver, code };
 }

@@ -26,6 +26,12 @@
  *    --pages <range> PDF page ranges, e.g. "1-5, 8"           *
  *    --url <base>    Base URL to use; disables auto-start      *
  *    --wait <sel>    Wait for a CSS selector before capturing  *
+ *    --until <js>    Wait until a JavaScript expression is truthy,
+ *                    e.g. "window.stumped" for an open puzzle  *
+ *    --eval <js>     Run JavaScript in the page before capturing,
+ *                    to put the app in the state to capture. A
+ *                    returned promise is awaited. In dev, the
+ *                    puzzle scene is at `window.stumped`.
  *    --delay <ms>    Extra settle delay before capturing       *
 \* ========================================================= */
 
@@ -36,8 +42,11 @@ import process from 'node:process';
 import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
 
+/** Dev server port. Set PORT when 5173 belongs to another project. */
+const PORT = Number(process.env.PORT ?? 5173);
+
 /** Default base URL probed for an already-running dev server. */
-const DEFAULT_BASE_URL = 'http://localhost:5173';
+const DEFAULT_BASE_URL = `http://localhost:${PORT}`;
 
 /** Milliseconds to wait when probing for an existing dev server. */
 const PROBE_TIMEOUT_MS = 600;
@@ -59,6 +68,8 @@ const { values } = parseArgs({
     pages: { type: 'string' },
     url: { type: 'string' },
     wait: { type: 'string' },
+    until: { type: 'string' },
+    eval: { type: 'string' },
     delay: { type: 'string' },
   },
 });
@@ -115,7 +126,7 @@ let targetBaseUrl = baseUrl;
 
 if (!reuseExisting) {
   console.log('No dev server detected; starting a temporary Vite server...');
-  server = await createServer({ server: { port: 5173 } });
+  server = await createServer({ server: { port: PORT } });
   await server.listen();
   targetBaseUrl = server.resolvedUrls?.local[0] ?? baseUrl;
 } else {
@@ -144,6 +155,12 @@ try {
 
   if (values.wait) {
     await page.waitForSelector(values.wait);
+  }
+  if (values.until) {
+    await page.waitForFunction(values.until);
+  }
+  if (values.eval) {
+    await page.evaluate(values.eval);
   }
   if (values.delay) {
     await page.waitForTimeout(Number(values.delay));

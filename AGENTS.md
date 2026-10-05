@@ -21,6 +21,14 @@ changes:
 - Check all three: `pnpm run check`
 - Build project: `pnpm run build`
 
+## Dev server port
+
+The dev server, the e2e tests, and the screenshot tool all use port 5173. If
+another project's dev server already has that port, set `PORT` so this project
+gets its own, e.g. `PORT=5642 pnpm test:e2e`. The e2e run also serves the
+production build on port 4173 for the offline test; set `PREVIEW_PORT` to move
+it. Never reuse or stop a server that belongs to another project.
+
 ## Visual Validation (Screenshots / Prints)
 
 To inspect the rendered UI (light/dark mode, mobile layout, general layout),
@@ -41,6 +49,10 @@ for the capture and stopped afterwards.
   - `--png` output a PNG when used with `--print`
   - `--pages <range>` PDF page ranges, e.g. `"1-5, 8"` (requires `--print`)
   - `--wait <selector>` wait for a CSS selector before capturing
+  - `--until <js>` wait until a JavaScript expression is truthy, e.g.
+    `"window.stumped"` (the puzzle scene, exposed in dev once a puzzle is open)
+  - `--eval <js>` run JavaScript in the page before capturing, to put the app
+    in the state to capture; a returned promise is awaited
   - `--delay <ms>` extra settle delay before capturing
   - `--url <base>` target an explicit base URL (disables auto-start)
 
@@ -50,6 +62,9 @@ for the capture and stopped afterwards.
   pnpm screenshot --device "iPhone 15" --out screenshots/mobile.png
   pnpm screenshot --print --pages "1-2,4" --out screenshots/print.pdf
   pnpm screenshot --print --png --out screenshots/print.png
+  # A puzzle from its seed code, with the owl hint open:
+  pnpm screenshot --device "iPhone 15" --path "/?code=1D580000048" \
+    --until "window.stumped" --eval "stumped.useHint('owl')" --out screenshots/owl.png
   ```
 
   Output goes to `screenshots/` (gitignored). After capturing, read the PNG or
@@ -63,6 +78,10 @@ behaviour/structure, not pixels, so they are stable across platforms and need
 no committed baseline images. For visual checks, use `pnpm screenshot` above.
 
 - Run e2e tests: `pnpm test:e2e`
+- `e2e/offline.e2e.ts` runs against the production build, because only that
+  has the service worker. The other tests run against the dev server, where the
+  puzzle scene is exposed as `window.stumped` so tests can find squares and
+  buttons on the canvas.
 - Interactive UI mode: `pnpm test:e2e:ui`
 
 ## Coding Conventions

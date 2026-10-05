@@ -75,8 +75,9 @@ Each attempt does the following, all drawn from one `mulberry32(seed)` stream:
   | 10 | 0.2 to 0.5 s | a few seconds |
 
   Run it in a Web Worker and prepare the next puzzle ahead of time.
-- **Colors:** `colors` maps each region to a palette index from 0 to 9. The UI
-  owns the actual palette.
+- **Colors:** `colors` maps each region to a palette index. A board of size N
+  uses indexes 0 to N - 1 in a random order, because the palette is in priority
+  order. The UI owns the actual palette.
 - **Tuning constants:** at the top of `generator.ts`.
 
 ## Seed codes

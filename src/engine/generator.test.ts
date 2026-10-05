@@ -70,7 +70,7 @@ describe('generate', () => {
         expect(countSolutions(puzzle), label).toBe(1);
         expect(puzzle.givens.every((cell) => puzzle.solution.includes(cell)), label).toBe(true);
         expect(new Set(puzzle.colors).size, label).toBe(size);
-        expect(puzzle.colors.every((color) => color >= 0 && color < 10), label).toBe(true);
+        expect(puzzle.colors.every((color) => color >= 0 && color < size), label).toBe(true);
         expect(decodeSeedCode(puzzle.code), label).toEqual({ settings, seed });
 
         const result = solve(puzzle, puzzle.givens);

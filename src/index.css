@@ -1,8 +1,339 @@
+:root {
+  --bg: #20382a;
+  --panel: #2b4936;
+  --wood: #8a5a33;
+  --wood-dark: #5e3b1f;
+  --gold: #e4bb49;
+  --cream: #f7edd5;
+  --ink: #2b1d12;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Layout rules below set display, which would otherwise beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+html,
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  display: grid;
-  place-content: center;
-  min-height: 100vh;
+  height: 100%;
   margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  min-height: 44px;
+  border: 2px solid var(--wood-dark);
+  border-radius: 12px;
+}
+
+button {
+  padding: 0 16px;
+  background: var(--wood);
+  color: var(--cream);
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:active {
+  filter: brightness(0.85);
+}
+
+button.primary {
+  min-height: 56px;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
+input,
+select {
+  padding: 0 12px;
+  background: var(--cream);
+  color: var(--ink);
+}
+
+input[type='checkbox'] {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  accent-color: var(--gold);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Main screen ---------- */
+
+#menu {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding:
+    max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+h1 {
+  width: min(100%, 480px);
+  margin: 0;
+}
+
+h1 img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.panel {
+  width: min(100%, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+#thumb {
+  flex: none;
+  display: grid;
+  gap: 1px;
+  width: 116px;
+  height: 116px;
+  padding: 0;
+  overflow: hidden;
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+#thumb:disabled {
+  cursor: default;
+}
+
+#thumb i {
+  background: center / 84% no-repeat;
+}
+
+.about {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#info {
+  margin: 0;
+  line-height: 1.5;
+}
+
+#info b:first-child {
+  text-transform: capitalize;
+}
+
+#info code {
+  -webkit-user-select: all;
+  user-select: all;
+  letter-spacing: 0.06em;
+}
+
+.icon {
+  height: 1.3em;
+  vertical-align: -0.3em;
+}
+
+.star {
+  color: var(--gold);
+}
+
+#status {
+  display: none;
+  margin: 0;
+  text-align: center;
+}
+
+/* While a puzzle is being generated. */
+#menu.busy {
+  pointer-events: none;
+}
+
+#menu.busy #status {
+  display: block;
+}
+
+#menu.busy button {
+  opacity: 0.6;
+}
+
+#code {
+  flex: 1.6;
+  -webkit-user-select: text;
+  user-select: text;
+  text-transform: uppercase;
+}
+
+#code::placeholder {
+  text-transform: none;
+}
+
+/* Short and wide, such as a phone on its side: logo beside the controls. */
+@media (orientation: landscape) and (max-height: 560px) {
+  #menu {
+    flex-direction: row;
+    justify-content: center;
+    height: 100%;
+    padding-block: 12px;
+  }
+
+  h1 {
+    flex: none;
+    width: min(42vw, 100vh - 24px);
+  }
+
+  .panel {
+    max-height: 100%;
+    gap: 8px;
+    overflow-y: auto;
+  }
+
+  button.primary {
+    min-height: 44px;
+  }
+
+  h1 img {
+    aspect-ratio: 1;
+  }
+
+  #current {
+    padding: 8px 12px;
+  }
+}
+
+/* ---------- Puzzle screen ---------- */
+
+#game {
+  position: fixed;
+  inset:
+    env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  overflow: hidden;
+  touch-action: none;
+}
+
+/*
+ * The canvas always fills the screen, and script sets only its resolution.
+ * Phaser also writes an inline size, but skips that on a resize at a device
+ * pixel ratio of 1, which would leave the canvas stretched at its old size.
+ */
+#game canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ---------- Dialogs ---------- */
+
+dialog {
+  width: min(92vw, 420px);
+  max-height: 90dvh;
+  padding: 20px;
+  border: 2px solid var(--wood-dark);
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--cream);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+dialog h2 {
+  margin: 0;
+}
+
+dialog label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+
+fieldset {
+  margin: 0;
+  padding: 4px 12px 8px;
+  border: 1px solid rgb(247 237 213 / 0.3);
+  border-radius: 12px;
+}
+
+fieldset label + label {
+  margin-top: 6px;
+}
+
+#timesList {
+  min-height: 120px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+#timesList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgb(247 237 213 / 0.15);
+}
+
+#timesList time {
+  margin-left: auto;
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+#timesList .star {
+  width: 1em;
 }
