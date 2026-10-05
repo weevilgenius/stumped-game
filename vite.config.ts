@@ -32,6 +32,8 @@ export default defineConfig(({ command }) => {
 
   const config: UserConfig = {
     plugins,
+    // relative asset URLs so the build works from any subpath (e.g. GitHub Pages)
+    base: './',
     build: {
       // browser target
       target: 'baseline-widely-available',

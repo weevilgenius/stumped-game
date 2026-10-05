@@ -30,12 +30,12 @@ and Phaser 4 guidance available. Each received the prompt:
 
 Each agent was run at high or extra high effort level.
 
-| Agent | Branch | Tokens | Cost |
-| --- | --- | ---: | ---: |
-| Gemini 3.8 Flash | [gemini](https://github.com/weevilgenius/stumped-game/tree/gemini) | 27.8 million | $3.24 |
-| Grok 4.7 | [grok](https://github.com/weevilgenius/stumped-game/tree/grok) | 16.2 million | $6.00 |
-| Fable 5.1 | [fable](https://github.com/weevilgenius/stumped-game/tree/fable) | 21.4 million | $26.40 |
-| GPT 6 Astra | [astra](https://github.com/weevilgenius/stumped-game/tree/astra) | 8.3 million | $14.99 |
+| Agent | Branch | Play | Tokens | Cost |
+| --- | --- | --- | ---: | ---: |
+| Gemini 3.8 Flash | [gemini](https://github.com/weevilgenius/stumped-game/tree/gemini) | [Play](https://weevilgenius.github.io/stumped-game/gemini/) | 27.8 million | $3.24 |
+| Grok 4.7 | [grok](https://github.com/weevilgenius/stumped-game/tree/grok) | [Play](https://weevilgenius.github.io/stumped-game/grok/) | 16.2 million | $6.00 |
+| Fable 5.1 | [fable](https://github.com/weevilgenius/stumped-game/tree/fable) | [Play](https://weevilgenius.github.io/stumped-game/fable/) | 21.4 million | $26.40 |
+| GPT 6 Astra | [astra](https://github.com/weevilgenius/stumped-game/tree/astra) | [Play](https://weevilgenius.github.io/stumped-game/astra/) | 8.3 million | $14.99 |
 
 ### Notes
 
