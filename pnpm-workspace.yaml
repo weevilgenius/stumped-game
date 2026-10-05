@@ -1,4 +1,0 @@
-allowBuilds:
-  esbuild: true
-autoDedupe: true
-saveTypes: true
