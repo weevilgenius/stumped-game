@@ -188,7 +188,20 @@ The app has two screens: a main screen for everything outside of play, and a puz
 
 Discreet animations are also fine for a correct reveal and for an X appearing or disappearing, as long as input stays live while they play. The wrong-reveal animation is the one exception: it blocks input until it finishes.
 
-**Colors.** Ten solid colors that stay distinct from each other in any pairing, assigned to regions at random for each puzzle. There is no symbol overlay mode.
+**Colors.** Ten solid colors, taken from Meowdoku. There is no symbol overlay mode. The list is in priority order. A puzzle of size N uses the first N and assigns those to regions at random. The first five are one hue each: gold, blue, rose, green, and teal. The rest are similar enough to be possibly confusing, organized so they stay off the smaller boards. Orange sits next to gold, brown next to rose, purple next to blue, and light blue next to teal.
+
+| Name | Hex |
+| --- | --- |
+| Gold | `#E4BB49` |
+| Blue | `#5B75B2` |
+| Rose | `#D57374` |
+| Green | `#AED994` |
+| Teal | `#48B5B2` |
+| Pink | `#FAB4D0` |
+| Light blue | `#A7BFD7` |
+| Purple | `#9778D6` |
+| Brown | `#AD6F48` |
+| Orange | `#FEAA6C` |
 
 **Orientation.** Portrait and landscape are both supported on phone and tablet.
 
