@@ -21,7 +21,7 @@
     "screenshot": "node scripts/screenshot.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
   },
-  "packageManager": "pnpm@12.9.1",
+  "packageManager": "pnpm@12.10.1",
   "private": true,
   "type": "module",
   "engines": {
