@@ -33,13 +33,15 @@ https://weevilgenius.github.io/stumped-game/<agent>/  gemini, grok, fable, astra
 
 All five apps, and any other project site under `weevilgenius.github.io`,
 share one origin, which means:
-- **localStorage is shared.** Main must use its own key prefix and must not
+- **localStorage is shared.** Main uses the key prefix `stumped-main.`
+  (`STORAGE_PREFIX` in `src/index.ts`) and must not
   reuse the agent keys (`stumped_*`, `stumped-save-v1`, `stumped.game`,
   `stumped.settings`, `stumped.v1`, etc.), even when porting code from an agent
   branch, or saves will clobber each other. Never call `localStorage.clear()`
   or iterate over all keys.
-- **Cache Storage is shared.** A service worker on main must name its caches
-  with a unique prefix (the agents use `stumped-grok-`, `stumped-fable-`, and
+- **Cache Storage is shared.** Main's service worker (emitted by
+  `vite.config.ts` in production builds) names its caches with the prefix
+  `stumped-main-`. It must keep a unique prefix (the agents use `stumped-grok-`, `stumped-fable-`, and
   `stumped-astra-`),
   only delete caches with that prefix, and only read from its own cache (open
   it by name; do not use the global `caches.match`).
@@ -47,6 +49,22 @@ share one origin, which means:
   their own service worker are controlled by it, but gemini has none, so
   main's worker controls gemini's pages too. Its fetch handler should answer
   only from its own cache and otherwise fall through to the network.
+
+## Source Layout
+
+Main is built from the Fable bake-off implementation (step 1 of the
+consolidation plan in `docs/summary.md`).
+
+- `src/engine/` - pure puzzle generator, solver, and seed codes (see its README)
+- `src/game.ts` - plain-JSON game model: marks, undo, hints, explanations
+- `src/puzzleScene.ts` - Phaser scene: board drawing, gestures, animations
+- `src/index.ts` - DOM screens, localStorage, worker prefetch, service worker
+  registration
+- `src/worker.ts` - generates puzzles off the main thread
+
+`src/engine/fixtures.test.ts` records the puzzles that fixed seed codes build.
+Never update its snapshot to make it pass: if a change alters the board an
+existing code produces, bump `GENERATOR_VERSION` instead.
 
 ## Visual Validation (Screenshots / Prints)
 
@@ -68,6 +86,10 @@ for the capture and stopped afterwards.
   - `--png` output a PNG when used with `--print`
   - `--pages <range>` PDF page ranges, e.g. `"1-5, 8"` (requires `--print`)
   - `--wait <selector>` wait for a CSS selector before capturing
+  - `--until <js>` wait until a JavaScript expression is truthy, e.g.
+    `"window.stumped"` (the puzzle scene, exposed in dev once a puzzle is open)
+  - `--eval <js>` run JavaScript in the page before capturing, to put the app
+    in the state to capture; a returned promise is awaited
   - `--delay <ms>` extra settle delay before capturing
   - `--url <base>` target an explicit base URL (disables auto-start)
 
@@ -77,10 +99,17 @@ for the capture and stopped afterwards.
   pnpm screenshot --device "iPhone 15" --out screenshots/mobile.png
   pnpm screenshot --print --pages "1-2,4" --out screenshots/print.pdf
   pnpm screenshot --print --png --out screenshots/print.png
+  # A puzzle from its seed code, with the owl hint open:
+  pnpm screenshot --device "iPhone 15" --path "/?code=1D580000048" \
+    --until "window.stumped" --eval "stumped.useHint('owl')" --out screenshots/owl.png
   ```
 
   Output goes to `screenshots/` (gitignored). After capturing, read the PNG or
-  PDF to inspect the layout.
+  PDF to inspect the layout. For this game, prefer tests with the following devices:
+
+  - "Desktop Chrome HiDPI"
+  - "Pixel 10 Pro"
+  - "iPad 11 Pro landscape"
 
 ### End-to-end tests
 
@@ -90,6 +119,10 @@ behaviour/structure, not pixels, so they are stable across platforms and need
 no committed baseline images. For visual checks, use `pnpm screenshot` above.
 
 - Run e2e tests: `pnpm test:e2e`
+- `e2e/offline.e2e.ts` runs against the production build, because only that
+  has the service worker. The other tests run against the dev server, where the
+  puzzle scene is exposed as `window.stumped` so tests can find squares and
+  buttons on the canvas.
 - Interactive UI mode: `pnpm test:e2e:ui`
 
 ## Coding Conventions

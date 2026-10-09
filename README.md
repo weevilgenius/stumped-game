@@ -16,6 +16,15 @@ woodpeckers, owls, and squirrels.
 See [Stumped Product Requirements](docs/Stumped%20Product%20Requirements.md)
 for the full design and game rules.
 
+## Playing
+
+[Play it](https://weevilgenius.github.io/stumped-game/), or run it locally:
+
+```
+pnpm install
+pnpm run dev
+```
+
 ## Agent bake-off
 
 Four agents independently built the game from clean copies of the same commit,

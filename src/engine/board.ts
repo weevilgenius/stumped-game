@@ -24,7 +24,7 @@ export interface Puzzle extends Board {
   readonly solution: readonly number[];
   /** Stump cells revealed at the start. */
   readonly givens: readonly number[];
-  /** Palette index (0 to 9) for each region. */
+  /** Palette index (0 to size - 1) for each region. */
   readonly colors: readonly number[];
   /** Rated difficulty. */
   readonly tier: Tier;
