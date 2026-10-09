@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import type { Game } from '../src/game';
 
 /**
@@ -41,6 +42,7 @@ interface Scene {
   explanation: object | null;
   spots: Record<string, Spot>;
   cellSpot: (cell: number) => Spot;
+  game: { pause: () => void; resume: () => void };
 }
 
 /** Waits for the puzzle screen to be up and running a game in progress. */
@@ -67,6 +69,12 @@ const marks = async (page: Page, cells: number[]): Promise<number[]> => {
   const all = (await model(page)).marks;
   return cells.map((cell) => all[cell]);
 };
+
+/** Drives the browser visibility boundary even when headless Chromium keeps delivering frames. */
+const setHidden = (page: Page, hidden: boolean): Promise<void> => page.evaluate((value) => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => value });
+  document.dispatchEvent(new Event('visibilitychange'));
+}, hidden);
 
 const cellSpot = (page: Page, cell: number): Promise<Spot> => page.evaluate((target) => (
   (window as unknown as { stumped: Scene }).stumped.cellSpot(target)), cell);
@@ -262,6 +270,108 @@ test('each hint works once', async ({ page }) => {
   expect(explained.acorns).toBe(3);
 });
 
+test('a pending wrong-X explanation survives reload, applies on Done, and stays applied after undo', async ({ page }) => {
+  await openPuzzle(page);
+  await tap(page, 0);
+  await tap(page, 6);
+  await page.waitForTimeout(TAP_GAP_MS);
+  await tap(page, 6);
+  await page.waitForTimeout(TAP_GAP_MS);
+  await tap(page, 6);
+  await press(page, 'owl');
+  expect((await model(page)).explaining).toEqual({ type: 'wrongX', cell: 6 });
+  expect(await marks(page, [0, 6])).toEqual([X, X]);
+
+  await page.reload();
+  await puzzleReady(page);
+  expect((await model(page)).explaining).toEqual({ type: 'wrongX', cell: 6 });
+  expect((await model(page)).hints).toEqual(['owl']);
+  await tap(page, 1);
+  expect(await marks(page, [0, 1, 6])).toEqual([X, 0, X]);
+  await press(page, 'done');
+  await press(page, 'undo');
+  expect(await marks(page, [0, 6])).toEqual([0, 0]);
+  await page.reload();
+  await puzzleReady(page);
+  const restored = await model(page);
+  expect(restored.explaining).toBeNull();
+  expect(restored.hints).toEqual(['owl']);
+  expect(await marks(page, [0, 6])).toEqual([0, 0]);
+});
+
+test('time advances during play, explanations and feedback, but pauses in the menu and background', async ({ page }) => {
+  await page.clock.install();
+  await openPuzzle(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const elapsed = async (): Promise<number> => (await model(page)).elapsed;
+  const advances = async (): Promise<void> => {
+    const before = await elapsed();
+    await page.clock.runFor(500);
+    const delta = await elapsed() - before;
+    expect(delta).toBeGreaterThan(450);
+    expect(delta).toBeLessThanOrEqual(520);
+  };
+  await advances();
+
+  await press(page, 'back');
+  await page.clock.runFor(100);
+  const paused = await elapsed();
+  await page.clock.fastForward(5000);
+  expect(await elapsed()).toBe(paused);
+  await page.locator('#thumb').click();
+  await page.clock.runFor(100);
+  await advances();
+
+  for (const duration of [500, 5000]) {
+    const before = await elapsed();
+    await setHidden(page, true);
+    if (duration < 1000) {
+      await page.clock.runFor(duration);
+    } else {
+      await page.clock.fastForward(duration);
+    }
+    expect(await elapsed()).toBe(before);
+    await setHidden(page, false);
+    await advances();
+
+    // Suppress scene updates to simulate browsers that suspend frames while hidden.
+    const suspended = await elapsed();
+    await page.evaluate(() => (window as unknown as { stumped: Scene }).stumped.game.pause());
+    await setHidden(page, true);
+    await page.clock.fastForward(duration);
+    expect(await elapsed()).toBe(suspended);
+    await setHidden(page, false);
+    await page.evaluate(() => (window as unknown as { stumped: Scene }).stumped.game.resume());
+    await advances();
+  }
+
+  await tap(page, 6);
+  const owl = await page.evaluate(() => (window as unknown as { stumped: Scene }).stumped.spots.owl);
+  await page.mouse.click(owl.x, owl.y);
+  await page.clock.runFor(SWAP_GUARD_MS);
+  expect((await model(page)).explaining).toEqual({ type: 'wrongX', cell: 6 });
+  await advances();
+  const done = await page.evaluate(() => (window as unknown as { stumped: Scene }).stumped.spots.done);
+  await page.mouse.click(done.x, done.y);
+  await page.clock.runFor(SWAP_GUARD_MS);
+  await doubleTap(page, 6);
+  await doubleTap(page, 7);
+  expect((await model(page)).acorns).toBe(2);
+  await advances();
+  await tap(page, 0);
+  expect(await marks(page, [0])).toEqual([0]);
+  await page.clock.runFor(WRONG_REVEAL_MS);
+  await tap(page, 0);
+  expect(await marks(page, [0])).toEqual([X]);
+  for (const cell of SOLUTION.filter((cell) => cell !== 6)) {
+    await doubleTap(page, cell);
+  }
+  expect((await model(page)).status).toBe('won');
+  const finished = await elapsed();
+  await page.clock.runFor(500);
+  expect(await elapsed()).toBe(finished);
+});
+
 test('the puzzle is saved: back and resume, and a relaunch, lose nothing', async ({ page }) => {
   await openPuzzle(page);
   await tap(page, 0);
@@ -304,11 +414,38 @@ test('turning the screen lays the board out again and taps still land', async ({
   expect(await marks(page, [0, 1, 63])).toEqual([X, X, X]);
 });
 
-test('solving returns to the main screen and records a clean time', async ({ page }) => {
+test('resizing a hidden canvas then resuming preserves marks and immediate hit accuracy', async ({ page }) => {
   await openPuzzle(page);
+  await tap(page, 0);
+  await press(page, 'back');
+  await expect(page.locator('#menu')).toBeVisible();
+  const { width, height } = page.viewportSize()!;
+  await page.setViewportSize({ width: height, height: width });
+  await page.locator('#thumb').click();
+  await puzzleReady(page);
+  await tap(page, 63);
+  await doubleTap(page, 6);
+  expect(await marks(page, [0, 6, 63])).toEqual([X, STUMP, X]);
+});
+
+test('solving records once through repeated input, banner resize, reloads and a retry', async ({ page }) => {
+  await page.clock.install();
+  await openPuzzle(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await solve(page);
   expect((await model(page)).status).toBe('won');
-  await expect(page.locator('#menu')).toBeVisible({ timeout: 5000 });
+  const finished = (await model(page)).elapsed;
+  await doubleTap(page, SOLUTION.at(-1)!);
+  const { width, height } = page.viewportSize()!;
+  await page.setViewportSize({ width: height, height: width });
+  await page.clock.runFor(500);
+  expect((await model(page)).status).toBe('won');
+  expect((await model(page)).elapsed).toBe(finished);
+  await expect(page.locator('#menu')).toBeHidden();
+  // Reload while the win banner is still up, before its delayed exit.
+  await page.clock.resume();
+  await page.reload();
+  await expect(page.locator('#menu')).toBeVisible();
   await expect(page.locator('#info')).toContainText('Solved in');
   await expect(page.locator('#info .star')).toBeVisible();
   await expect(page.locator('#thumb')).toBeDisabled();
@@ -316,6 +453,10 @@ test('solving returns to the main screen and records a clean time', async ({ pag
   await page.getByRole('button', { name: 'Best times' }).click();
   await expect(page.locator('#timesList li')).toHaveCount(1);
   await expect(page.locator('#timesList .star')).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Best times' }).click();
+  await expect(page.locator('#timesList li')).toHaveCount(1);
   await page.getByRole('button', { name: 'Close' }).click();
 
   // A retry is a repeat play: it is recorded too, but cannot be clean.
@@ -325,6 +466,7 @@ test('solving returns to the main screen and records a clean time', async ({ pag
   const retry = await model(page);
   expect([retry.repeat, retry.marks.every((mark) => mark === 0)]).toEqual([true, true]);
   await solve(page);
+  await page.clock.runFor(3000);
   await expect(page.locator('#menu')).toBeVisible({ timeout: 5000 });
   await page.reload();
   await page.getByRole('button', { name: 'Best times' }).click();
@@ -393,4 +535,26 @@ test('touch taps mark squares', async ({ page, hasTouch }) => {
   await page.touchscreen.tap(stump.x, stump.y);
   await page.touchscreen.tap(stump.x, stump.y);
   expect(await marks(page, [0, 6])).toEqual([X, STUMP]);
+});
+
+test('touch drags fill sparse crossings and spare diagonal neighbors', async ({ page, hasTouch }) => {
+  test.skip(!hasTouch, 'needs a touch screen');
+  await openPuzzle(page);
+  const touch = await page.context().newCDPSession(page);
+  const drag = async (from: number, to: number): Promise<void> => {
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart', touchPoints: [{ ...await cellSpot(page, from), id: 1 }],
+    });
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchMove', touchPoints: [{ ...await cellSpot(page, to), id: 1 }],
+    });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await drag(8, 15);
+  expect(await marks(page, [8, 9, 10, 11, 12, 13, 14, 15])).toEqual(Array(8).fill(X));
+  await press(page, 'undo');
+  expect(await marks(page, [8, 9, 10, 11, 12, 13, 14, 15])).toEqual(Array(8).fill(0));
+  await drag(0, 18);
+  expect(await marks(page, [0, 9, 18, 1, 8, 10, 17])).toEqual([X, X, X, 0, 0, 0, 0]);
+  await touch.detach();
 });

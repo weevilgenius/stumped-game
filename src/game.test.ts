@@ -27,6 +27,13 @@ const tap = (game: Game, cell: number): boolean => beginStroke(game, cell) !== n
 /** A double tap, the way the board delivers it: a single tap, then the second tap. */
 const tapTwice = (game: Game, cell: number): ReturnType<typeof doubleTap> => doubleTap(game, cell, tap(game, cell));
 
+/** Exhausts the active history, including entries older than a permanent effect. */
+const undoAll = (game: Game): void => {
+  while (undo(game)) {
+    // Keep going until the history is empty.
+  }
+};
+
 describe('newGame', () => {
   it('starts with three acorns, or one in silver acorn mode', () => {
     expect(fresh().acorns).toBe(3);
@@ -87,6 +94,29 @@ describe('marking', () => {
 });
 
 describe('reveals', () => {
+  it.each([
+    ['correct reveal', 1, MARK_STUMP, (game: Game) => tapTwice(game, 1)],
+    ['wrong reveal', 2, MARK_RED, (game: Game) => tapTwice(game, 2)],
+    ['woodpecker', 22, MARK_STUMP, (game: Game) => woodpecker(game)],
+    ['owl forced reveal', 22, MARK_STUMP, (game: Game) => {
+      expect(explain(game)).toMatchObject({ type: 'step', step: { type: 'forced', place: 22 } });
+      applyExplanation(game);
+    }],
+  ] as const)('%s survives older placement and erasure steps in a mixed stroke', (_name, cell, mark, reveal) => {
+    const game = fresh();
+    const stroke = beginStroke(game, 0);
+    extendStroke(game, cell, stroke);
+    tap(game, cell);
+    reveal(game);
+
+    undoAll(game);
+    expect([game.marks[0], game.marks[cell]]).toEqual([MARK_NONE, mark]);
+    expect([game.acorns, game.acornsLost]).toEqual(mark === MARK_RED ? [2, 1] : [3, 0]);
+    if (_name === 'woodpecker' || _name === 'owl forced reveal') {
+      expect(game.hints).toEqual([_name === 'woodpecker' ? 'woodpecker' : 'owl']);
+    }
+  });
+
   it('reveals a stump on a double tap, with or without an X', () => {
     const game = fresh();
     expect(tapTwice(game, 1)).toEqual({ correct: true });
@@ -140,6 +170,31 @@ describe('reveals', () => {
 });
 
 describe('hypothesis mode', () => {
+  it.each([false, true])('preserves normal history when leaving with keep=%s and starts a fresh scratch layer', (keep) => {
+    const game = fresh();
+    const stroke = beginStroke(game, 0);
+    extendStroke(game, 5, stroke);
+    tap(game, 5);
+    enterHypothesis(game);
+    tap(game, 5);
+    tapTwice(game, 10);
+    undo(game);
+    expect([game.hypo?.[5], game.hypo?.[10], game.marks[0], game.marks[5]])
+      .toEqual([MARK_X, MARK_NONE, MARK_X, MARK_NONE]);
+    tapTwice(game, 10);
+    leaveHypothesis(game, keep);
+
+    enterHypothesis(game);
+    expect(game.hypo?.every((mark) => mark === MARK_NONE)).toBe(true);
+    expect(undo(game)).toBe(false);
+    expect(game.marks[0]).toBe(MARK_X);
+    leaveHypothesis(game, false);
+    undoAll(game);
+    expect([game.marks[0], game.marks[5], game.marks[10]])
+      .toEqual([MARK_NONE, keep ? MARK_X : MARK_NONE, MARK_NONE]);
+    expect([game.acorns, game.hints]).toEqual([3, []]);
+  });
+
   it('draws hypothesis X\'s without touching normal marks', () => {
     const game = fresh();
     tap(game, 0);
@@ -219,6 +274,51 @@ describe('hypothesis mode', () => {
 });
 
 describe('hints', () => {
+  it('squirrel seals older placement and erasure entries without sealing unrelated cells', () => {
+    const game = fresh();
+    const placing = beginStroke(game, 0);
+    [2, 3, 5].forEach((cell) => extendStroke(game, cell, placing));
+    const erasing = beginStroke(game, 0);
+    [2, 3].forEach((cell) => extendStroke(game, cell, erasing));
+    expect(squirrel(game, () => 0)).toEqual([0, 2, 3]);
+
+    undoAll(game);
+    expect([0, 2, 3, 5].map((cell) => game.marks[cell])).toEqual([MARK_X, MARK_X, MARK_X, MARK_NONE]);
+    expect(game.hints).toEqual(['squirrel']);
+  });
+
+  it('owl clearing a wrong X cannot resurrect it from older erasure entries', () => {
+    const game = fresh();
+    const stroke = beginStroke(game, 0);
+    extendStroke(game, 8, stroke);
+    tap(game, 8);
+    tap(game, 8);
+    expect(explain(game)).toEqual({ type: 'wrongX', cell: 8 });
+    applyExplanation(game);
+
+    undoAll(game);
+    expect([game.marks[0], game.marks[8]]).toEqual([MARK_NONE, MARK_NONE]);
+    expect(game.hints).toEqual(['owl']);
+  });
+
+  it('owl eliminations survive older placement and erasure entries', () => {
+    const game = fresh({ givens: [22] });
+    const stroke = beginStroke(game, 0);
+    extendStroke(game, 20, stroke);
+    tap(game, 20);
+    const explanation = explain(game);
+    expect(explanation).toMatchObject({ type: 'step', step: { type: 'elimination', stump: 22 } });
+    if (explanation?.type !== 'step' || explanation.step.type !== 'elimination') {
+      throw new Error('Expected an elimination');
+    }
+    applyExplanation(game);
+
+    undoAll(game);
+    expect(explanation.step.eliminated.every((cell) => game.marks[cell] === MARK_X)).toBe(true);
+    expect([game.marks[0], game.marks[22]]).toEqual([MARK_NONE, MARK_STUMP]);
+    expect(game.hints).toEqual(['owl']);
+  });
+
   it('allows each hint once, and none in hypothesis mode', () => {
     const game = fresh();
     expect(canHint(game, 'squirrel')).toBe(true);
@@ -351,6 +451,35 @@ describe('results', () => {
 });
 
 describe('saving', () => {
+  it.each(['wrongX', 'forced', 'elimination'] as const)('restores and applies a pending %s explanation exactly once', (kind) => {
+    const game = fresh(kind === 'elimination' ? { givens: [22] } : {});
+    const cell = kind === 'wrongX' ? 8 : kind === 'forced' ? 22 : 20;
+    const stroke = beginStroke(game, 0);
+    extendStroke(game, cell, stroke);
+    tap(game, cell);
+    if (kind === 'wrongX') {
+      tap(game, cell);
+    }
+    const explanation = explain(game)!;
+    expect(explanation).toMatchObject(kind === 'wrongX' ? { type: kind } : { type: 'step', step: { type: kind } });
+    const before = [...game.marks];
+    const restored = JSON.parse(JSON.stringify(game)) as Game;
+    expect(restored.marks).toEqual(before);
+    expect(restored.hints).toEqual(['owl']);
+    expect(explainPages(restored, restored.explaining!)).toEqual(explainPages(game, explanation));
+
+    applyExplanation(restored);
+    const applied = [...restored.marks];
+    expect(applied).not.toEqual(before);
+    applyExplanation(restored);
+    expect(restored.marks).toEqual(applied);
+    expect(restored.explaining).toBeNull();
+    undoAll(restored);
+    expect(restored.marks[cell]).toBe(kind === 'wrongX' ? MARK_NONE : kind === 'forced' ? MARK_STUMP : MARK_X);
+    expect(restored.marks[0]).toBe(MARK_NONE);
+    expect([restored.acorns, restored.hints]).toEqual([3, ['owl']]);
+  });
+
   it('survives a JSON round trip mid-game', () => {
     const game = fresh();
     tap(game, 0);

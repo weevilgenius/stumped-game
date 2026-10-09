@@ -60,7 +60,7 @@ const END_MS = 2200;
  * double tap on one button would also press whichever button took its place.
  */
 const SWAP_GUARD_MS = 300;
-/** Frame gaps longer than this are time spent in the background, which the timer skips. */
+/** shortcut: skips foreground gaps of at least one second, replace with the timestamp clock in step 3. */
 const TIMER_GAP_MS = 1000;
 /** Sharpest canvas scale used, in device pixels per CSS pixel. */
 const MAX_PIXEL_RATIO = 3;
@@ -185,7 +185,15 @@ class PuzzleScene extends Phaser.Scene {
     // The scale manager outlives the scene, so its listener is removed by hand.
     const rebuild = (): void => this.build();
     this.scale.on('resize', rebuild);
-    this.events.once('shutdown', () => this.scale.off('resize', rebuild));
+    // A short background pause must not be counted as a normal frame gap on return.
+    const onResume = (): void => {
+      this.lastTick = performance.now();
+    };
+    this.game.events.on(Phaser.Core.Events.RESUME, onResume);
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', rebuild);
+      this.game.events.off(Phaser.Core.Events.RESUME, onResume);
+    });
     this.build();
     if (import.meta.env.DEV) {
       Object.assign(window, { stumped: this });
@@ -196,7 +204,7 @@ class PuzzleScene extends Phaser.Scene {
     const now = performance.now();
     const gap = now - this.lastTick;
     this.lastTick = now;
-    if (this.model.status === 'playing' && gap < TIMER_GAP_MS) {
+    if (!document.hidden && this.model.status === 'playing' && gap < TIMER_GAP_MS) {
       this.model.elapsed += gap;
     }
     const seconds = Math.floor(this.model.elapsed / 1000);
