@@ -84,14 +84,8 @@ export default defineConfig(({ command }) => {
 
   const config: UserConfig = {
     plugins,
-    // relative asset URLs, so the app can be hosted at any path
+    // relative asset URLs so the build works from any subpath (e.g. GitHub Pages)
     base: './',
-    server: {
-      // Set PORT to run beside another project's dev server. Strict, so the
-      // e2e tests and the screenshot tool never end up talking to the wrong app.
-      port: Number(env.PORT ?? 5173),
-      strictPort: true,
-    },
     build: {
       // browser target
       target: 'baseline-widely-available',

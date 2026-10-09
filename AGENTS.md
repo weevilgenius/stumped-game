@@ -21,13 +21,32 @@ changes:
 - Check all three: `pnpm run check`
 - Build project: `pnpm run build`
 
-## Dev server port
+## Hosting (GitHub Pages)
 
-The dev server, the e2e tests, and the screenshot tool all use port 5173. If
-another project's dev server already has that port, set `PORT` so this project
-gets its own, e.g. `PORT=5642 pnpm test:e2e`. The e2e run also serves the
-production build on port 4173 for the offline test; set `PREVIEW_PORT` to move
-it. Never reuse or stop a server that belongs to another project.
+The game is published to GitHub Pages from the `gh-pages` branch, alongside
+the frozen agent bake-off builds (see README):
+
+```
+https://weevilgenius.github.io/stumped-game/          main
+https://weevilgenius.github.io/stumped-game/<agent>/  gemini, grok, fable, astra
+```
+
+All five apps, and any other project site under `weevilgenius.github.io`,
+share one origin, which means:
+- **localStorage is shared.** Main must use its own key prefix and must not
+  reuse the agent keys (`stumped_*`, `stumped-save-v1`, `stumped.game`,
+  `stumped.settings`, `stumped.v1`, etc.), even when porting code from an agent
+  branch, or saves will clobber each other. Never call `localStorage.clear()`
+  or iterate over all keys.
+- **Cache Storage is shared.** A service worker on main must name its caches
+  with a unique prefix (the agents use `stumped-grok-`, `stumped-fable-`, and
+  `stumped-astra-`),
+  only delete caches with that prefix, and only read from its own cache (open
+  it by name; do not use the global `caches.match`).
+- **Main's service worker scope contains the agent folders.** Agent pages with
+  their own service worker are controlled by it, but gemini has none, so
+  main's worker controls gemini's pages too. Its fetch handler should answer
+  only from its own cache and otherwise fall through to the network.
 
 ## Visual Validation (Screenshots / Prints)
 
