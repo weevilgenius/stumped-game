@@ -2,3 +2,5 @@ allowBuilds:
   esbuild: true
 autoDedupe: true
 saveTypes: true
+lockfile:
+  includeResolutionSettings: true
