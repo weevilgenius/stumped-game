@@ -60,8 +60,6 @@ const END_MS = 2200;
  * double tap on one button would also press whichever button took its place.
  */
 const SWAP_GUARD_MS = 300;
-/** shortcut: skips foreground gaps of at least one second, replace with the timestamp clock in step 3. */
-const TIMER_GAP_MS = 1000;
 /** Sharpest canvas scale used, in device pixels per CSS pixel. */
 const MAX_PIXEL_RATIO = 3;
 
@@ -77,8 +75,8 @@ export interface PuzzleOptions {
   readonly showTimer: boolean;
   /** Called after every change worth saving. */
   readonly onChange: () => void;
-  /** Called once, when the last stump is revealed. */
-  readonly onWin: () => void;
+  /** Play time so far in milliseconds, read every frame. */
+  readonly elapsed: () => number;
   /** Called when the screen closes: the back button, or the end of the puzzle. */
   readonly onExit: () => void;
 }
@@ -145,7 +143,6 @@ class PuzzleScene extends Phaser.Scene {
   private ended = false;
   private explanation: { pages: ExplainPage[]; index: number } | null = null;
   private complete = new Set<string>();
-  private lastTick = 0;
   private shownSeconds = -1;
 
   constructor() {
@@ -164,7 +161,6 @@ class PuzzleScene extends Phaser.Scene {
     // A relaunch with the explain hint open comes back to it.
     this.explanation = this.model.explaining && { pages: explainPages(this.model, this.model.explaining), index: 0 };
     this.complete = new Set(completedUnits(this.model).keys());
-    this.lastTick = performance.now();
     this.shownSeconds = -1;
   }
 
@@ -185,15 +181,7 @@ class PuzzleScene extends Phaser.Scene {
     // The scale manager outlives the scene, so its listener is removed by hand.
     const rebuild = (): void => this.build();
     this.scale.on('resize', rebuild);
-    // A short background pause must not be counted as a normal frame gap on return.
-    const onResume = (): void => {
-      this.lastTick = performance.now();
-    };
-    this.game.events.on(Phaser.Core.Events.RESUME, onResume);
-    this.events.once('shutdown', () => {
-      this.scale.off('resize', rebuild);
-      this.game.events.off(Phaser.Core.Events.RESUME, onResume);
-    });
+    this.events.once('shutdown', () => this.scale.off('resize', rebuild));
     this.build();
     if (import.meta.env.DEV) {
       Object.assign(window, { stumped: this });
@@ -201,16 +189,11 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   update(): void {
-    const now = performance.now();
-    const gap = now - this.lastTick;
-    this.lastTick = now;
-    if (!document.hidden && this.model.status === 'playing' && gap < TIMER_GAP_MS) {
-      this.model.elapsed += gap;
-    }
-    const seconds = Math.floor(this.model.elapsed / 1000);
+    const elapsed = this.options.elapsed();
+    const seconds = Math.floor(elapsed / 1000);
     if (seconds !== this.shownSeconds) {
       this.shownSeconds = seconds;
-      this.timerText?.setText(formatTime(this.model.elapsed));
+      this.timerText?.setText(formatTime(elapsed));
       this.options.onChange();
     }
   }
@@ -765,7 +748,6 @@ class PuzzleScene extends Phaser.Scene {
   private finish(): void {
     this.ended = true;
     if (this.model.status === 'won') {
-      this.options.onWin();
       const hop = this.markSprites.filter((sprite, cell) => sprite && this.markKinds[cell] === 'stump');
       this.tweens.add({
         targets: hop, y: `-=${this.cellSize * 0.22}`, duration: 170, yoyo: true, ease: 'Quad.easeOut',

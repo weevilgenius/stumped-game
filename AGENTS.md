@@ -58,8 +58,10 @@ consolidation plan in `docs/summary.md`).
 - `src/engine/` - pure puzzle generator, solver, and seed codes (see its README)
 - `src/game.ts` - plain-JSON game model: marks, undo, hints, explanations
 - `src/puzzleScene.ts` - Phaser scene: board drawing, gestures, animations
-- `src/index.ts` - DOM screens, localStorage, worker prefetch, service worker
-  registration
+- `src/controller.ts` - app controller: storage, puzzle prefetch, navigation,
+  play-time clock, win recording (injected dependencies, unit tested)
+- `src/index.ts` - DOM screens, localStorage adapter, generator worker, service
+  worker registration
 - `src/worker.ts` - generates puzzles off the main thread
 
 `src/engine/fixtures.test.ts` records the puzzles that fixed seed codes build.

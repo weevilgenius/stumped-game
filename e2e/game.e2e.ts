@@ -323,8 +323,9 @@ test('time advances during play, explanations and feedback, but pauses in the me
   await advances();
 
   for (const duration of [500, 5000]) {
-    const before = await elapsed();
+    // Read after hiding: the visible time since the last frame still counts.
     await setHidden(page, true);
+    const before = await elapsed();
     if (duration < 1000) {
       await page.clock.runFor(duration);
     } else {
@@ -335,9 +336,9 @@ test('time advances during play, explanations and feedback, but pauses in the me
     await advances();
 
     // Suppress scene updates to simulate browsers that suspend frames while hidden.
-    const suspended = await elapsed();
     await page.evaluate(() => (window as unknown as { stumped: Scene }).stumped.game.pause());
     await setHidden(page, true);
+    const suspended = await elapsed();
     await page.clock.fastForward(duration);
     expect(await elapsed()).toBe(suspended);
     await setHidden(page, false);
