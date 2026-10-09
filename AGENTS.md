@@ -21,6 +21,33 @@ changes:
 - Check all three: `pnpm run check`
 - Build project: `pnpm run build`
 
+## Hosting (GitHub Pages)
+
+The game is published to GitHub Pages from the `gh-pages` branch, alongside
+the frozen agent bake-off builds (see README):
+
+```
+https://weevilgenius.github.io/stumped-game/          main
+https://weevilgenius.github.io/stumped-game/<agent>/  gemini, grok, fable, astra
+```
+
+All five apps, and any other project site under `weevilgenius.github.io`,
+share one origin, which means:
+- **localStorage is shared.** Main must use its own key prefix and must not
+  reuse the agent keys (`stumped_*`, `stumped-save-v1`, `stumped.game`,
+  `stumped.settings`, `stumped.v1`, etc.), even when porting code from an agent
+  branch, or saves will clobber each other. Never call `localStorage.clear()`
+  or iterate over all keys.
+- **Cache Storage is shared.** A service worker on main must name its caches
+  with a unique prefix (the agents use `stumped-grok-`, `stumped-fable-`, and
+  `stumped-astra-`),
+  only delete caches with that prefix, and only read from its own cache (open
+  it by name; do not use the global `caches.match`).
+- **Main's service worker scope contains the agent folders.** Agent pages with
+  their own service worker are controlled by it, but gemini has none, so
+  main's worker controls gemini's pages too. Its fetch handler should answer
+  only from its own cache and otherwise fall through to the network.
+
 ## Visual Validation (Screenshots / Prints)
 
 To inspect the rendered UI (light/dark mode, mobile layout, general layout),
