@@ -3,7 +3,7 @@ import {
 } from './engine';
 import { type Game, newGame, type Result, resultOf } from './game';
 import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
-import type { GenerateRequest } from './worker';
+import type { Generate } from './generator';
 
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
@@ -27,8 +27,8 @@ export type Screen = 'menu' | 'puzzle';
 export interface ControllerDeps {
   /** Where saves live. Keys are unprefixed; the caller adds any prefix. */
   readonly storage: Pick<Storage, 'getItem' | 'setItem'>;
-  /** Generates a puzzle, off the main thread in the browser. */
-  readonly generate: (request: GenerateRequest) => Promise<Puzzle>;
+  /** Generates a puzzle, off the main thread in the browser. Aborted when no longer wanted. */
+  readonly generate: Generate;
   /** Monotonic clock for play time, in milliseconds. */
   readonly now: () => number;
   /** Wall clock for result dates, in milliseconds. */
@@ -57,9 +57,11 @@ export interface Controller {
   readonly recoveryNotice: string | null;
   /** Current storage failure, or null after a successful write. */
   readonly storageError: string | null;
+  /** Why the last puzzle could not be generated, or null. Cleared by the next start. */
+  readonly generationError: string | null;
   /** Starts up: plays a linked seed code, or returns to a puzzle left open. */
   readonly boot: (code: string | null) => void;
-  /** Starts a new puzzle, after confirming if one is in progress. */
+  /** Starts a new puzzle, after confirming if one is in progress. Ignored while one is being generated. */
   readonly newPuzzle: () => Promise<void>;
   /** Starts the current puzzle over from a blank board, after confirming if it is in progress. */
   readonly retry: () => void;
@@ -72,7 +74,7 @@ export interface Controller {
   readonly resume: () => void;
   /** Leaves the puzzle for the main screen. */
   readonly showMenu: () => void;
-  /** Replaces the settings and prepares a puzzle to match. */
+  /** Replaces the settings and prepares a puzzle to match. Drops a pending start made under the old settings. */
   readonly updateSettings: (settings: Settings) => void;
   /** Saves after a change to the game, and records a win the first time it happens. */
   readonly changed: () => void;
@@ -143,7 +145,9 @@ export function createController(deps: ControllerDeps): Controller {
   let { settings, game } = data;
   const { results, played } = data;
   let screen: Screen = 'menu';
-  let busy = false;
+  /** The start being generated; a result arriving after it changes is stale. Null when idle. */
+  let starting: AbortController | null = null;
+  let generationError: string | null = null;
 
   const listeners = new Set<() => void>();
   const emit = (): void => listeners.forEach((listener) => listener());
@@ -203,28 +207,44 @@ export function createController(deps: ControllerDeps): Controller {
   \* ------------------------------------------------------- */
 
   /** The next puzzle, generated ahead of time for the settings it was made under. */
-  let prepared: { key: string; puzzle: Promise<Puzzle> } | null = null;
+  let prepared: { key: string; puzzle: Promise<Puzzle>; abort: AbortController } | null = null;
+
+  /** Abandons the start being generated, if any, so its result is ignored and the worker stops on it. */
+  const cancelStart = (): void => {
+    starting?.abort();
+    starting = null;
+  };
 
   const prepare = (): Promise<Puzzle> => {
     const { timer: _timer, silver, ...fixed } = settings;
     const key = JSON.stringify([silver, fixed]);
     if (prepared?.key !== key) {
+      prepared?.abort.abort();
       // With the setting off, about one puzzle in five is still silver, unless size and difficulty are both fixed.
       const always = silver || (fixed.size !== undefined && fixed.tier !== undefined ? false : undefined);
       const request = {
         settings: randomSettings(deps.random, { ...fixed, silver: always }),
         seed: Math.floor(deps.random() * 2 ** 32),
       };
-      prepared = { key, puzzle: deps.generate(request) };
+      const abort = new AbortController();
+      const puzzle = deps.generate(request, abort.signal);
+      prepared = { key, puzzle, abort };
+      // A failed puzzle is not kept, so the next start asks again.
+      puzzle.catch(() => {
+        if (prepared?.puzzle === puzzle) {
+          prepared = null;
+        }
+      });
     }
     return prepared.puzzle;
   };
 
-  const takePrepared = (): Promise<Puzzle> => {
-    const puzzle = prepare();
+  const takePrepared = (): { puzzle: Promise<Puzzle>; abort: AbortController } => {
+    void prepare();
+    const taken = prepared!;
     prepared = null;
     void prepare();
-    return puzzle;
+    return taken;
   };
 
   /* ------------------------------------------------------- *\
@@ -232,6 +252,8 @@ export function createController(deps: ControllerDeps): Controller {
   \* ------------------------------------------------------- */
 
   const show = (next: Screen): void => {
+    // Any navigation abandons a start still being generated.
+    cancelStart();
     screen = next;
     // Remembered so a relaunch mid-puzzle lands back on the puzzle.
     data.open = next === 'puzzle';
@@ -251,13 +273,27 @@ export function createController(deps: ControllerDeps): Controller {
 
   const mayAbandon = (question: string): boolean => game?.status !== 'playing' || deps.confirm(question);
 
-  const generating = async (puzzle: Promise<Puzzle>): Promise<void> => {
-    busy = true;
+  /** Plays a puzzle once generated, unless the player has moved on. A failure leaves the current game as it was. */
+  const generating = async ({ puzzle, abort }: { puzzle: Promise<Puzzle>; abort: AbortController }): Promise<void> => {
+    starting = abort;
+    generationError = null;
     emit();
+    let result: Puzzle | null = null;
     try {
-      play(await puzzle);
-    } finally {
-      busy = false;
+      result = await puzzle;
+    } catch {
+      // Nothing to report if the player has moved on.
+    }
+    if (starting !== abort) {
+      return;
+    }
+    if (!result) {
+      generationError = 'A puzzle could not be generated. Please try again.';
+    }
+    starting = null;
+    if (result) {
+      play(result);
+    } else {
       emit();
     }
   };
@@ -273,10 +309,14 @@ export function createController(deps: ControllerDeps): Controller {
     if (!decoded) {
       return false;
     }
+    if (starting) {
+      return true;
+    }
     if (game?.status === 'playing' && game.puzzle.code === encodeSeedCode(decoded.settings, decoded.seed)) {
       resume();
     } else if (mayAbandon('Abandon the puzzle in progress and play this one?')) {
-      void generating(deps.generate(decoded));
+      const abort = new AbortController();
+      void generating({ puzzle: deps.generate(decoded, abort.signal), abort });
     }
     return true;
   };
@@ -295,22 +335,26 @@ export function createController(deps: ControllerDeps): Controller {
     get storageError() {
       return storageError;
     },
+    get generationError() {
+      return generationError;
+    },
     get screen() {
       return screen;
     },
     get busy() {
-      return busy;
+      return starting !== null;
     },
     boot: (code) => {
-      void prepare();
+      // A linked puzzle is asked for first, so it is not queued behind the prepared one.
       if (code) {
         playCode(code);
       } else if (data.open) {
         resume();
       }
+      void prepare();
     },
     newPuzzle: async () => {
-      if (mayAbandon('Abandon the puzzle in progress and start a new one?')) {
+      if (!starting && mayAbandon('Abandon the puzzle in progress and start a new one?')) {
         await generating(takePrepared());
       }
     },
@@ -324,6 +368,10 @@ export function createController(deps: ControllerDeps): Controller {
     showMenu: () => show('menu'),
     updateSettings: (next) => {
       settings = next;
+      if (starting) {
+        cancelStart();
+        emit();
+      }
       persist();
       void prepare();
     },

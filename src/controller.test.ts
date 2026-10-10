@@ -31,6 +31,10 @@ const setup = (store = new Map<string, string>(), errors: Partial<{ readError: b
     answer: true,
     questions: [] as string[],
     requests: [] as GenerateRequest[],
+    signals: [] as (AbortSignal | undefined)[],
+    /** When set, generation waits for the test to settle it through `pending`. */
+    manual: false,
+    pending: [] as { resolve: () => void; reject: () => void }[],
     ...errors,
   };
   const deps: ControllerDeps = {
@@ -49,9 +53,16 @@ const setup = (store = new Map<string, string>(), errors: Partial<{ readError: b
         store.set(key, value);
       },
     },
-    generate: (request) => {
+    generate: (request, signal) => {
       fake.requests.push(request);
-      return Promise.resolve(generate(request.settings, request.seed));
+      fake.signals.push(signal);
+      if (!fake.manual) {
+        return Promise.resolve(generate(request.settings, request.seed));
+      }
+      return new Promise((resolve, reject) => fake.pending.push({
+        resolve: () => resolve(generate(request.settings, request.seed)),
+        reject: () => reject(new Error('worker failed')),
+      }));
     },
     now: () => fake.time,
     date: () => 1000,
@@ -194,6 +205,96 @@ describe('replacing a game', () => {
     controller.updateSettings({ timer: false, silver: false, size: 6 });
     expect(fake.requests).toHaveLength(2);
     expect(fake.requests[1].settings.size).toBe(6);
+  });
+});
+
+describe('generation failures and stale results', () => {
+  it('keeps the current game after a failure, reports it, and succeeds on retry', async () => {
+    const { fake, controller } = setup(savedStore(false, { status: 'won' }));
+    fake.manual = true;
+    controller.boot(null);
+    const before = game(controller);
+    const start = controller.newPuzzle();
+    fake.pending[0].reject();
+    await start;
+    expect(controller.game).toBe(before);
+    expect(controller.busy).toBe(false);
+    expect(controller.screen).toBe('menu');
+    expect(controller.generationError).not.toBeNull();
+    // The failed puzzle was dropped; the one prepared after it is used.
+    const again = controller.newPuzzle();
+    expect(controller.generationError).toBeNull();
+    fake.pending[1].resolve();
+    await again;
+    expect(game(controller).puzzle.code).toBe(encodeSeedCode(fake.requests[1].settings, fake.requests[1].seed));
+  });
+
+  it('asks the generator again after a prepared puzzle fails', async () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    controller.boot(null);
+    fake.pending[0].reject();
+    await flush();
+    const start = controller.newPuzzle();
+    expect(fake.requests).toHaveLength(3);
+    fake.pending[1].resolve();
+    await start;
+    expect(game(controller).puzzle.code).toBe(encodeSeedCode(fake.requests[1].settings, fake.requests[1].seed));
+  });
+
+  it('ignores further starts while one is being generated', async () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    controller.boot(null);
+    const start = controller.newPuzzle();
+    void controller.newPuzzle();
+    expect(controller.playCode(CODE)).toBe(true);
+    expect(fake.requests).toHaveLength(2);
+    expect(controller.busy).toBe(true);
+    fake.pending[0].resolve();
+    await start;
+    expect(controller.busy).toBe(false);
+    expect(fake.questions).toEqual([]);
+  });
+
+  it('asks for a linked puzzle before preparing the next', () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    controller.boot(CODE);
+    expect(fake.requests.map((request) => encodeSeedCode(request.settings, request.seed))[0]).toBe(CODE);
+    expect(fake.requests).toHaveLength(2);
+  });
+
+  it('drops a seed-code result that arrives after the player moved on, and stops generating it', async () => {
+    const { fake, controller } = setup(savedStore(false));
+    fake.manual = true;
+    const before = game(controller);
+    controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5));
+    controller.resume();
+    controller.showMenu();
+    expect(controller.busy).toBe(false);
+    expect(fake.signals[0]!.aborted).toBe(true);
+    fake.pending[0].resolve();
+    await flush();
+    expect(controller.game).toBe(before);
+    expect(controller.screen).toBe('menu');
+  });
+
+  it('drops a pending start when generator settings change, and prepares for the new ones', async () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    controller.boot(null);
+    const start = controller.newPuzzle();
+    controller.updateSettings({ timer: false, silver: false, size: 6 });
+    expect(controller.busy).toBe(false);
+    // The taken puzzle and the one prepared under the old settings are both stopped.
+    expect(fake.signals.map((signal) => signal!.aborted)).toEqual([true, true, false]);
+    fake.pending.forEach(({ resolve }) => resolve());
+    await start;
+    expect(controller.game).toBeNull();
+    expect(fake.requests.at(-1)!.settings.size).toBe(6);
+    await controller.newPuzzle();
+    expect(game(controller).puzzle.size).toBe(6);
   });
 });
 

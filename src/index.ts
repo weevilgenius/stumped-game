@@ -1,9 +1,9 @@
 import './index.css';
-import type { Puzzle, Tier } from './engine';
+import type { Tier } from './engine';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
-import type { GenerateRequest } from './worker';
+import { createWorkerGenerator } from './generator';
 
 /* ========================================================= *\
  *  Main screen and DOM glue. App state lives in the         *
@@ -18,15 +18,9 @@ const STORAGE_PREFIX = 'stumped-main.';
  *  Puzzle generation, in a worker                           *
 \* ========================================================= */
 
-const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-// The worker answers requests in the order they were sent.
-const waiting: ((puzzle: Puzzle) => void)[] = [];
-worker.onmessage = (event: MessageEvent<Puzzle>): void => waiting.shift()?.(event.data);
-
-const generateInWorker = (request: GenerateRequest): Promise<Puzzle> => new Promise((resolve) => {
-  waiting.push(resolve);
-  worker.postMessage(request);
-});
+const generateInWorker = createWorkerGenerator(
+  () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }),
+);
 
 const controller = createController({
   storage: {
@@ -101,7 +95,7 @@ let opened: Game | null = null;
 
 /** Shows whichever screen the controller is on. */
 const render = (): void => {
-  storageNotice.textContent = [controller.recoveryNotice, controller.storageError].filter(Boolean).join(' ');
+  storageNotice.textContent = [controller.recoveryNotice, controller.storageError, controller.generationError].filter(Boolean).join(' ');
   storageNotice.hidden = !storageNotice.textContent;
   sizeStorageNotice();
   menu.classList.toggle('busy', controller.busy);

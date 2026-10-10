@@ -63,6 +63,7 @@ consolidation plan in `docs/summary.md`).
 - `src/index.ts` - DOM screens, localStorage adapter, generator worker, service
   worker registration
 - `src/worker.ts` - generates puzzles off the main thread
+- `src/generator.ts` - main-thread worker client: request IDs, failures, cancellation
 
 `src/engine/fixtures.test.ts` records the puzzles that fixed seed codes build.
 Never update its snapshot to make it pass: if a change alters the board an

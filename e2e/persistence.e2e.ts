@@ -45,6 +45,8 @@ test('legacy migration restores an explanation and leaves comparison apps untouc
 
 test('a rejected save is backed up and a recovery notice remains visible while playing', async ({ page }) => {
   await page.addInitScript(() => {
+    // These saves cannot carry settings, so a fixed random source keeps the new puzzle small and quick.
+    Math.random = () => 0;
     if (!sessionStorage.getItem('seeded')) {
       localStorage.setItem('stumped-main.save', '{"version":99}');
       localStorage.setItem('stumped.v1', 'astra sentinel');
@@ -100,6 +102,8 @@ test('a quota failure reports unsaved progress and clears after a successful ret
 
 test('blocked reads keep the original save untouched and allow an unsaved game', async ({ page }) => {
   await page.addInitScript(() => {
+    // These saves cannot carry settings, so a fixed random source keeps the new puzzle small and quick.
+    Math.random = () => 0;
     localStorage.setItem('stumped-main.save', '{"version":99}');
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Called with the Storage receiver below.
     const original = Storage.prototype.getItem;

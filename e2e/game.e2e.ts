@@ -559,3 +559,15 @@ test('touch drags fill sparse crossings and spare diagonal neighbors', async ({ 
   expect(await marks(page, [0, 9, 18, 1, 8, 10, 17])).toEqual([X, X, X, 0, 0, 0, 0]);
   await touch.detach();
 });
+
+test('a failed generator worker reports the failure and a retry starts a fresh one', async ({ page }) => {
+  await page.route('**/worker.ts*', (route) => route.abort());
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+  await expect(page.locator('#storageNotice')).toContainText('could not be generated');
+  await expect(page.locator('#menu')).not.toHaveClass(/busy/);
+  await page.unroute('**/worker.ts*');
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+  await puzzleReady(page);
+  await expect(page.locator('#storageNotice')).toBeHidden();
+});
