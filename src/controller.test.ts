@@ -1,11 +1,13 @@
 import { type Controller, type ControllerDeps, createController } from './controller';
-import { encodeSeedCode, type Puzzle } from './engine';
+import { decodeSeedCode, encodeSeedCode, generate, type Puzzle } from './engine';
 import { parseBoard } from './engine/testBoards';
 import { beginStroke, doubleTap, type Game, newGame } from './game';
+import { newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
 
-const CODE = '1D580000048';
+const CODE = encodeSeedCode({ size: 5, tier: 'easy', silver: false, sizeMix: 1, shape: 1, freebies: 1 }, 4);
 const SOLUTION = [1, 8, 10, 19, 22];
+let nextId = 0;
 const PUZZLE: Puzzle = {
   ...parseBoard(`
     CAABB
@@ -14,29 +16,46 @@ const PUZZLE: Puzzle = {
     CCCDD
     CCEDD
   `),
-  solution: SOLUTION, givens: [], colors: [0, 1, 2, 3, 4], tier: 'easy', silver: false, code: 'TEST',
+  solution: SOLUTION, givens: [], colors: [0, 1, 2, 3, 4], tier: 'easy', silver: false, code: CODE,
 };
 
 /** A controller over fake storage, generator, clocks, and prompts the test can steer. */
-const setup = (store = new Map<string, string>()) => {
+const setup = (store = new Map<string, string>(), errors: Partial<{ readError: boolean; writeError: boolean; backupError: boolean }> = {}) => {
   const fake = {
     store,
     time: 0,
+    readError: false,
+    writeError: false,
+    backupError: false,
+    writes: [] as string[],
     answer: true,
     questions: [] as string[],
     requests: [] as GenerateRequest[],
+    ...errors,
   };
   const deps: ControllerDeps = {
     storage: {
-      getItem: (key) => store.get(key) ?? null,
-      setItem: (key, value) => store.set(key, value),
+      getItem: (key) => {
+        if (fake.readError) {
+          throw new Error('unavailable');
+        }
+        return store.get(key) ?? null;
+      },
+      setItem: (key, value) => {
+        fake.writes.push(key);
+        if (fake.writeError || (fake.backupError && key.startsWith('recovery.'))) {
+          throw new Error('full');
+        }
+        store.set(key, value);
+      },
     },
     generate: (request) => {
       fake.requests.push(request);
-      return Promise.resolve({ ...PUZZLE, code: encodeSeedCode(request.settings, request.seed) });
+      return Promise.resolve(generate(request.settings, request.seed));
     },
     now: () => fake.time,
     date: () => 1000,
+    createId: () => `play-${++nextId}`,
     random: () => 0.5,
     confirm: (question) => {
       fake.questions.push(question);
@@ -59,10 +78,20 @@ const solve = (controller: Controller): void => {
 };
 
 /** A store holding a game in progress, left open or not. */
-const savedStore = (open: boolean, overrides: Partial<Game> = {}): Map<string, string> => new Map([
-  ['game', JSON.stringify({ ...newGame(PUZZLE, false), ...overrides })],
-  ['open', JSON.stringify(open)],
-]);
+const savedStore = (open: boolean, overrides: Partial<Game> = {}): Map<string, string> => {
+  const current = { ...newGame(PUZZLE, false, 'saved-play'), ...overrides };
+  if (current.status === 'won') {
+    current.marks = current.marks.map((_, cell) => SOLUTION.includes(cell) ? 3 : 0);
+  }
+  if (current.status === 'lost') {
+    current.marks = current.marks.map((mark, cell) => [0, 2, 3].includes(cell) ? 2 : mark);
+    current.acorns = 0;
+    current.acornsLost = 3;
+  }
+  return new Map([['save', JSON.stringify({ ...newSave(), game: current, open })]]);
+};
+
+const saved = (store: Map<string, string>) => parseSave(store.get('save')!)!;
 
 describe('navigation', () => {
   it('boots to the menu with nothing saved, and prepares a puzzle', () => {
@@ -86,8 +115,8 @@ describe('navigation', () => {
     await flush();
     expect(controller.screen).toBe('puzzle');
     expect(game(controller).puzzle.code).toBe(CODE);
-    expect(JSON.parse(fake.store.get('played')!)).toEqual([CODE]);
-    expect(JSON.parse(fake.store.get('open')!)).toBe(true);
+    expect(saved(fake.store).played).toEqual([CODE]);
+    expect(saved(fake.store).open).toBe(true);
   });
 
   it('resumes instead of generating when the code is the puzzle in progress', () => {
@@ -120,7 +149,7 @@ describe('replacing a game', () => {
     fake.answer = false;
     await controller.newPuzzle();
     controller.retry();
-    expect(controller.playCode(CODE)).toBe(true);
+    expect(controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5))).toBe(true);
     await flush();
     expect(fake.questions).toHaveLength(3);
     expect(fake.requests).toEqual([]);
@@ -146,7 +175,9 @@ describe('replacing a game', () => {
 
   it('retries a finished game from a blank board, as a repeat', () => {
     const store = savedStore(false, { status: 'lost', marks: new Array<number>(25).fill(1) });
-    store.set('played', JSON.stringify(['TEST']));
+    const data = saved(store);
+    data.played = [CODE];
+    store.set('save', JSON.stringify(data));
     const { fake, controller } = setup(store);
     controller.retry();
     expect(fake.questions).toEqual([]);
@@ -195,7 +226,7 @@ describe('play time', () => {
     controller.resume();
     fake.time = 800;
     controller.setHidden(true);
-    expect((JSON.parse(fake.store.get('game')!) as Game).elapsed).toBe(800);
+    expect(saved(fake.store).game?.elapsed).toBe(800);
   });
 
   it('starts a new game from zero', async () => {
@@ -239,12 +270,164 @@ describe('completion', () => {
   });
 
   it('records nothing for a loss', () => {
-    const { controller } = setup(savedStore(false, { acorns: 1 }));
+    const { controller } = setup(savedStore(false, { acorns: 1, acornsLost: 2, marks: PUZZLE.regions.map((_, cell) => [0, 2].includes(cell) ? 2 : 0) }));
     controller.resume();
-    const wrong = PUZZLE.solution[0] + 1;
+    const wrong = 3;
     doubleTap(game(controller), wrong, beginStroke(game(controller), wrong) !== null);
     controller.changed();
     expect(game(controller).status).toBe('lost');
     expect(controller.results).toEqual([]);
+  });
+});
+
+describe('persistence and recovery', () => {
+  it('retains the play ID across reloads and gives retries new IDs', () => {
+    const { fake, controller } = setup(savedStore(false));
+    const before = game(controller).id;
+    controller.changed();
+    const restored = setup(fake.store).controller;
+    expect(game(restored).id).toBe(before);
+    restored.retry();
+    expect(game(restored).id).not.toBe(before);
+  });
+
+  it('writes a completion and the won game atomically, once per change', () => {
+    const { fake, controller } = setup(savedStore(false));
+    fake.writes.length = 0;
+    solve(controller);
+    expect(fake.writes).toEqual(SOLUTION.map(() => 'save'));
+    const data = saved(fake.store);
+    expect(data.game?.status).toBe('won');
+    expect(data.results.map((result) => result.id)).toEqual([game(controller).id]);
+  });
+
+  it('reconciles an unrecorded restored win and never duplicates it', () => {
+    const store = savedStore(false, { status: 'won' });
+    const { controller } = setup(store);
+    expect(controller.results).toHaveLength(1);
+    controller.changed();
+    const relaunched = setup(store).controller;
+    expect(relaunched.results).toHaveLength(1);
+    expect(relaunched.results[0].id).toBe(game(relaunched).id);
+  });
+
+  it('keeps the previous consistent save on write failure, then retries without duplicating a win', () => {
+    const { fake, controller } = setup(savedStore(false));
+    controller.changed();
+    const before = fake.store.get('save');
+    fake.writeError = true;
+    solve(controller);
+    expect(fake.store.get('save')).toBe(before);
+    expect(saved(fake.store).results).toEqual([]);
+    expect(controller.results).toHaveLength(1);
+    expect(controller.storageError).toContain('could not be saved');
+    fake.writeError = false;
+    controller.changed();
+    expect(controller.storageError).toBeNull();
+    expect(saved(fake.store).game?.status).toBe('won');
+    expect(setup(fake.store).controller.results).toHaveLength(1);
+  });
+
+  it('notifies subscribers when a storage error appears and clears', () => {
+    const { fake, controller } = setup(savedStore(false));
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    fake.writeError = true;
+    controller.changed();
+    controller.changed();
+    expect(listener).toHaveBeenCalledTimes(1);
+    fake.writeError = false;
+    controller.changed();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not write after a read failure, even when storage becomes readable', () => {
+    const store = savedStore(false);
+    const original = store.get('save');
+    const { fake, controller } = setup(store, { readError: true });
+    expect(controller.game).toBeNull();
+    expect(controller.storageError).toContain('unavailable');
+    fake.readError = false;
+    controller.changed();
+    expect(fake.writes).toEqual([]);
+    expect(store.get('save')).toBe(original);
+  });
+
+  it.each(['{', '{"version":2}'])('backs up rejected saves before resetting: %s', (raw) => {
+    const store = new Map([['save', raw], ['settings', '{"timer":false,"silver":true}']]);
+    const { fake, controller } = setup(store);
+    expect(controller.settings).toEqual(newSave().settings);
+    expect(controller.recoveryNotice).toContain('recovery copy was kept');
+    expect(fake.writes[0]).toMatch(/^recovery\./);
+    expect(fake.writes[1]).toBe('save');
+    expect(JSON.parse(store.get(fake.writes[0])!) as unknown).toEqual({ date: 1000, entries: { save: raw } });
+    const relaunched = setup(store).controller;
+    expect(relaunched.settings).toEqual(newSave().settings);
+    expect(relaunched.recoveryNotice).toBeNull();
+  });
+
+  it('leaves rejected data untouched and disables writes when recovery backup fails', () => {
+    const store = new Map([['save', '{']]);
+    const { fake, controller } = setup(store, { backupError: true });
+    expect(controller.recoveryNotice).toContain('original data was left untouched');
+    expect(controller.storageError).toContain('cannot be saved');
+    fake.backupError = false;
+    controller.changed();
+    expect(store.get('save')).toBe('{');
+    expect(fake.writes).toHaveLength(1);
+  });
+
+  it('migrates all legacy data, leaving old keys intact and preferring the new document on reload', () => {
+    const data = saved(savedStore(true));
+    const { id: _id, ...legacyGame } = data.game!;
+    const store = new Map([
+      ['game', JSON.stringify(legacyGame)], ['open', 'true'], ['played', JSON.stringify([CODE])],
+      ['settings', '{"timer":false,"silver":true}'], ['results', '[]'], ['stumped.v1', 'astra'],
+    ]);
+    const { fake, controller } = setup(store);
+    controller.boot(null);
+    expect(controller.screen).toBe('puzzle');
+    expect(controller.settings.timer).toBe(false);
+    expect(game(controller).id).toBeTruthy();
+    expect(fake.writes.every((key) => key === 'save')).toBe(true);
+    expect(store.get('game')).toBe(JSON.stringify(legacyGame));
+    expect(store.get('stumped.v1')).toBe('astra');
+    store.set('game', '{');
+    const relaunched = setup(store).controller;
+    expect(game(relaunched).id).toBe(game(controller).id);
+    expect(relaunched.recoveryNotice).toBeNull();
+  });
+
+  it('preserves valid legacy data if the migration write fails, and migrates on the next launch', () => {
+    const store = new Map([['settings', '{"timer":false,"silver":true}']]);
+    const { controller } = setup(store, { writeError: true });
+    expect(controller.settings.timer).toBe(false);
+    expect(controller.storageError).toContain('could not be saved');
+    expect(store.has('save')).toBe(false);
+    const next = setup(store).controller;
+    expect(next.settings.timer).toBe(false);
+    expect(saved(store).settings).toEqual(next.settings);
+  });
+
+  it('backs up every raw legacy section and resets the whole save if one is invalid', () => {
+    const store = new Map([['settings', '{"timer":false,"silver":true}'], ['game', '{']]);
+    const { fake, controller } = setup(store);
+    expect(controller.settings).toEqual(newSave().settings);
+    expect(JSON.parse(store.get(fake.writes[0])!) as unknown).toEqual({
+      date: 1000, entries: { settings: store.get('settings'), game: '{', results: null, played: null, open: null },
+    });
+    expect(store.get('game')).toBe('{');
+  });
+
+  it('links a migrated won game to the latest existing result without recording another completion', () => {
+    const data = saved(savedStore(false, { status: 'won' }));
+    const { id: _id, ...legacyGame } = data.game!;
+    const legacyResult = { code: CODE, size: 5, tier: 'easy', silver: false, date: 1000,
+      time: 0, hints: [], acornsLost: 0, repeat: false };
+    const store = new Map([['game', JSON.stringify(legacyGame)], ['results', JSON.stringify([legacyResult])]]);
+    const { controller } = setup(store);
+    expect(controller.results).toHaveLength(1);
+    expect(controller.results[0].id).toBe(game(controller).id);
+    expect(setup(store).controller.results).toHaveLength(1);
   });
 });

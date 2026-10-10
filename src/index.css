@@ -7,6 +7,7 @@
   --cream: #f7edd5;
   --ink: #2b1d12;
   color-scheme: dark;
+  --storage-height: 0px;
 }
 
 * {
@@ -89,6 +90,21 @@ input[type='checkbox'] {
 
 /* ---------- Main screen ---------- */
 
+#storageNotice {
+  position: fixed;
+  z-index: 10;
+  top: env(safe-area-inset-top, 0px);
+  left: max(0px, env(safe-area-inset-left));
+  right: max(0px, env(safe-area-inset-right));
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 10px 16px;
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 #menu {
   min-height: 100%;
   display: flex;
@@ -96,7 +112,7 @@ input[type='checkbox'] {
   align-items: center;
   gap: 16px;
   padding:
-    max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    calc(max(16px, env(safe-area-inset-top)) + var(--storage-height)) max(16px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
@@ -249,7 +265,7 @@ h1 img {
 #game {
   position: fixed;
   inset:
-    env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    calc(env(safe-area-inset-top, 0px) + var(--storage-height)) env(safe-area-inset-right, 0px)
     env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   overflow: hidden;
   touch-action: none;

@@ -7,6 +7,10 @@ import { test, expect } from '@playwright/test';
  */
 
 test('the installed app starts and plays with no connection', async ({ page, context }) => {
+  // Keep generation small so this tests offline caching rather than random difficulty.
+  await page.addInitScript(() => localStorage.setItem('stumped-main.settings', JSON.stringify({
+    timer: true, silver: false, size: 5, tier: 'easy', sizeMix: 1, shape: 1, freebies: 0,
+  })));
   await page.goto('./');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -21,5 +25,5 @@ test('the installed app starts and plays with no connection', async ({ page, con
   page.once('dialog', (dialog) => void dialog.accept());
   await page.goto('./?code=10580000026');
   await expect(page.locator('#game canvas')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('stumped-main.game'))).toContain('10580000026');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('stumped-main.save'))).toContain('10580000026');
 });

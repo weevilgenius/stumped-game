@@ -412,7 +412,7 @@ describe('feedback', () => {
 
 describe('results', () => {
   const result = (overrides: Partial<Result>): Result => ({
-    code: 'A', size: 5, tier: 'easy', time: 60_000, hints: [], acornsLost: 0, silver: false, repeat: false, date: 0,
+    id: 'result', code: 'A', size: 5, tier: 'easy', time: 60_000, hints: [], acornsLost: 0, silver: false, repeat: false, date: 0,
     ...overrides,
   });
 
@@ -421,7 +421,7 @@ describe('results', () => {
     squirrel(game);
     game.elapsed = 83_000;
     expect(resultOf(game, 5)).toEqual(result({
-      code: 'TEST', time: 83_000, hints: ['squirrel'], silver: true, date: 5,
+      id: game.id, code: 'TEST', time: 83_000, hints: ['squirrel'], silver: true, date: 5,
     }));
   });
 

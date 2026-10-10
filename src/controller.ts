@@ -2,6 +2,7 @@ import {
   decodeSeedCode, encodeSeedCode, type GeneratorSettings, type Puzzle, randomSettings,
 } from './engine';
 import { type Game, newGame, type Result, resultOf } from './game';
+import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
 
 /* ========================================================= *\
@@ -32,6 +33,8 @@ export interface ControllerDeps {
   readonly now: () => number;
   /** Wall clock for result dates, in milliseconds. */
   readonly date: () => number;
+  /** Creates unique play and recovery identifiers. */
+  readonly createId: () => string;
   /** Random source for prepared puzzles. */
   readonly random: () => number;
   /** Asks the player a yes or no question. */
@@ -50,6 +53,10 @@ export interface Controller {
   readonly screen: Screen;
   /** True while a puzzle is being generated. */
   readonly busy: boolean;
+  /** Recovery notice for this launch, or null. */
+  readonly recoveryNotice: string | null;
+  /** Current storage failure, or null after a successful write. */
+  readonly storageError: string | null;
   /** Starts up: plays a linked seed code, or returns to a puzzle left open. */
   readonly boot: (code: string | null) => void;
   /** Starts a new puzzle, after confirming if one is in progress. */
@@ -90,27 +97,51 @@ export function createController(deps: ControllerDeps): Controller {
    *  Storage                                                *
   \* ------------------------------------------------------- */
 
-  const load = <T>(key: string, fallback: T): T => {
-    try {
-      return (JSON.parse(deps.storage.getItem(key) ?? 'null') as T | null) ?? fallback;
-    } catch {
-      return fallback;
+  let data = newSave();
+  let recoveryNotice: string | null = null;
+  let storageError: string | null = null;
+  let writable = true;
+  let needsSave = false;
+  let rejected: Record<string, string | null> | null = null;
+  try {
+    const raw = deps.storage.getItem('save');
+    if (raw !== null) {
+      const parsed = parseSave(raw);
+      if (parsed) {
+        data = parsed;
+      } else {
+        rejected = { save: raw };
+      }
+    } else {
+      const legacy = Object.fromEntries(LEGACY_KEYS.map((key) => [key, deps.storage.getItem(key)])) as Record<typeof LEGACY_KEYS[number], string | null>;
+      if (LEGACY_KEYS.some((key) => legacy[key] !== null)) {
+        const migrated = migrateSave(legacy, deps.createId);
+        if (migrated) {
+          data = migrated;
+          needsSave = true;
+        } else {
+          rejected = legacy;
+        }
+      }
     }
-  };
-
-  const save = (key: string, value: unknown): void => {
+  } catch {
+    writable = false;
+    storageError = 'Device storage is unavailable. Keep this page open to keep your progress.';
+  }
+  if (rejected) {
     try {
-      deps.storage.setItem(key, JSON.stringify(value));
+      deps.storage.setItem(`recovery.${deps.createId()}`, JSON.stringify({ date: deps.date(), entries: rejected }));
+      recoveryNotice = 'Your save could not be opened. A recovery copy was kept on this device; starting fresh.';
+      needsSave = true;
     } catch {
-      // Storage is full or blocked. Play goes on, unsaved.
+      writable = false;
+      recoveryNotice = 'Your save could not be opened. The original data was left untouched because a recovery copy could not be saved.';
+      storageError = 'Progress cannot be saved. Device storage may be full or unavailable; keep this page open.';
     }
-  };
+  }
 
-  let settings = load<Settings>('settings', { timer: true, silver: false });
-  let game = load<Game | null>('game', null);
-  const results = load<Result[]>('results', []);
-  /** Seed codes of every puzzle started on this device. */
-  const played = load<string[]>('played', []);
+  let { settings, game } = data;
+  const { results, played } = data;
   let screen: Screen = 'menu';
   let busy = false;
 
@@ -125,8 +156,6 @@ export function createController(deps: ControllerDeps): Controller {
   let hidden = false;
   /** When the clock last started or was folded into game.elapsed, or null while paused. */
   let runningFrom: number | null = null;
-  /** Whether the current game's win is already recorded, or it was finished before this launch. */
-  let recorded = game?.status !== 'playing';
 
   /** Adds the running span to the game's time and pauses. */
   const fold = (): void => {
@@ -143,6 +172,31 @@ export function createController(deps: ControllerDeps): Controller {
       runningFrom = deps.now();
     }
   };
+
+  /** Records a finished play and writes all player data together. */
+  const persist = (): void => {
+    syncClock();
+    if (game?.status === 'won' && !results.some((result) => result.id === game?.id)) {
+      results.push(resultOf(game, deps.date()));
+    }
+    if (!writable) {
+      return;
+    }
+    const before = storageError;
+    try {
+      deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, played, open: data.open }));
+      storageError = null;
+    } catch {
+      storageError = 'Progress could not be saved. Device storage may be full or unavailable; keep this page open.';
+    }
+    if (before !== storageError) {
+      emit();
+    }
+  };
+
+  if (needsSave || (game?.status === 'won' && !results.some((result) => result.id === game?.id))) {
+    persist();
+  }
 
   /* ------------------------------------------------------- *\
    *  Puzzle generation                                      *
@@ -180,21 +234,18 @@ export function createController(deps: ControllerDeps): Controller {
   const show = (next: Screen): void => {
     screen = next;
     // Remembered so a relaunch mid-puzzle lands back on the puzzle.
-    save('open', next === 'puzzle');
-    syncClock();
+    data.open = next === 'puzzle';
+    persist();
     emit();
   };
 
   /** Starts a puzzle from a blank board. Any play after the first on this device is a repeat. */
   const play = (puzzle: Puzzle): void => {
     fold();
-    game = newGame(puzzle, played.includes(puzzle.code));
-    recorded = false;
+    game = newGame(puzzle, played.includes(puzzle.code), deps.createId());
     if (!game.repeat) {
       played.push(puzzle.code);
-      save('played', played);
     }
-    save('game', game);
     show('puzzle');
   };
 
@@ -238,6 +289,12 @@ export function createController(deps: ControllerDeps): Controller {
       return game;
     },
     results,
+    get recoveryNotice() {
+      return recoveryNotice;
+    },
+    get storageError() {
+      return storageError;
+    },
     get screen() {
       return screen;
     },
@@ -248,7 +305,7 @@ export function createController(deps: ControllerDeps): Controller {
       void prepare();
       if (code) {
         playCode(code);
-      } else if (load('open', false)) {
+      } else if (data.open) {
         resume();
       }
     },
@@ -267,21 +324,10 @@ export function createController(deps: ControllerDeps): Controller {
     showMenu: () => show('menu'),
     updateSettings: (next) => {
       settings = next;
-      save('settings', settings);
+      persist();
       void prepare();
     },
-    changed: () => {
-      syncClock();
-      if (!game) {
-        return;
-      }
-      if (game.status === 'won' && !recorded) {
-        recorded = true;
-        results.push(resultOf(game, deps.date()));
-        save('results', results);
-      }
-      save('game', game);
-    },
+    changed: persist,
     tick: () => {
       syncClock();
       return game?.elapsed ?? 0;
@@ -289,8 +335,8 @@ export function createController(deps: ControllerDeps): Controller {
     setHidden: (value) => {
       hidden = value;
       syncClock();
-      if (value && game) {
-        save('game', game);
+      if (value) {
+        persist();
       }
     },
     subscribe: (listener) => {

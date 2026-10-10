@@ -33,6 +33,8 @@ export type UndoStep = [number, number][];
 
 /** One play of one puzzle. */
 export interface Game {
+  /** Stable identifier of this play, retained across reloads. */
+  id: string;
   /** The puzzle being played. */
   puzzle: Puzzle;
   /** Normal-layer mark for each cell. */
@@ -63,15 +65,16 @@ export interface Game {
  * Starts a play of a puzzle from a blank board.
  * @param puzzle the puzzle
  * @param repeat whether it was played before on this device
+ * @param id unique identifier for this play
  * @returns the new game
  */
-export function newGame(puzzle: Puzzle, repeat: boolean): Game {
+export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.randomUUID()): Game {
   const marks = new Array<number>(puzzle.size ** 2).fill(MARK_NONE);
   for (const cell of puzzle.givens) {
     marks[cell] = MARK_STUMP;
   }
   return {
-    puzzle, marks, hypo: null, undo: [], hypoUndo: [],
+    id, puzzle, marks, hypo: null, undo: [], hypoUndo: [],
     acorns: puzzle.silver ? 1 : 3, acornsLost: 0, hints: [], elapsed: 0, status: 'playing', repeat,
     explaining: null,
   };
@@ -441,6 +444,8 @@ export function isPerfectlyMarked(game: Game): boolean {
 
 /** One completed play, as kept in the best times. */
 export interface Result {
+  /** Identifier of the completed play. */
+  readonly id: string;
   /** Seed code of the puzzle. */
   readonly code: string;
   /** Grid size. */
@@ -469,7 +474,7 @@ export interface Result {
 export function resultOf(game: Game, date: number = Date.now()): Result {
   const { code, size, tier, silver } = game.puzzle;
   return {
-    code, size, tier, silver, date,
+    id: game.id, code, size, tier, silver, date,
     time: game.elapsed, hints: [...game.hints], acornsLost: game.acornsLost, repeat: game.repeat,
   };
 }

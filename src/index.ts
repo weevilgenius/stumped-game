@@ -36,6 +36,7 @@ const controller = createController({
   generate: generateInWorker,
   now: () => performance.now(),
   date: () => Date.now(),
+  createId: () => crypto.randomUUID(),
   random: Math.random,
   confirm: (question) => confirm(question),
 });
@@ -48,6 +49,11 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getEl
 
 const menu = $('menu');
 const stage = $('game');
+const storageNotice = $('storageNotice');
+const sizeStorageNotice = (): void => document.documentElement.style.setProperty(
+  '--storage-height', `${storageNotice.hidden ? 0 : Math.ceil(storageNotice.getBoundingClientRect().height)}px`,
+);
+new ResizeObserver(sizeStorageNotice).observe(storageNotice);
 
 const icon = (name: keyof typeof ICONS, label: string): string => (
   `<img class="icon" src="${ICONS[name]}" alt="${label}" title="${label}">`);
@@ -95,6 +101,9 @@ let opened: Game | null = null;
 
 /** Shows whichever screen the controller is on. */
 const render = (): void => {
+  storageNotice.textContent = [controller.recoveryNotice, controller.storageError].filter(Boolean).join(' ');
+  storageNotice.hidden = !storageNotice.textContent;
+  sizeStorageNotice();
   menu.classList.toggle('busy', controller.busy);
   const { game, screen } = controller;
   if (screen === 'puzzle' && game) {
