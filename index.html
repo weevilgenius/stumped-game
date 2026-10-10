@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#20382a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <title>Stumped</title>
+    <script type="module" crossorigin src="./assets/index-I6VUqJsk.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/phaser-D8EC1TLR.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-CAAf_v5U.css">
+  </head>
+  <body>
+    <p id="storageNotice" role="alert" hidden></p>
+        <main id="menu">
+      <h1><img src="./assets/logo_menu-_uI0Tqd1.jpg" alt="Stumped" /></h1>
+      <div class="panel">
+        <section id="current" hidden>
+          <button id="thumb" type="button" aria-label="Resume puzzle"></button>
+          <div class="about">
+            <p id="info"></p>
+            <div class="row">
+              <button id="share" type="button">Share</button>
+              <button id="retry" type="button">Retry</button>
+            </div>
+          </div>
+        </section>
+        <button id="new" type="button" class="primary">New puzzle</button>
+        <p id="status" role="status">Growing a puzzle&hellip;</p>
+        <form id="codeForm" class="row">
+          <input
+            id="code" placeholder="Seed code" aria-label="Seed code" required maxlength="16"
+            autocomplete="off" autocapitalize="characters" spellcheck="false"
+          />
+          <button>Play code</button>
+        </form>
+        <div class="row">
+          <button id="timesButton" type="button">Best times</button>
+          <button id="settingsButton" type="button">Settings</button>
+        </div>
+      </div>
+    </main>
+
+        <div id="game" hidden></div>
+
+    <dialog id="settings">
+      <form method="dialog">
+        <h2>Settings</h2>
+        <label>Size
+          <select name="size">
+            <option value="">Random</option>
+            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+          </select>
+        </label>
+        <label>Difficulty
+          <select name="tier">
+            <option value="">Random</option>
+            <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
+          </select>
+        </label>
+        <label>Silver acorn mode <input type="checkbox" name="silver" /></label>
+        <label>Show timer <input type="checkbox" name="timer" /></label>
+        <fieldset>
+          <legend>Region shapes</legend>
+          <label>Size mix
+            <select name="sizeMix">
+              <option value="">Random</option>
+              <option value="0">Similar sizes</option><option value="1">A little mixed</option>
+              <option value="2">Mixed</option><option value="3">One dominant</option>
+            </select>
+          </label>
+          <label>Shape
+            <select name="shape">
+              <option value="">Random</option>
+              <option value="0">Compact blobs</option><option value="1">Rounded</option>
+              <option value="2">Stretched</option><option value="3">Long thin runs</option>
+            </select>
+          </label>
+          <label>Freebies
+            <select name="freebies">
+              <option value="">Random</option>
+              <option value="0">Never</option><option value="1">Rarely</option>
+              <option value="2">Sometimes</option><option value="3">Often</option>
+            </select>
+          </label>
+        </fieldset>
+        <button>Done</button>
+      </form>
+    </dialog>
+
+    <dialog id="times">
+      <form method="dialog">
+        <h2>Best times</h2>
+        <div class="row">
+          <select name="size" aria-label="Size">
+            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+          </select>
+          <select name="tier" aria-label="Difficulty">
+            <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
+          </select>
+        </div>
+        <ol id="timesList"></ol>
+        <button>Close</button>
+      </form>
+    </dialog>
+  </body>
+</html>
