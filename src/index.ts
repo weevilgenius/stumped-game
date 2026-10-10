@@ -99,6 +99,7 @@ const render = (): void => {
   storageNotice.hidden = !storageNotice.textContent;
   sizeStorageNotice();
   menu.classList.toggle('busy', controller.busy);
+  menu.inert = controller.busy;
   const { game, screen } = controller;
   if (screen === 'puzzle' && game) {
     if (stage.hidden || opened !== game) {
@@ -114,10 +115,14 @@ const render = (): void => {
       });
     }
   } else {
+    const leavingPuzzle = !stage.hidden;
     opened = null;
     stage.hidden = true;
     menu.hidden = false;
     renderMenu();
+    if (leavingPuzzle) {
+      $('new').focus();
+    }
   }
 };
 

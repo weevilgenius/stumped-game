@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { createAccessiblePuzzle } from './accessibility';
+import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
@@ -144,6 +146,9 @@ class PuzzleScene extends Phaser.Scene {
   private explanation: { pages: ExplainPage[]; index: number } | null = null;
   private complete = new Set<string>();
   private shownSeconds = -1;
+  private accessible?: ReturnType<typeof createAccessiblePuzzle>;
+  private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
+  private inputState = '';
 
   constructor() {
     super('puzzle');
@@ -182,13 +187,27 @@ class PuzzleScene extends Phaser.Scene {
     const rebuild = (): void => this.build();
     this.scale.on('resize', rebuild);
     this.events.once('shutdown', () => this.scale.off('resize', rebuild));
+    this.game.canvas.setAttribute('aria-hidden', 'true');
+    this.accessible = createAccessiblePuzzle(this.game.canvas.parentElement!, this.model,
+      (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
+      (cell) => this.revealCell(cell), (name) => this.activateControl(name));
+    this.events.once('shutdown', () => {
+      this.accessible?.destroy();
+      this.accessible = undefined;
+    });
     this.build();
+    this.accessible.focus();
     if (import.meta.env.DEV) {
       Object.assign(window, { stumped: this });
     }
   }
 
   update(): void {
+    const state = `${this.blocked()},${performance.now() < this.buttonsFrom}`;
+    if (state !== this.inputState) {
+      this.inputState = state;
+      this.syncAccessible();
+    }
     const elapsed = this.options.elapsed();
     const seconds = Math.floor(elapsed / 1000);
     if (seconds !== this.shownSeconds) {
@@ -212,6 +231,7 @@ class PuzzleScene extends Phaser.Scene {
     this.dimmers = [];
     this.acornIcons = [];
     this.spots = {};
+    this.controls.clear();
     this.stroke = null;
     this.countText = undefined;
     this.timerText = undefined;
@@ -254,6 +274,7 @@ class PuzzleScene extends Phaser.Scene {
     }
     this.syncMarks(false);
     this.syncHud();
+    this.syncAccessible();
     if (this.ended) {
       this.drawBanner(false);
     }
@@ -469,12 +490,16 @@ class PuzzleScene extends Phaser.Scene {
     const face = this.textures.exists(content)
       ? this.add.image(x, y, content)
       : this.add.text(x, y, content, this.textStyle(16)).setOrigin(0.5);
-    back.setInteractive().on('pointerdown', () => {
-      this.lastTap = null;
-      if (!this.blocked() && performance.now() >= this.buttonsFrom) {
-        onTap();
-      }
+    const labels: Record<string, string> = {
+      back: 'Menu', hypothesis: 'What if?', woodpecker: 'Woodpecker: reveal a stump',
+      owl: 'Owl: explain a deduction', squirrel: 'Squirrel: mark empty squares',
+      previous: 'Previous explanation page', next: 'Next explanation page',
+    };
+    this.controls.set(name, {
+      view: { name, label: labels[name] ?? content, bounds: [(x - w / 2) / u, (y - h / 2) / u, w / u, h / u], disabled: false },
+      onTap, dim,
     });
+    back.setInteractive().on('pointerdown', () => this.activateControl(name));
     if (dim) {
       this.dimmers.push({ parts: [back, face], dim });
     }
@@ -508,6 +533,7 @@ class PuzzleScene extends Phaser.Scene {
   /** Call after any change to the model: redraws what changed, then saves. */
   private changed(): void {
     this.refresh();
+    this.syncAccessible();
     this.options.onChange();
   }
 
@@ -579,6 +605,58 @@ class PuzzleScene extends Phaser.Scene {
    *  Input                                                  *
   \* ------------------------------------------------------- */
 
+  private syncAccessible(): void {
+    const explanation = this.explanation;
+    const message = explanation
+      ? `Explanation ${explanation.index + 1} of ${explanation.pages.length}. ${explanation.pages[explanation.index].text}`
+      : this.model.status === 'won' ? 'Solved!' : this.model.status === 'lost' ? 'Stumped.'
+        : this.blocked() ? 'Wrong reveal. Wait for feedback to finish.' : '';
+    this.accessible?.render(
+      [this.boardX / this.u, this.boardY / this.u, this.cellSize * this.model.puzzle.size / this.u],
+      [...this.controls.values()].map(({ view, dim }) => ({
+        ...view, disabled: this.blocked() || performance.now() < this.buttonsFrom || !!dim?.(),
+      })),
+      this.blocked() || !!explanation || this.model.status !== 'playing', message,
+    );
+  }
+
+  private activateControl(name: string): void {
+    const control = this.controls.get(name);
+    if (!control || this.blocked() || performance.now() < this.buttonsFrom || control.dim?.()) {
+      return;
+    }
+    this.lastTap = null;
+    this.stroke = null;
+    control.onTap();
+    this.syncAccessible();
+  }
+
+  private canActOnCell(cell: number): boolean {
+    return Number.isInteger(cell) && cell >= 0 && cell < this.model.marks.length
+      && this.model.status === 'playing' && !this.blocked() && !this.explanation;
+  }
+
+  private markCell(cell: number): StrokeMode {
+    if (!this.canActOnCell(cell)) {
+      return null;
+    }
+    const mode = beginStroke(this.model, cell);
+    if (mode) {
+      this.changed();
+    }
+    return mode;
+  }
+
+  private revealCell(cell: number, firstTapChanged = false): void {
+    if (!this.canActOnCell(cell)) {
+      return;
+    }
+    this.lastTap = null;
+    this.stroke = null;
+    this.onReveal(doubleTap(this.model, cell, firstTapChanged), cell);
+    this.syncAccessible();
+  }
+
   /** True while the wrong-reveal or end-of-puzzle animation holds input. */
   private blocked(): boolean {
     return this.ended || this.time.now < this.busyUntil;
@@ -613,21 +691,18 @@ class PuzzleScene extends Phaser.Scene {
     const tap = this.lastTap;
     if (tap?.cell === cell && now - tap.time <= DOUBLE_TAP_MS) {
       this.lastTap = null;
-      this.onReveal(doubleTap(this.model, cell, tap.changed), cell);
+      this.revealCell(cell, tap.changed);
       return;
     }
     // A single tap acts at once. If a second tap follows, doubleTap takes this one back.
-    const mode = beginStroke(this.model, cell);
+    const mode = this.markCell(cell);
     this.lastTap = { cell, time: now, changed: mode !== null };
     this.stroke = { id: pointer.id, mode, cell, x: pointer.x, y: pointer.y };
-    if (mode) {
-      this.changed();
-    }
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
     const stroke = this.stroke;
-    if (stroke?.id !== pointer.id) {
+    if (stroke?.id !== pointer.id || !this.canActOnCell(stroke.cell)) {
       return;
     }
     // Walk the whole segment since the last event, so a fast drag skips no squares.
@@ -688,7 +763,7 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   private useHint(hint: Hint): void {
-    if (!canHint(this.model, hint)) {
+    if (this.blocked() || this.explanation || !canHint(this.model, hint)) {
       return;
     }
     if (hint === 'owl') {
