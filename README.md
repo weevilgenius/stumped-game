@@ -25,6 +25,17 @@ pnpm install
 pnpm run dev
 ```
 
+## Offline
+
+On the published site, the first visit saves a copy of the game in the
+browser: the page, scripts, images, and puzzle generator. After that, opening
+the game, following a seed-code link, and dealing another puzzle work with no
+connection. Progress stays on the device, separate from that copy.
+
+A later visit while online replaces the copy when the build has changed. The
+local dev server does not install it. The other versions hosted beside the
+main game keep their own copies, and this one does not answer their pages.
+
 ## Agent bake-off
 
 Four agents independently built the game from clean copies of the same commit,

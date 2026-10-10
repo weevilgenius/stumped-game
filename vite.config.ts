@@ -1,41 +1,7 @@
 import { defineConfig, type PluginOption, type UserConfig } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { readdirSync } from 'node:fs';
 import { env } from 'node:process';
-
-/**
- * Service worker source. It precaches every built file and answers from the
- * cache first, so the installed app starts and plays with no connection. Each
- * build gets its own cache, which replaces the previous one. Caches carry a
- * `stumped-main-` prefix and only those are touched, so other apps hosted on
- * the same origin keep their offline caches.
- * @param version unique per build
- * @param files every file to cache, relative to the app root
- * @returns the script
- */
-const serviceWorkerSource = (version: string, files: string[]): string => `
-const PREFIX = 'stumped-main-';
-const CACHE = PREFIX + '${version}';
-const FILES = ${JSON.stringify(files)};
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key))))
-    .then(() => self.clients.claim()));
-});
-
-// A link with a seed code is the same page with a query, hence ignoreSearch. Hosts that answer
-// with "Vary: Origin" would otherwise miss for the script and stylesheet, hence ignoreVary.
-self.addEventListener('fetch', (event) => {
-  event.respondWith(caches.open(CACHE)
-    .then((cache) => cache.match(event.request, { ignoreSearch: true, ignoreVary: true }))
-    .then((hit) => hit ?? fetch(event.request)));
-});
-`;
+import { offlinePlugin } from './scripts/offline.js';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
@@ -65,22 +31,8 @@ export default defineConfig(({ command }) => {
     }
   );
 
-  // emit the service worker that makes the app work offline
-  plugins.push(
-    {
-      name: 'service-worker',
-      apply: 'build',
-      enforce: 'post',
-      generateBundle(_options, bundle) {
-        const built = Object.keys(bundle).filter((file) => !file.endsWith('.map') && file !== 'index.html');
-        this.emitFile({
-          type: 'asset',
-          fileName: 'sw.js',
-          source: serviceWorkerSource(Date.now().toString(36), ['./', ...built, ...readdirSync('public')]),
-        });
-      },
-    }
-  );
+  // Precache the build, including the puzzle worker, under a content-hashed cache.
+  plugins.push(offlinePlugin());
 
   const config: UserConfig = {
     plugins,
