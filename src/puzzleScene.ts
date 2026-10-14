@@ -34,7 +34,6 @@ const WOOD = 0x8a5a33;
 const WOOD_DARK = 0x5e3b1f;
 const INK = 0x2b1d12;
 const CREAM = 0xf7edd5;
-const BOARD = 0xfffdf8;
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 /* ========================================================= *\
@@ -339,22 +338,20 @@ class PuzzleScene extends Phaser.Scene {
     const { cellSize: cell, boardX: x0, boardY: y0, u } = this;
     const { size: n, regions, colors } = this.model.puzzle;
     const board = cell * n;
-    // Squares are inset by half the gap, so this makes the board's edge margin match the gap between squares.
-    const frame = this.cellGap() / 2;
     const g = this.add.graphics();
     if (this.model.hypo) {
-      // A gold halo marks hypothesis mode.
-      const halo = frame + 3 * u;
-      g.fillStyle(PALETTE[0]).fillRoundedRect(x0 - halo, y0 - halo, board + 2 * halo, board + 2 * halo, 11 * u);
+      // A gold ring marks hypothesis mode.
+      const ring = 2 * u;
+      g.lineStyle(3 * u, PALETTE[0])
+        .strokeRoundedRect(x0 - ring, y0 - ring, board + 2 * ring, board + 2 * ring, cell * 0.1 + ring);
     }
-    g.fillStyle(BOARD).fillRoundedRect(x0 - frame, y0 - frame, board + 2 * frame, board + 2 * frame, 8 * u);
     regions.forEach((region, i) => {
       g.fillStyle(PALETTE[colors[region]]);
       this.fillCell(g, i);
     });
   }
 
-  /** Space between neighboring squares, and between the outer squares and the board's edge. */
+  /** Space between neighboring squares, where the background shows through. */
   private cellGap(): number {
     return Math.max(2, Math.min(Math.round(this.cellSize * 0.08), 10 * this.u));
   }
