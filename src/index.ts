@@ -61,7 +61,25 @@ const badges = (result: Result): string => [
   result.repeat ? '<span title="Repeat play">↻</span>' : '',
 ].join(' ');
 
+/** The kind of puzzle New puzzle deals, from the settings. */
+const summary = (): string => {
+  const { size, tier, silver } = controller.settings;
+  return [
+    size ? `${size}×${size}` : 'Any size',
+    tier ? `${tier[0].toUpperCase()}${tier.slice(1)}` : 'Any difficulty',
+    silver ? 'Silver acorn' : 'A fresh puzzle every time',
+  ].join(' · ');
+};
+
+/** The line above the current puzzle, by its status. */
+const EYEBROWS = {
+  playing: 'Your forest is waiting',
+  won: 'A forest well found',
+  lost: 'Stumped.',
+} as const;
+
 const renderMenu = (): void => {
+  $('summary').textContent = summary();
   const { game } = controller;
   $('current').hidden = !game;
   if (!game) {
@@ -80,10 +98,12 @@ const renderMenu = (): void => {
     }
     return square;
   }));
+  $('resume').hidden = status !== 'playing';
+  $('currentEyebrow').textContent = EYEBROWS[status];
   const state = {
     playing: `In progress, ${formatTime(elapsed)}`,
     won: `Solved in <b>${formatTime(elapsed)}</b> ${badges(resultOf(game))}`,
-    lost: 'Stumped.',
+    lost: 'Another walk through the woods?',
   }[status];
   $('info').innerHTML = `<b>${puzzle.size}×${puzzle.size} ${puzzle.tier}</b>`
     + `${puzzle.silver && status !== 'won' ? ` ${icon('silver', 'Silver acorn mode')}` : ''}`
@@ -132,6 +152,7 @@ const render = (): void => {
 
 $('new').onclick = (): void => void controller.newPuzzle();
 $('thumb').onclick = controller.resume;
+$('resume').onclick = controller.resume;
 $('retry').onclick = controller.retry;
 
 $('share').onclick = (): void => {
@@ -194,6 +215,7 @@ settingsForm.onchange = (): void => {
     shape: level('shape'),
     freebies: level('freebies'),
   });
+  $('summary').textContent = summary();
 };
 
 /* ========================================================= *\

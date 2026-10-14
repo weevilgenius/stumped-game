@@ -482,7 +482,7 @@ test('losing the last acorn ends the puzzle without giving it away', async ({ pa
     await page.waitForTimeout(WRONG_REVEAL_MS);
   }
   await expect(page.locator('#menu')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('#info')).toContainText('Stumped.');
+  await expect(page.locator('#current')).toContainText('Stumped.');
   await expect(page.locator('#thumb i[style*="background-image"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Best times' }).click();
   await expect(page.locator('#timesList')).toContainText('No times yet.');
