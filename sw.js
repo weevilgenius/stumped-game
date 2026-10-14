@@ -1,7 +1,7 @@
 
 const PREFIX = 'stumped-main-';
-const CACHE = PREFIX + 'becd9d9bb385';
-const FILES = ["./","./assets/acorn_icon@8x-ZX_V0f6L.png","./assets/index-Bc9GqBEV.js","./assets/index-wDnkSwSE.css","./assets/logo_menu-_uI0Tqd1.jpg","./assets/owl_icon@8x-Cf1Ia1hl.png","./assets/phaser-D8EC1TLR.js","./assets/silver_acorn_icon@8x-Ba6dPyQL.png","./assets/squirrel_icon@8x-DQYcu3tF.png","./assets/stump_icon-DTmRAc0J.png","./assets/woodpecker_icon@8x-QQ-8aZJq.png","./assets/worker-B-8sNOIl.js","./apple-touch-icon.png","./icon-192.png","./icon-512.png","./manifest.webmanifest"];
+const CACHE = PREFIX + '09f624b99a47';
+const FILES = ["./","./assets/acorn_icon@8x-ZX_V0f6L.png","./assets/index-Cj2XPVl7.css","./assets/index-DKYxXmcl.js","./assets/logo_menu-_uI0Tqd1.jpg","./assets/owl_icon@8x-Cf1Ia1hl.png","./assets/phaser-D8EC1TLR.js","./assets/silver_acorn_icon@8x-Ba6dPyQL.png","./assets/squirrel_icon@8x-DQYcu3tF.png","./assets/stump_icon-DTmRAc0J.png","./assets/woodpecker_icon@8x-QQ-8aZJq.png","./assets/worker-B-8sNOIl.js","./apple-touch-icon.png","./icon-192.png","./icon-512.png","./manifest.webmanifest"];
 function cachedUrl(scopeHref, requestUrl, files) {
 	const scope = new URL(scopeHref);
 	const url = new URL(requestUrl);
