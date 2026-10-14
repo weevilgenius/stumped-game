@@ -102,6 +102,11 @@ export function createAccessiblePuzzle(
   live.setAttribute('aria-live', 'polite');
   root.append(instructions, grid, reveal, toolbar, live);
   parent.append(root);
+  // Focus rings belong to keyboard use: any pointer gesture hides them until a key is pressed.
+  const hideRing = (): void => root.classList.add('pointer-active');
+  const showRing = (): void => root.classList.remove('pointer-active');
+  document.addEventListener('pointerdown', hideRing, true);
+  document.addEventListener('keydown', showRing, true);
   let names = '';
   return {
     render: ([x, y, size], controls, blocked, message) => {
@@ -151,6 +156,10 @@ export function createAccessiblePuzzle(
         focusCell(0);
       }
     },
-    destroy: () => root.remove(),
+    destroy: () => {
+      document.removeEventListener('pointerdown', hideRing, true);
+      document.removeEventListener('keydown', showRing, true);
+      root.remove();
+    },
   };
 }
