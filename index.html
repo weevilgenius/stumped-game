@@ -15,6 +15,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="description" content="A quiet woodland logic puzzle. Find your way, one square at a time. Play offline, without ads." />
     <title>Stumped</title>
     <script type="module" src="/src/index.ts"></script>
   </head>
@@ -22,32 +23,56 @@
     <p id="storageNotice" role="alert" hidden></p>
     <!-- Main screen: everything outside of play. -->
     <main id="menu">
-      <h1><img src="/src/assets/logo_menu.jpg" alt="Stumped" /></h1>
-      <div class="panel">
-        <section id="current" hidden>
-          <button id="thumb" type="button" aria-label="Resume puzzle"></button>
-          <div class="about">
-            <p id="info"></p>
-            <div class="row">
-              <button id="share" type="button">Share</button>
-              <button id="retry" type="button">Retry</button>
-            </div>
-          </div>
+      <header class="masthead">
+        <span class="brand">
+          <svg class="leaf" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M26 5C11 3 3 9 7 20c10 5 18-1 19-15Z" fill="currentColor" />
+            <path d="m5 28 15-17" stroke="var(--paper)" stroke-width="2" />
+          </svg>
+          <span class="wordmark">stumped<span>.</span></span>
+        </span>
+        <nav aria-label="Main">
+          <button id="timesButton" type="button" class="text-button">Best times</button>
+          <button id="settingsButton" type="button" class="text-button">Settings</button>
+        </nav>
+      </header>
+      <div class="home">
+        <section class="art">
+          <img src="/src/assets/logo_menu.jpg" alt="Stumped: a woodland sudoku, illustrated among the trees" />
+          <p class="caption"><span class="eyebrow">A quiet little challenge</span><span>Rooted in logic.</span></p>
         </section>
-        <button id="new" type="button" class="primary">New puzzle</button>
-        <p id="status" role="status">Growing a puzzle&hellip;</p>
-        <form id="codeForm" class="row">
-          <input
-            id="code" placeholder="Seed code" aria-label="Seed code" required maxlength="16"
-            autocomplete="off" autocapitalize="characters" spellcheck="false"
-          />
-          <button>Play code</button>
-        </form>
-        <div class="row">
-          <button id="timesButton" type="button">Best times</button>
-          <button id="settingsButton" type="button">Settings</button>
+        <div class="panel">
+          <p class="eyebrow">Your patch of peace</p>
+          <h1>A little time <br />in the woods.</h1>
+          <p class="intro">A fresh forest. A few hidden stumps. <br />Find your way, one square at a time.</p>
+          <button id="new" type="button" class="primary">New puzzle <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+          <p id="summary"></p>
+          <p id="status" role="status">Growing a puzzle&hellip;</p>
+          <section id="current" aria-label="Current puzzle" hidden>
+            <button id="thumb" type="button" aria-label="Resume puzzle"></button>
+            <div class="about">
+              <span id="currentEyebrow" class="eyebrow"></span>
+              <p id="info"></p>
+              <div class="actions">
+                <button id="resume" type="button" class="text-button">Resume &rarr;</button>
+                <button id="share" type="button" class="text-button">Share</button>
+                <button id="retry" type="button" class="text-button">Retry</button>
+              </div>
+            </div>
+          </section>
+          <form id="codeForm">
+            <label class="eyebrow" for="code">Have a puzzle code?</label>
+            <div class="code-row">
+              <input
+                id="code" placeholder="Enter a seed code" aria-label="Seed code" required maxlength="16"
+                autocomplete="off" autocapitalize="characters" spellcheck="false"
+              />
+              <button type="submit" aria-label="Play code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+            </div>
+          </form>
         </div>
       </div>
+      <footer><span>A puzzle. A pause. Just for you.</span><span>Grown on your device</span></footer>
     </main>
 
     <!-- Puzzle screen: the Phaser canvas. -->
