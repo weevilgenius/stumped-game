@@ -1,4 +1,5 @@
-allowBuilds:
-  esbuild: true
+permissions:
+  esbuild:
+    build: true
 autoDedupe: true
 saveTypes: true
