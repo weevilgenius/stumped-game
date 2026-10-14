@@ -98,18 +98,14 @@
       </form>
     </dialog>
 
-    <dialog id="times">
+    <dialog id="times" aria-labelledby="timesTitle">
       <form method="dialog">
-        <h2>Best times</h2>
-        <div class="row">
-          <select name="size" aria-label="Size">
-            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
-          </select>
-          <select name="tier" aria-label="Difficulty">
-            <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
-          </select>
+        <h2 id="timesTitle">Best times</h2>
+        <p id="timesContext"></p>
+        <div id="timesViewport" role="region" aria-label="Results by size and difficulty" aria-describedby="timesHelp" tabindex="0">
+          <div id="timesList"></div>
         </div>
-        <ol id="timesList"></ol>
+        <p id="timesHelp">Clean solves first, then by time. Scroll to browse sizes; swipe sideways for other difficulties.</p>
         <button>Close</button>
       </form>
     </dialog>
