@@ -395,6 +395,7 @@ fieldset label + label {
 .accessible-grid button {
   flex: 1;
   min-width: 0;
+  border-radius: 14%;
 }
 
 .accessible-puzzle [data-action] {

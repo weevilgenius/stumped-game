@@ -34,6 +34,7 @@ const WOOD = 0x8a5a33;
 const WOOD_DARK = 0x5e3b1f;
 const INK = 0x2b1d12;
 const CREAM = 0xf7edd5;
+const BOARD = 0xfffdf8;
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 /* ========================================================= *\
@@ -338,34 +339,31 @@ class PuzzleScene extends Phaser.Scene {
     const { cellSize: cell, boardX: x0, boardY: y0, u } = this;
     const { size: n, regions, colors } = this.model.puzzle;
     const board = cell * n;
-    const frame = 4 * u;
+    // Squares are inset by half the gap, so this makes the board's edge margin match the gap between squares.
+    const frame = this.cellGap() / 2;
     const g = this.add.graphics();
     if (this.model.hypo) {
-      // A light halo marks hypothesis mode.
-      g.fillStyle(CREAM).fillRoundedRect(x0 - 2 * frame, y0 - 2 * frame, board + 4 * frame, board + 4 * frame, 9 * u);
+      // A gold halo marks hypothesis mode.
+      const halo = frame + 3 * u;
+      g.fillStyle(PALETTE[0]).fillRoundedRect(x0 - halo, y0 - halo, board + 2 * halo, board + 2 * halo, 11 * u);
     }
-    g.fillStyle(INK).fillRoundedRect(x0 - frame, y0 - frame, board + 2 * frame, board + 2 * frame, 6 * u);
+    g.fillStyle(BOARD).fillRoundedRect(x0 - frame, y0 - frame, board + 2 * frame, board + 2 * frame, 8 * u);
     regions.forEach((region, i) => {
-      g.fillStyle(PALETTE[colors[region]]).fillRect(x0 + (i % n) * cell, y0 + Math.floor(i / n) * cell, cell, cell);
+      g.fillStyle(PALETTE[colors[region]]);
+      this.fillCell(g, i);
     });
-    const thin = Math.max(1, Math.round(u));
-    g.fillStyle(INK, 0.3);
-    for (let i = 1; i < n; i++) {
-      g.fillRect(x0 + i * cell - thin / 2, y0, thin, board);
-      g.fillRect(x0, y0 + i * cell - thin / 2, board, thin);
-    }
-    const thick = Math.max(2, Math.round(3 * u));
-    g.fillStyle(INK);
-    regions.forEach((region, i) => {
-      const x = x0 + (i % n) * cell;
-      const y = y0 + Math.floor(i / n) * cell;
-      if (i % n < n - 1 && regions[i + 1] !== region) {
-        g.fillRect(x + cell - thick / 2, y - thick / 2, thick, cell + thick);
-      }
-      if (i + n < regions.length && regions[i + n] !== region) {
-        g.fillRect(x - thick / 2, y + cell - thick / 2, cell + thick, thick);
-      }
-    });
+  }
+
+  /** Space between neighboring squares, and between the outer squares and the board's edge. */
+  private cellGap(): number {
+    return Math.max(2, Math.min(Math.round(this.cellSize * 0.08), 10 * this.u));
+  }
+
+  /** Fills a square's rounded rectangle, inset from its grid slot by half the gap on each side. */
+  private fillCell(g: Phaser.GameObjects.Graphics, i: number): void {
+    const { x, y } = this.center(i);
+    const size = this.cellSize - this.cellGap();
+    g.fillRoundedRect(x - size / 2, y - size / 2, size, size, this.cellSize * 0.1);
   }
 
   private drawStatus(r: Rect): void {
@@ -427,14 +425,13 @@ class PuzzleScene extends Phaser.Scene {
     g.fillStyle(0x000000, 0.6);
     this.model.marks.forEach((_, i) => {
       if (!page.lit.includes(i)) {
-        const { x, y } = this.center(i);
-        g.fillRect(x - cell / 2, y - cell / 2, cell, cell);
+        this.fillCell(g, i);
       }
     });
     g.lineStyle(3 * u, 0xffffff);
     for (const i of page.marked) {
       const { x, y } = this.center(i);
-      g.strokeRect(x - cell / 2 + 3 * u, y - cell / 2 + 3 * u, cell - 6 * u, cell - 6 * u);
+      g.strokeRoundedRect(x - cell / 2 + 3 * u, y - cell / 2 + 3 * u, cell - 6 * u, cell - 6 * u, cell * 0.08);
     }
     for (const i of page.xs) {
       const { x, y } = this.center(i);
@@ -814,8 +811,8 @@ class PuzzleScene extends Phaser.Scene {
   /** Pulses squares once: a stump's row, column, or region has just been fully marked. */
   private pulse(cells: readonly number[]): void {
     for (const cell of cells) {
-      const { x, y } = this.center(cell);
-      const flash = this.add.rectangle(x, y, this.cellSize, this.cellSize, 0xffffff, 0.8).setDepth(3);
+      const flash = this.add.graphics().setDepth(3).fillStyle(0xffffff, 0.8);
+      this.fillCell(flash, cell);
       this.tweens.add({ targets: flash, alpha: 0, duration: 500, ease: 'Quad.easeIn', onComplete: () => flash.destroy() });
     }
   }
