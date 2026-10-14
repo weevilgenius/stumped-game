@@ -201,30 +201,52 @@ settingsForm.onchange = (): void => {
 \* ========================================================= */
 
 const timesDialog = $<HTMLDialogElement>('times');
-const timesForm = timesDialog.querySelector('form')!;
-const timesSize = timesForm.elements.namedItem('size') as HTMLSelectElement;
-const timesTier = timesForm.elements.namedItem('tier') as HTMLSelectElement;
+const timesTiers: readonly Tier[] = ['easy', 'medium', 'hard'];
+const timesViewport = $('timesViewport');
 
 const renderTimes = (): void => {
-  const times = bestTimes(controller.results, Number(timesSize.value), timesTier.value as Tier);
-  $('timesList').innerHTML = times.map((result) => (
-    `<li><b>${formatTime(result.time)}</b> ${badges(result)}`
-    + `<time>${new Date(result.date).toLocaleDateString()}</time></li>`
-  )).join('') || '<li>No times yet.</li>';
+  const { game, results } = controller;
+  const current = game?.status === 'playing';
+  const solve = results.find((result) => result.id === game?.id) ?? results.at(-1);
+  const shown = current ? game.puzzle : solve;
+  $('timesContext').textContent = shown
+    ? `${current ? 'Current puzzle' : 'Latest solve'}: ${shown.size} × ${shown.size} · ${shown.tier}`
+    : 'No times yet. Completed games will appear here.';
+  const sizes = [...new Set([...results.map((result) => result.size), ...(shown ? [shown.size] : [])])]
+    .sort((a, b) => a - b);
+  $('timesList').innerHTML = '<div class="times-headings">'
+    + timesTiers.map((tier) => `<b>${tier}</b>`).join('') + '</div>'
+    + sizes.map((size) => `<section class="times-size" aria-label="${size} by ${size}">`
+      + timesTiers.map((tier) => {
+        const active = current && size === shown?.size && tier === shown.tier;
+        const times = bestTimes(results, size, tier);
+        return `<div class="times-band" aria-label="${tier}">`
+          + `<h3${active ? ' class="times-focus" aria-current="true"' : ''}>${size} × ${size}`
+          + `${active ? '<small>Current puzzle</small>' : ''}</h3>`
+          + `<ol>${times.map((result) => {
+            const highlighted = !current && result.id === solve?.id;
+            return `<li${highlighted ? ' class="times-focus" aria-current="true"' : ''}>`
+              + `<div><b>${formatTime(result.time)}</b> ${badges(result)}</div>`
+              + `<time>${new Date(result.date).toLocaleDateString()}</time>`
+              + `${highlighted ? '<small>Latest solve</small>' : ''}</li>`;
+          }).join('') || '<li class="times-empty">No times yet</li>'}</ol></div>`;
+      }).join('') + '</section>').join('');
 };
 
 $('timesButton').onclick = (): void => {
-  // Open on the current puzzle's list, or the latest result's.
-  const shown = controller.game?.puzzle ?? controller.results.at(-1);
-  if (shown) {
-    timesSize.value = String(shown.size);
-    timesTier.value = shown.tier;
-  }
   renderTimes();
   timesDialog.showModal();
+  const target = timesDialog.querySelector<HTMLElement>('.times-focus');
+  timesViewport.scrollTo({ left: 0, top: 0 });
+  if (target) {
+    const viewport = timesViewport.getBoundingClientRect();
+    const bounds = target.getBoundingClientRect();
+    timesViewport.scrollTo({
+      left: bounds.left - viewport.left - (timesViewport.clientWidth - bounds.width) / 2,
+      top: bounds.top - viewport.top - Math.max(56, (timesViewport.clientHeight - bounds.height) / 2),
+    });
+  }
 };
-
-timesForm.onchange = renderTimes;
 
 /* ========================================================= *\
  *  Startup                                                  *

@@ -327,31 +327,115 @@ fieldset label + label {
   margin-top: 6px;
 }
 
-#timesList {
-  min-height: 120px;
+/* One scroll surface keeps every difficulty on the same size section. */
+#times {
+  width: min(96vw, 1000px);
+  overflow: hidden;
+}
+
+#times form {
+  height: min(760px, 80dvh);
+}
+
+#timesContext,
+#timesHelp {
   margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
+  font-size: 0.85rem;
+}
+
+#timesContext {
+  text-transform: capitalize;
+}
+
+#timesHelp {
+  opacity: 0.8;
+}
+
+#timesViewport {
+  flex: 1;
+  min-height: 100px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgb(247 237 213 / 0.25);
+  border-radius: 10px;
   font-variant-numeric: tabular-nums;
 }
 
-#timesList li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 4px;
+#timesViewport:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+#timesList {
+  width: max(100%, 780px);
+}
+
+.times-headings,
+.times-size {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.times-headings {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
+  box-shadow: 0 2px var(--wood-dark);
+}
+
+.times-headings b {
+  padding: 12px;
+  text-transform: capitalize;
+}
+
+.times-band {
+  padding: 0 8px 16px;
+  border-right: 1px solid rgb(247 237 213 / 0.15);
+}
+
+.times-band h3 {
+  position: sticky;
+  top: 46px;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 8px;
+  background: var(--bg);
+  font-size: 1rem;
+}
+
+.times-band ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.times-band li {
+  padding: 10px 8px;
   border-bottom: 1px solid rgb(247 237 213 / 0.15);
 }
 
-#timesList time {
-  margin-left: auto;
-  opacity: 0.7;
-  font-size: 0.85em;
+.times-band time,
+.times-band small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
 }
 
-#timesList .star {
-  width: 1em;
+.times-band time,
+.times-empty {
+  opacity: 0.7;
+}
+
+.times-band .times-focus {
+  background: var(--wood-dark);
+  box-shadow: inset 4px 0 var(--gold);
+  border-radius: 4px;
+}
+
+.times-focus small {
+  color: var(--gold);
+  font-weight: 700;
 }
 
 /* Semantic controls follow canvas geometry without intercepting its gestures. */
