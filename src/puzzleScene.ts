@@ -372,7 +372,10 @@ class PuzzleScene extends Phaser.Scene {
 
     const countX = left + span * 0.16;
     this.add.image(countX - 20 * u, mid, 'count');
-    this.countText = this.add.text(countX - 2 * u, mid, '', this.textStyle(18)).setOrigin(0, 0.5);
+    this.countText = this.add.text(countX - 2 * u, mid - 7 * u, '', this.textStyle(18)).setOrigin(0, 0.5);
+    const { tier } = model.puzzle;
+    this.add.text(countX - 2 * u, mid + 11 * u, `${tier[0].toUpperCase()}${tier.slice(1)}`, this.textStyle(12))
+      .setOrigin(0, 0.5);
 
     const total = model.puzzle.silver ? 1 : 3;
     for (let i = 0; i < total; i++) {
