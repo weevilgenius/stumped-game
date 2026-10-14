@@ -389,9 +389,15 @@ fieldset label + label {
   text-transform: capitalize;
 }
 
+.times-size {
+  grid-template-rows: auto 1fr;
+}
+
 .times-band {
-  padding: 0 8px 16px;
-  border-right: 1px solid rgb(247 237 213 / 0.15);
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  padding-bottom: 16px;
 }
 
 .times-band h3 {
@@ -399,14 +405,15 @@ fieldset label + label {
   top: 46px;
   z-index: 1;
   margin: 0;
-  padding: 10px 8px;
+  padding: 10px 16px;
   background: var(--bg);
   font-size: 1rem;
 }
 
 .times-band ol {
   margin: 0;
-  padding: 0;
+  padding: 0 8px;
+  border-right: 1px solid rgb(247 237 213 / 0.15);
   list-style: none;
 }
 
