@@ -56,7 +56,7 @@ test('the installed app plays a seed code and another puzzle with no connection'
   })).not.toBe(SEED);
 });
 
-test('a cache update drops only main caches and comparison pages stay on the network', async ({ page, context }) => {
+test('an update keeps the running build, offers a refresh, and leaves comparison pages to the network', async ({ page, context }) => {
   // A second script URL at the same scope is how the browser installs an update.
   // Rewriting sw.js in place does not, because the update check keeps the installed bytes.
   let nextScript = '';
@@ -91,6 +91,8 @@ test('a cache update drops only main caches and comparison pages stay on the net
       headers: shell.headers,
       status: shell.status,
     }));
+    // A file only the running build has, as after a deploy that renamed it.
+    await cache.put('./assets/old-only.js', new Response('old build'));
     await (await caches.open('stumped-main-stale')).put('./stale.txt', new Response('old'));
     await (await caches.open('stumped-grok-keep')).put('./keep.txt', new Response('grok'));
     await (await caches.open('stumped-fable-keep')).put('./keep.txt', new Response('fable'));
@@ -111,21 +113,29 @@ test('a cache update drops only main caches and comparison pages stay on the net
   const hash = version.slice('stumped-main-'.length);
   const script = await page.evaluate(async () => (await fetch('./sw.js')).text());
   expect(script).toContain(`const CACHE = PREFIX + '${hash}'`);
-  nextScript = script.replace(`const CACHE = PREFIX + '${hash}'`, `const CACHE = PREFIX + '${hash}b'`);
+  // Another build hash of the same length, as a real deploy would have.
+  const next = `${hash.slice(0, -1)}${hash.endsWith('0') ? '1' : '0'}`;
+  nextScript = script.replace(`const CACHE = PREFIX + '${hash}'`, `const CACHE = PREFIX + '${next}'`);
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
     void navigator.serviceWorker.register('./sw-next.js').catch(reject);
   }));
 
+  // The page is still running the previous build, so it keeps that cache and offers a refresh.
   await expect.poll(() => page.evaluate(async () => (await caches.keys()).sort())).toEqual([
     'stumped-astra-keep',
     'stumped-fable-keep',
     'stumped-grok-keep',
-    `stumped-main-${hash}b`,
+    ...[`stumped-main-${hash}`, `stumped-main-${next}`].sort(),
   ]);
+  await expect(page.locator('#updateNotice')).toBeVisible();
 
   await context.setOffline(true);
+  expect(await page.evaluate(async () => (await fetch('./assets/old-only.js')).text())).toBe('old build');
   expect(await page.evaluate(async () => (await (await fetch('./')).text()).includes('id="menu"'))).toBe(true);
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#updateNotice')).toBeHidden();
   const navigation = await page.goto('./gemini/').then(async () => {
     const body = await page.content();
     return body.includes('id="menu"') ? 'shell' : 'other';

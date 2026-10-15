@@ -48,6 +48,34 @@ export function cachedUrl(scopeHref: string, requestUrl: string, files: readonly
 }
 
 /**
+ * Whether a request is for one of this app's built files, from any build.
+ * File names carry a content hash, so a page still running an earlier build asks
+ * for names the current build no longer has.
+ * @param scopeHref service worker scope, with a trailing slash
+ * @param requestUrl absolute request URL
+ * @returns true for `assets/` under the scope; false for the comparison apps and other origins
+ */
+export function isBuiltAsset(scopeHref: string, requestUrl: string): boolean {
+  const scope = new URL(scopeHref);
+  const url = new URL(requestUrl);
+  return url.origin === scope.origin && url.pathname.startsWith(`${scope.pathname}assets/`);
+}
+
+/**
+ * The cache of the build before this one, kept so a page still running it can load its files.
+ * Build caches are this app's prefix plus a hex hash; the browser lists caches oldest first.
+ * @param keys every cache name on the origin, oldest first
+ * @param current this build's cache name
+ * @param prefix this app's cache prefix
+ * @returns the newest other build cache, or null when there is none
+ */
+export function previousBuild(keys: readonly string[], current: string, prefix: string): string | null {
+  const builds = keys.filter((key) => key !== current && key.startsWith(prefix)
+    && key.length === current.length && /^[0-9a-f]+$/.test(key.slice(prefix.length)));
+  return builds.at(-1) ?? null;
+}
+
+/**
  * Content hash and precache list for one build.
  * Source maps and the worker script itself are omitted; the shell is cached as `./`
  * so a seed-code query is the same page. The hash still covers `index.html`.
@@ -93,8 +121,9 @@ export function readPublicFiles(): PublicFile[] {
 }
 
 /**
- * Service worker source. It opens one named cache, deletes only previous caches
- * with this app's prefix, and answers only the precached URLs.
+ * Service worker source. It opens one named cache, keeps the previous build's cache
+ * for pages still running that build, deletes only older caches with this app's
+ * prefix, and answers only the precached URLs and earlier builds' files.
  * @param version content hash of the build
  * @param files precached URLs, relative to the app root
  * @returns the script
@@ -105,14 +134,25 @@ const PREFIX = '${CACHE_PREFIX}';
 const CACHE = PREFIX + '${version}';
 const FILES = ${JSON.stringify(files)};
 ${cachedUrl.toString()}
+${isBuiltAsset.toString()}
+${previousBuild.toString()}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
 
+// Taking over at once means an open page is still running the previous build, which can
+// still load its files (such as the puzzle worker) from that build's cache. The page then
+// offers a refresh. The deploy removes those files from the server, so the cache is all
+// there is. Anything older than that is deleted.
 self.addEventListener('activate', (event) => {
   event.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key))))
+    .then((keys) => {
+      const previous = previousBuild(keys, CACHE, PREFIX);
+      return Promise.all(keys
+        .filter((key) => key.startsWith(PREFIX) && key !== CACHE && key !== previous)
+        .map((key) => caches.delete(key)));
+    })
     .then(() => self.clients.claim()));
 });
 
@@ -121,7 +161,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const path = cachedUrl(self.registration.scope, event.request.url, FILES);
-  if (path === null) return;
+  if (path === null) {
+    if (isBuiltAsset(self.registration.scope, event.request.url)) {
+      event.respondWith(caches.keys()
+        .then((keys) => previousBuild(keys, CACHE, PREFIX))
+        .then((previous) => (previous === null ? undefined : caches.open(previous)))
+        .then((cache) => cache?.match(event.request, { ignoreSearch: true, ignoreVary: true }))
+        .then((hit) => hit ?? fetch(event.request)));
+    }
+    return;
+  }
   const target = path === './' ? new URL('./', self.registration.scope) : event.request;
   event.respondWith(caches.open(CACHE)
     .then((cache) => cache.match(target, { ignoreSearch: true, ignoreVary: true }))
