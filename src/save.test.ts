@@ -23,6 +23,13 @@ const won = (): Save => {
 };
 
 describe('save round trips', () => {
+  it.each(['smaller', 'medium', 'larger'] as const)('restores the %s size preference', (size) => {
+    const save = fresh();
+    save.settings.size = size;
+    expect(read(save)).toEqual(save);
+    expect(migrateSave(legacy(save), createId)?.settings.size).toBe(size);
+  });
+
   it('restores defaults, preferences, and a marked active game with history', () => {
     expect(read(newSave())).toEqual(newSave());
     const save = fresh();
@@ -98,6 +105,7 @@ describe('invalid saves', () => {
   it.each([
     ['settings', { timer: 'yes', silver: false }],
     ['settings', { timer: true, silver: false, size: 11 }],
+    ['settings', { timer: true, silver: false, size: 'small' }],
     ['settings', { timer: true, silver: false, tier: 'expert' }],
     ['settings', { timer: true, silver: false, freebies: -1 }],
     ['played', ['not-a-code']],

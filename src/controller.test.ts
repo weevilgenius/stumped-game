@@ -24,6 +24,7 @@ const setup = (store = new Map<string, string>(), errors: Partial<{ readError: b
   const fake = {
     store,
     time: 0,
+    random: 0.5,
     readError: false,
     writeError: false,
     backupError: false,
@@ -67,7 +68,7 @@ const setup = (store = new Map<string, string>(), errors: Partial<{ readError: b
     now: () => fake.time,
     date: () => 1000,
     createId: () => `play-${++nextId}`,
-    random: () => 0.5,
+    random: () => fake.random,
     confirm: (question) => {
       fake.questions.push(question);
       return fake.answer;
@@ -205,6 +206,35 @@ describe('replacing a game', () => {
     controller.updateSettings({ timer: false, silver: false, size: 6 });
     expect(fake.requests).toHaveLength(2);
     expect(fake.requests[1].settings.size).toBe(6);
+  });
+});
+
+describe('size ranges', () => {
+  it.each([
+    ['smaller', [5, 6, 7]],
+    ['medium', [7, 8]],
+    ['larger', [8, 9, 10]],
+  ] as const)('chooses every size in %s with equal probability', (size, sizes) => {
+    for (const [index, expected] of sizes.entries()) {
+      for (const offset of [0, 0.5, 0.999]) {
+        const { fake, controller } = setup();
+        fake.manual = true;
+        fake.random = (index + offset) / sizes.length;
+        controller.updateSettings({ timer: true, silver: false, size, tier: 'easy' });
+        expect(fake.requests.at(-1)!.settings.size).toBe(expected);
+        expect(fake.requests.at(-1)!.settings.silver).toBe(fake.random < 0.2);
+        expect(saved(fake.store).settings.size).toBe(size);
+      }
+    }
+  });
+
+  it('chooses a new size for the next prefetched puzzle', async () => {
+    const { fake, controller } = setup();
+    controller.updateSettings({ timer: true, silver: true, size: 'smaller', tier: 'easy' });
+    fake.random = 0.999;
+    await controller.newPuzzle();
+    expect(game(controller).puzzle.size).toBe(6);
+    expect(fake.requests.at(-1)!.settings.size).toBe(7);
   });
 });
 

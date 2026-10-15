@@ -4,6 +4,7 @@ import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
 import { createWorkerGenerator } from './generator';
+import { SIZE_RANGES, type SizeRange } from './settings';
 
 /* ========================================================= *\
  *  Main screen and DOM glue. App state lives in the         *
@@ -65,7 +66,8 @@ const badges = (result: Result): string => [
 const summary = (): string => {
   const { size, tier, silver } = controller.settings;
   return [
-    size ? `${size}×${size}` : 'Any size',
+    typeof size === 'string' ? `${size[0].toUpperCase()}${size.slice(1)} (${SIZE_RANGES[size].join(', ')})`
+      : size ? `${size}×${size}` : 'Any size',
     tier ? `${tier[0].toUpperCase()}${tier.slice(1)}` : 'Any difficulty',
     silver ? 'Silver acorn' : 'A fresh puzzle every time',
   ].join(' · ');
@@ -205,11 +207,12 @@ $('settingsButton').onclick = (): void => {
 
 settingsForm.onchange = (): void => {
   const data = new FormData(settingsForm);
+  const size = data.get('size');
   const level = (name: string): number | undefined => (data.get(name) ? Number(data.get(name)) : undefined);
   controller.updateSettings({
     timer: data.has('timer'),
     silver: data.has('silver'),
-    size: level('size'),
+    size: typeof size === 'string' && Object.keys(SIZE_RANGES).includes(size) ? size as SizeRange : level('size'),
     tier: (data.get('tier') as Tier | '') || undefined,
     sizeMix: level('sizeMix'),
     shape: level('shape'),

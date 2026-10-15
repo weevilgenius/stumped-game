@@ -513,6 +513,39 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
   expect((await model(page)).puzzle.size).toBe(5);
 });
 
+for (const [size, expected, label] of [
+  ['smaller', 5, 'Smaller (5, 6, 7)'],
+  ['medium', 7, 'Medium (7, 8)'],
+  ['larger', 8, 'Larger (8, 9, 10)'],
+] as const) {
+  test(`${size} size range persists and controls new puzzles`, async ({ page }) => {
+    await page.addInitScript(() => {
+      // The controller captures this source at startup; restore it before Phaser creates textures.
+      const random = Math.random;
+      Math.random = () => 0;
+      document.addEventListener('DOMContentLoaded', () => { Math.random = random; }, { once: true });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const settings = page.locator('#settings');
+    const select = settings.locator('[name=size]');
+    await expect(select.locator('option').first()).toHaveText('Any');
+    await select.selectOption(size);
+    await settings.locator('[name=tier]').selectOption('easy');
+    await settings.getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('#summary')).toContainText(label);
+
+    await page.reload();
+    await expect(page.locator('#summary')).toContainText(label);
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await expect(select).toHaveValue(size);
+    await settings.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'New puzzle' }).click();
+    await puzzleReady(page);
+    expect((await model(page)).puzzle.size).toBe(expected);
+  });
+}
+
 test('a bad seed code is refused and a good one plays', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Seed code').fill('NOT-A-CODE');
