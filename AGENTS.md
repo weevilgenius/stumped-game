@@ -232,6 +232,16 @@ Use the bundled guides in `node_modules/phaser/skills/` for Phaser work:
 | [Curves and paths](./node_modules/phaser/skills/curves-and-paths/SKILL.md) | Curves, path sampling/drawing, PathFollower. |
 | [Actions and utilities](./node_modules/phaser/skills/actions-and-utilities/SKILL.md) | Batch operations, grid layout, alignment, array/object/string helpers. |
 
+## Commit attribution
+
+When you create commits, attribute the work to the agent that produced it rather than the human operator.
+
+- Set the commit author to the agent identity (for example `Codex <codex@openai.com>`, `Claude <noreply@anthropic.com>`, or the equivalent for the agent in use).
+- Prefer `git commit --author="Agent Name <agent@example.com>"` (or the equivalent environment variables) so the Author field is the agent.
+- Append a GitHub-recognized trailer to the commit message: `Co-authored-by: Agent Name <agent@example.com>`
+- Leave the committer identity as the existing human/system identity unless explicitly told otherwise.
+- Do not use placeholder addresses such as `codex@example.com` or other unclaimed domains.
+
 ## Important Notes
 
 - The package manager is **pnpm** (version pinned via `packageManager` field)
