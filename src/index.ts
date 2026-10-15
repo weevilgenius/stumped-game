@@ -5,6 +5,7 @@ import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, res
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
 import { createWorkerGenerator } from './generator';
 import { SIZE_RANGES, type SizeRange } from './settings';
+import { watchForUpdates } from './updates';
 
 /* ========================================================= *\
  *  Main screen and DOM glue. App state lives in the         *
@@ -289,6 +290,17 @@ if (linked) {
 }
 controller.boot(linked);
 
+// A new version shows a bar on the main screen only, so it never interrupts a puzzle.
+$('refresh').onclick = (): void => {
+  // Saves the game and stops its clock, as leaving the app would.
+  controller.setHidden(true);
+  location.reload();
+};
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  void navigator.serviceWorker.register('./sw.js');
+  watchForUpdates({
+    container: navigator.serviceWorker,
+    document,
+    setInterval: (callback, ms) => setInterval(callback, ms),
+    onUpdate: () => $('updateNotice').hidden = false,
+  });
 }

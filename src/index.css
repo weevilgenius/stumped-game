@@ -195,6 +195,25 @@ input[type='checkbox'] {
   border-bottom: 1px solid var(--line);
 }
 
+#updateNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 4px 8px 4px 16px;
+  border-radius: 8px;
+  background: var(--green);
+  color: var(--on-green);
+  font-size: 15px;
+}
+
+#updateNotice .text-button {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;

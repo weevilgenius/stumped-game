@@ -1,5 +1,5 @@
 import { runInNewContext } from 'node:vm';
-import { cachedUrl, offlineManifest, readPublicFiles, serviceWorkerSource } from './offline';
+import { cachedUrl, isBuiltAsset, offlineManifest, previousBuild, readPublicFiles, serviceWorkerSource } from './offline';
 
 const SCOPE = 'https://weevilgenius.github.io/stumped-game/';
 const FILES = ['./', './assets/index.js', './assets/worker-abc.js', './manifest.webmanifest', './icon-192.png'];
@@ -72,10 +72,39 @@ describe('cached app URLs', () => {
   });
 });
 
+describe('earlier builds', () => {
+  it('recognizes built files from any build, and nothing from the comparison apps', () => {
+    expect(isBuiltAsset(SCOPE, `${SCOPE}assets/worker-old.js`)).toBe(true);
+    expect(isBuiltAsset(SCOPE, `${SCOPE}assets/index-old.js?v=1`)).toBe(true);
+    expect(isBuiltAsset(SCOPE, `${SCOPE}grok/assets/index.js`)).toBe(false);
+    expect(isBuiltAsset(SCOPE, `${SCOPE}stale.txt`)).toBe(false);
+    expect(isBuiltAsset(SCOPE, 'https://example.com/stumped-game/assets/index.js')).toBe(false);
+  });
+
+  it('picks the newest other build cache, ignoring other names and apps', () => {
+    const current = 'stumped-main-abc123abc123';
+    expect(previousBuild([
+      'stumped-main-111111111111',
+      'stumped-main-222222222222',
+      'stumped-main-stale',
+      'stumped-grok-333333333333',
+      current,
+    ], current, 'stumped-main-')).toBe('stumped-main-222222222222');
+    expect(previousBuild(['stumped-main-old', current], current, 'stumped-main-')).toBeNull();
+  });
+});
+
 describe('generated service worker', () => {
   const source = serviceWorkerSource('abc123abc123', FILES);
 
-  const load = (): {
+  const load = (keys = [
+    'stumped-main-old',
+    'stumped-main-abc123abc123',
+    'stumped-grok-keep',
+    'stumped-fable-keep',
+    'stumped-astra-keep',
+    'other-app',
+  ]): {
     fire: (type: 'install' | 'activate' | 'fetch', event: object) => Promise<unknown>;
     opened: string[];
     deleted: string[];
@@ -108,14 +137,7 @@ describe('generated service worker', () => {
             },
           });
         },
-        keys: (): Promise<string[]> => Promise.resolve([
-          'stumped-main-old',
-          'stumped-main-abc123abc123',
-          'stumped-grok-keep',
-          'stumped-fable-keep',
-          'stumped-astra-keep',
-          'other-app',
-        ]),
+        keys: (): Promise<string[]> => Promise.resolve(keys),
         delete: (name: string): Promise<boolean> => {
           deleted.push(name);
           return Promise.resolve(true);
@@ -173,5 +195,19 @@ describe('generated service worker', () => {
     await worker.fire('fetch', { request: request(SCOPE, 'POST') });
     expect(worker.opened).toEqual(['stumped-main-abc123abc123', 'stumped-main-abc123abc123']);
     expect(worker.matched).toEqual([SCOPE, `${SCOPE}assets/worker-abc.js`]);
+  });
+
+  it('keeps the previous build cache for a page still running it', async () => {
+    const worker = load(['stumped-main-111111111111', 'stumped-main-222222222222', 'stumped-main-abc123abc123']);
+    await worker.fire('activate', {});
+    expect(worker.deleted).toEqual(['stumped-main-111111111111']);
+  });
+
+  it('answers an earlier build\'s files from the previous build cache', async () => {
+    const worker = load(['stumped-main-111111111111', 'stumped-main-abc123abc123']);
+    await worker.fire('fetch', { request: { method: 'GET', url: `${SCOPE}assets/worker-old.js` } });
+    await worker.fire('fetch', { request: { method: 'GET', url: `${SCOPE}grok/assets/worker-old.js` } });
+    expect(worker.opened).toEqual(['stumped-main-111111111111']);
+    expect(worker.matched).toEqual([`${SCOPE}assets/worker-old.js`]);
   });
 });
