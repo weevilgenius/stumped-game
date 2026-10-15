@@ -1,4 +1,5 @@
 import type { Settings } from './controller';
+import { SIZE_RANGES } from './settings';
 import { decodeSeedCode, encodeSeedCode, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, type Step, TIERS } from './engine';
 import { type Game, type Hint, HINTS, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
 
@@ -49,7 +50,8 @@ const marks = (value: unknown, count: number, max: number): value is number[] =>
 
 const validSettings = (value: unknown): value is Settings => object(value)
   && typeof value.timer === 'boolean' && typeof value.silver === 'boolean'
-  && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE))
+  && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE)
+    || Object.keys(SIZE_RANGES).some((range) => range === value.size))
   && (value.tier === undefined || tier(value.tier))
   && [value.sizeMix, value.shape, value.freebies].every((v) => v === undefined || integer(v, 0, 3));
 

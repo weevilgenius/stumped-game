@@ -4,6 +4,7 @@ import {
 import { type Game, newGame, type Result, resultOf } from './game';
 import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
+import { SIZE_RANGES, type SizeRange } from './settings';
 
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
@@ -13,7 +14,9 @@ import type { Generate } from './generator';
 \* ========================================================= */
 
 /** Player settings. A missing generator setting means random. */
-export interface Settings extends Partial<Pick<GeneratorSettings, 'size' | 'tier' | 'sizeMix' | 'shape' | 'freebies'>> {
+export interface Settings extends Partial<Pick<GeneratorSettings, 'tier' | 'sizeMix' | 'shape' | 'freebies'>> {
+  /** Fixed size or random size range; omitted to allow any size. */
+  size?: number | SizeRange;
   /** Show the timer during play. */
   timer: boolean;
   /** Give every puzzle a single acorn. */
@@ -221,9 +224,11 @@ export function createController(deps: ControllerDeps): Controller {
     if (prepared?.key !== key) {
       prepared?.abort.abort();
       // With the setting off, about one puzzle in five is still silver, unless size and difficulty are both fixed.
-      const always = silver || (fixed.size !== undefined && fixed.tier !== undefined ? false : undefined);
+      const always = silver || (typeof fixed.size === 'number' && fixed.tier !== undefined ? false : undefined);
+      const size = typeof fixed.size === 'string'
+        ? SIZE_RANGES[fixed.size][Math.floor(deps.random() * SIZE_RANGES[fixed.size].length)] : fixed.size;
       const request = {
-        settings: randomSettings(deps.random, { ...fixed, silver: always }),
+        settings: randomSettings(deps.random, { ...fixed, size, silver: always }),
         seed: Math.floor(deps.random() * 2 ** 32),
       };
       const abort = new AbortController();
