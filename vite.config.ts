@@ -1,12 +1,30 @@
 import { defineConfig, type PluginOption, type UserConfig } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { env } from 'node:process';
+import { execFile } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { offlinePlugin } from './scripts/offline.js';
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(async ({ command }) => {
+
+  const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+  const { stdout } = await promisify(execFile)('git', ['rev-parse', '--short=7', 'HEAD'], {
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    encoding: 'utf8',
+  });
+  const commit = stdout.trim();
 
   const plugins: PluginOption[] = [];
+
+  plugins.push({
+    name: 'app-build-info',
+    transformIndexHtml(html) {
+      return html.replace('%APP_VERSION%', version).replace('%APP_COMMIT%', commit);
+    },
+  });
 
   if (command === 'build' && env.ANALYZE === '1') {
     // add the visualizer to see the module break-down
