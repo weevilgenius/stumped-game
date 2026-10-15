@@ -66,9 +66,9 @@ const badges = (result: Result): string => [
 const summary = (): string => {
   const { size, tier, silver } = controller.settings;
   return [
-    typeof size === 'string' ? `${size[0].toUpperCase()}${size.slice(1)} (${SIZE_RANGES[size].join(', ')})`
+    typeof size === 'string' ? `${size[0].toUpperCase()}${size.slice(1)}`
       : size ? `${size}×${size}` : 'Any size',
-    tier ? `${tier[0].toUpperCase()}${tier.slice(1)}` : 'Any difficulty',
+    tier ? `${tier[0].toUpperCase()}${tier.slice(1)} difficulty` : 'Any difficulty',
     silver ? 'Silver acorn' : 'A fresh puzzle every time',
   ].join(' · ');
 };

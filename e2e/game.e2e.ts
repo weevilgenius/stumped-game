@@ -514,9 +514,9 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
 });
 
 for (const [size, expected, label] of [
-  ['smaller', 5, 'Smaller (5, 6, 7)'],
-  ['medium', 7, 'Medium (7, 8)'],
-  ['larger', 8, 'Larger (8, 9, 10)'],
+  ['smaller', 5, 'Smaller'],
+  ['medium', 7, 'Medium'],
+  ['larger', 8, 'Larger'],
 ] as const) {
   test(`${size} size range persists and controls new puzzles`, async ({ page }) => {
     await page.addInitScript(() => {
@@ -533,10 +533,10 @@ for (const [size, expected, label] of [
     await select.selectOption(size);
     await settings.locator('[name=tier]').selectOption('easy');
     await settings.getByRole('button', { name: 'Done' }).click();
-    await expect(page.locator('#summary')).toContainText(label);
+    await expect(page.locator('#summary')).toHaveText(`${label} · Easy difficulty · A fresh puzzle every time`);
 
     await page.reload();
-    await expect(page.locator('#summary')).toContainText(label);
+    await expect(page.locator('#summary')).toHaveText(`${label} · Easy difficulty · A fresh puzzle every time`);
     await page.getByRole('button', { name: 'Settings' }).click();
     await expect(select).toHaveValue(size);
     await settings.getByRole('button', { name: 'Done' }).click();
