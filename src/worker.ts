@@ -11,6 +11,8 @@ export interface GenerateRequest {
   readonly settings: GeneratorSettings;
   /** 32-bit unsigned seed. */
   readonly seed: number;
+  /** Generator version, when replaying an older seed code; omitted for the current one. */
+  readonly version?: number;
 }
 
 /** A request as sent to the worker, tagged so its reply can find it. */
@@ -26,10 +28,10 @@ export type WorkerReply =
 
 // Only runs inside a worker; the main thread imports this file for its types alone.
 self.onmessage = (event: MessageEvent<WorkerRequest>): void => {
-  const { id, settings, seed } = event.data;
+  const { id, settings, seed, version } = event.data;
   let reply: WorkerReply;
   try {
-    reply = { id, puzzle: generate(settings, seed) };
+    reply = { id, puzzle: generate(settings, seed, version) };
   } catch (error) {
     reply = { id, error: String(error) };
   }

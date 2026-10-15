@@ -1,5 +1,5 @@
 import mulberry32 from '../utils/mulberry';
-import { type GeneratorSettings, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, TIERS } from './board';
+import { GENERATOR_VERSION, type GeneratorSettings, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, TIERS } from './board';
 import { generate, randomSettings } from './generator';
 import { decodeSeedCode } from './seedCode';
 import { countSolutions, solve } from './solver';
@@ -71,7 +71,7 @@ describe('generate', () => {
         expect(puzzle.givens.every((cell) => puzzle.solution.includes(cell)), label).toBe(true);
         expect(new Set(puzzle.colors).size, label).toBe(size);
         expect(puzzle.colors.every((color) => color >= 0 && color < size), label).toBe(true);
-        expect(decodeSeedCode(puzzle.code), label).toEqual({ settings, seed });
+        expect(decodeSeedCode(puzzle.code), label).toEqual({ settings, seed, version: GENERATOR_VERSION });
 
         const result = solve(puzzle, puzzle.givens);
         expect(result.solved, label).toBe(true);
@@ -89,6 +89,21 @@ describe('generate', () => {
       }
     }, 30_000); // generation is heavy-tailed at size 10; it runs in the background in the app
   });
+
+  it('reaches hard at large sizes whatever the shape and size mix', () => {
+    // Version 1 settled for medium (or easy) on these codes after running out of attempts.
+    for (const code of ['1E9F513T5A4', '1E486FF76EC', '1J993EV0XEC', '1J885EFMTYJ', '1P0ESBKTTY8', '1P8CXRWWF6M']) {
+      const { settings, seed } = decodeSeedCode(code)!;
+      expect(generate(settings, seed, 1).tier, code).not.toBe('hard');
+      expect(generate(settings, seed).tier, code).toBe('hard');
+    }
+    for (const size of [8, 9, 10]) {
+      for (let shape = 0; shape < 4; shape++) {
+        const settings: GeneratorSettings = { ...BASE, size, tier: 'hard', sizeMix: shape, shape };
+        expect(generate(settings, size).tier, `size ${size} shape ${shape}`).toBe('hard');
+      }
+    }
+  }, 120_000);
 
   it('honors the freebies setting', () => {
     const hasFreebie = (puzzle: Puzzle): boolean => puzzle.givens.length > 0 || regionSizes(puzzle).includes(1);

@@ -26,10 +26,19 @@ const FIXTURES: readonly SeedFixture[] = [5, 6, 7, 8, 9, 10].map((size, i) => ({
   seed: (0x9e3779b9 ^ (size * 7919)) >>> 0,
 }));
 
+// Version 1 codes are still in saved games and results, so they must keep building their boards.
 describe('generator fixtures', () => {
   it.each(FIXTURES)('size $settings.size builds the recorded puzzle', ({ settings, seed }) => {
-    const code = encodeSeedCode(settings, seed);
-    expect(decodeSeedCode(code)).toEqual({ settings, seed });
-    expect(generate(settings, seed)).toMatchSnapshot();
+    const code = encodeSeedCode(settings, seed, 1);
+    expect(decodeSeedCode(code)).toEqual({ settings, seed, version: 1 });
+    expect(generate(settings, seed, 1)).toMatchSnapshot();
+  });
+});
+
+describe('generator fixtures, version 2', () => {
+  it.each(FIXTURES)('size $settings.size builds the recorded puzzle', ({ settings, seed }) => {
+    const code = encodeSeedCode(settings, seed, 2);
+    expect(decodeSeedCode(code)).toEqual({ settings, seed, version: 2 });
+    expect(generate(settings, seed, 2)).toMatchSnapshot();
   });
 });

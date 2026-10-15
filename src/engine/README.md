@@ -53,12 +53,16 @@ The techniques run in this order, simplest first. The order is one constant,
 Each attempt does the following, all drawn from one `mulberry32(seed)` stream:
 
 1. Place a legal set of stumps.
-2. Grow a region around each one. Region size mix and shape are steered by
-   `sizeMix` and `shape`.
+2. Grow a region around each one. Each region first takes one square beside
+   its stump, so none is left as a one-square region, then size mix and shape
+   are steered by `sizeMix` and `shape`.
 3. Repair the regions until the board has one solution. Each repair takes an
    alternate solution and moves one of its stump squares into a neighboring
-   region, which breaks that solution and leaves ours valid. Growing regions
-   at random alone almost never gives a unique board at size 8 and up.
+   region, which breaks that solution and leaves ours valid. A stump square
+   deep inside its region moves along with the shortest run of squares joining
+   it to the neighbor, and runs are weighed by `shape` so regions keep their
+   requested shape. Growing regions at random alone almost never gives a
+   unique board at size 8 and up.
 4. Maybe add a freebie, a revealed stump or a one-square region. Freebies come
    up less often at hard.
 5. Solve and rate the board, and keep it if its tier matches the request.
@@ -66,13 +70,19 @@ Each attempt does the following, all drawn from one `mulberry32(seed)` stream:
 - **Attempt cap:** generation stops after 2000 attempts. The cap counts
   attempts, never time, so a seed always gives the same board. If the requested
   tier is never hit, the closest one found is used, and `puzzle.tier` always
-  reports the actual rating.
+  reports the actual rating. Since version 2 a hard board is normally found
+  within a few dozen attempts at every size, shape, and size mix.
+- **Versions:** version 1 left most attempts unusable (stuck repairs and
+  one-square regions), so hard requests at size 8 and up often ran out of
+  attempts and came back medium. Version 2 fixed that. `generate()` and seed
+  codes still accept version 1, so saved and shared version 1 codes rebuild
+  their original boards.
 - **Speed:**
 
   | Size | Average | Worst case |
   | --- | --- | --- |
   | 5 to 8 | milliseconds | |
-  | 10 | 0.2 to 0.5 s | a few seconds |
+  | 10 | 0.2 to 1 s | several seconds for thin hard boards |
 
   Run it in a Web Worker and prepare the next puzzle ahead of time.
 - **Colors:** `colors` maps each region to a palette index. A board of size N
