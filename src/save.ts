@@ -42,7 +42,7 @@ const code = (value: unknown): value is string => {
     return false;
   }
   const decoded = decodeSeedCode(value);
-  return decoded !== null && encodeSeedCode(decoded.settings, decoded.seed) === value;
+  return decoded !== null && encodeSeedCode(decoded.settings, decoded.seed, decoded.version) === value;
 };
 const hints = (value: unknown): value is Hint[] => Array.isArray(value) && unique(value)
   && value.every((hint: unknown) => HINTS.some((h) => h === hint));

@@ -1,6 +1,6 @@
 import mulberry32 from '../utils/mulberry';
 import {
-  type Board, type GeneratorSettings, MAX_SIZE, MIN_SIZE, neighbors, type Puzzle, type Tier, TIERS,
+  type Board, GENERATOR_VERSION, type GeneratorSettings, MAX_SIZE, MIN_SIZE, neighbors, type Puzzle, type Tier, TIERS,
 } from './board';
 import { encodeSeedCode } from './seedCode';
 import { findSolutions, solve } from './solver';
@@ -101,9 +101,11 @@ const placeStumps = (rng: Rng, size: number): number[] => {
 /**
  * Grows one connected region around each stump until every square is taken.
  * Region i starts at stumps[i]. The `single` region, if any, never grows.
+ * @param pairFirst give every growing region a second square before the
+ *   weighted growth, so none is left as a one-square region (version 2 on)
  */
 const growRegions = (
-  rng: Rng, size: number, stumps: readonly number[], settings: GeneratorSettings, single: number,
+  rng: Rng, size: number, stumps: readonly number[], settings: GeneratorSettings, single: number, pairFirst: boolean,
 ): number[] => {
   const regions = new Array<number>(size * size).fill(-1);
   stumps.forEach((cell, region) => {
@@ -111,8 +113,19 @@ const growRegions = (
   });
   const dominant = randInt(rng, size);
   const exponent = SHAPE_EXPONENT[settings.shape];
+  let taken = size;
+  if (pairFirst) {
+    // Stumps never touch, so no square sits beside two of them and each region always has one free.
+    stumps.forEach((cell, region) => {
+      if (region !== single) {
+        const free = sideNeighbors(size, cell).filter((n) => regions[n] < 0);
+        regions[free[randInt(rng, free.length)]] = region;
+        taken++;
+      }
+    });
+  }
   // ponytail: frontiers rebuilt every step, O(cells^2) per board; fine for 100 cells.
-  for (let remaining = size * size - size; remaining > 0; remaining--) {
+  for (let remaining = size * size - taken; remaining > 0; remaining--) {
     const frontiers: number[][] = Array.from({ length: size }, () => []);
     regions.forEach((region, cell) => {
       if (region < 0) {
@@ -136,10 +149,10 @@ const growRegions = (
   return regions;
 };
 
-/** True if the region stays connected (and keeps 2+ squares) without `cell`. */
-const canGiveAway = (size: number, regions: readonly number[], cell: number): boolean => {
-  const region = regions[cell];
-  const rest = regions.flatMap((r, i) => (r === region && i !== cell ? [i] : []));
+/** True if the region of `squares` stays connected, and keeps 2+ squares, without them. */
+const canGiveAway = (size: number, regions: readonly number[], squares: readonly number[]): boolean => {
+  const region = regions[squares[0]];
+  const rest = regions.flatMap((r, i) => (r === region && !squares.includes(i) ? [i] : []));
   if (rest.length < 2) {
     return false;
   }
@@ -147,7 +160,7 @@ const canGiveAway = (size: number, regions: readonly number[], cell: number): bo
   const queue = [rest[0]];
   for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
     for (const n of sideNeighbors(size, next)) {
-      if (n !== cell && regions[n] === region && !seen.has(n)) {
+      if (!squares.includes(n) && regions[n] === region && !seen.has(n)) {
         seen.add(n);
         queue.push(n);
       }
@@ -157,31 +170,92 @@ const canGiveAway = (size: number, regions: readonly number[], cell: number): bo
 };
 
 /**
+ * The shortest runs of squares, starting at `start`, that a neighboring region
+ * can take over while the region of `start` stays whole. Runs never include
+ * one of our stumps.
+ * @param maxLength longest run to consider
+ * @returns each run, ordered from `start`, with the region that would take it
+ */
+const handOffs = (
+  size: number, regions: readonly number[], start: number, solution: readonly number[], single: number,
+  maxLength: number,
+): { run: number[]; to: number }[] => {
+  const home = regions[start];
+  const runs: { run: number[]; to: number }[] = [];
+  // Breadth-first through the region, so the first runs found are the shortest.
+  const previous = new Map<number, number>([[start, -1]]);
+  const queue = [start];
+  for (const cell of queue) {
+    const run: number[] = [];
+    for (let at = cell; at >= 0; at = previous.get(at) ?? -1) {
+      run.unshift(at);
+    }
+    if (run.length > maxLength || (runs.length && run.length > runs[0].run.length)) {
+      break;
+    }
+    const takers = [...new Set(sideNeighbors(size, cell).map((n) => regions[n]))]
+      .filter((r) => r !== home && r !== single);
+    if (takers.length && canGiveAway(size, regions, run)) {
+      runs.push(...takers.map((to) => ({ run, to })));
+    }
+    for (const n of sideNeighbors(size, cell)) {
+      if (regions[n] === home && !previous.has(n) && !solution.includes(n)) {
+        previous.set(n, cell);
+        queue.push(n);
+      }
+    }
+  }
+  return runs;
+};
+
+/**
+ * How well a hand-off fits the requested shape: the growth weight of each
+ * square in the run, taken in the order the receiving region would reach them.
+ */
+const shapeWeight = (
+  size: number, regions: readonly number[], { run, to }: { run: readonly number[]; to: number }, exponent: number,
+): number => {
+  const after = regions.slice();
+  let weight = 1;
+  for (let i = run.length - 1; i >= 0; i--) {
+    weight *= neighbors(size, run[i]).filter((n) => after[n] === to).length ** exponent;
+    after[run[i]] = to;
+  }
+  return weight;
+};
+
+/**
  * Edits regions until `solution` is the only solution. Each round takes an
  * alternative solution and hands one of its stump squares (not one of ours) to
  * a neighboring region, which leaves that solution with two stumps in one
- * region while ours stays valid.
+ * region while ours stays valid. A stump square deep inside its region goes
+ * along with the shortest run of squares joining it to a neighbor.
+ * @param repair longest run handed over in one round, and the shape exponent
+ *   that weighs runs (null picks evenly)
  * @returns true if the board ended up unique
  */
 const makeUnique = (
   rng: Rng, size: number, regions: number[], solution: readonly number[], single: number,
+  { maxRun, exponent }: { maxRun: number; exponent: number | null },
 ): boolean => {
   for (let repair = 0; repair < MAX_REPAIRS; repair++) {
     const other = findSolutions({ size, regions }, 2).find((s) => s.some((cell, row) => cell !== solution[row]));
     if (!other) {
       return true;
     }
-    const moves = other.filter((cell) => !solution.includes(cell)).flatMap((cell) => (
-      canGiveAway(size, regions, cell)
-        ? [...new Set(sideNeighbors(size, cell).map((n) => regions[n]))]
-          .filter((r) => r !== regions[cell] && r !== single)
-          .map((r) => [cell, r])
-        : []));
+    const moves = other.filter((cell) => !solution.includes(cell))
+      .flatMap((cell) => handOffs(size, regions, cell, solution, single, maxRun));
     if (!moves.length) {
       return false;
     }
-    const [cell, region] = moves[randInt(rng, moves.length)];
-    regions[cell] = region;
+    // Version 1 picks evenly. Later versions weigh each run like region growth
+    // does, so the regions it reshapes keep the requested shape.
+    const { run, to } = exponent === null
+      ? moves[randInt(rng, moves.length)]
+      : moves[pickWeighted(rng, moves.map((move) => shapeWeight(size, regions, move, exponent)))];
+    for (const cell of run) {
+      regions[cell] = to;
+    }
   }
   return false;
 };
@@ -198,11 +272,15 @@ const makeUnique = (
  * the closest tier found is used.
  * @param settings generator settings
  * @param seed 32-bit unsigned seed
+ * @param version generator version, for replaying an older seed code
  * @returns the puzzle, including its seed code
- * @throws RangeError if a setting or the seed is out of range
+ * @throws RangeError if a setting, the seed, or the version is out of range
  */
-export function generate(settings: GeneratorSettings, seed: number): Puzzle {
-  const code = encodeSeedCode(settings, seed);
+export function generate(settings: GeneratorSettings, seed: number, version = GENERATOR_VERSION): Puzzle {
+  const code = encodeSeedCode(settings, seed, version);
+  // Version 1 left many boards with one-square regions or stuck repairs, so few
+  // were usable and hard ones often ran out of attempts.
+  const legacy = version === 1;
   const { size, tier } = settings;
   const rng = mulberry32(seed);
   const wanted = TIERS.indexOf(tier);
@@ -215,8 +293,9 @@ export function generate(settings: GeneratorSettings, seed: number): Puzzle {
     const freebie = rng() < freebieChance ? (rng() < 0.5 ? 'single' : 'given') : null;
     const single = freebie === 'single' ? randInt(rng, size) : -1;
     const givens = freebie === 'given' ? [solution[randInt(rng, size)]] : [];
-    const regions = growRegions(rng, size, solution, settings, single);
-    if (!makeUnique(rng, size, regions, solution, single)) {
+    const regions = growRegions(rng, size, solution, settings, single, !legacy);
+    const repair = legacy ? { maxRun: 1, exponent: null } : { maxRun: Infinity, exponent: SHAPE_EXPONENT[settings.shape] };
+    if (!makeUnique(rng, size, regions, solution, single, repair)) {
       continue;
     }
     const board: Board = { size, regions };

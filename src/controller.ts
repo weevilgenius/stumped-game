@@ -317,7 +317,7 @@ export function createController(deps: ControllerDeps): Controller {
     if (starting) {
       return true;
     }
-    if (game?.status === 'playing' && game.puzzle.code === encodeSeedCode(decoded.settings, decoded.seed)) {
+    if (game?.status === 'playing' && game.puzzle.code === encodeSeedCode(decoded.settings, decoded.seed, decoded.version)) {
       resume();
     } else if (mayAbandon('Abandon the puzzle in progress and play this one?')) {
       const abort = new AbortController();

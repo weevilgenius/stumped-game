@@ -36,9 +36,13 @@ export interface Puzzle extends Board {
 
 /**
  * Generator version, carried in every seed code. Bump it whenever the same
- * settings and seed would produce a different board.
+ * settings and seed would produce a different board, and keep the older
+ * versions building their boards so saved codes still replay.
  */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
+
+/** Oldest generator version whose seed codes still decode and replay. */
+export const OLDEST_GENERATOR_VERSION = 1;
 
 /** Smallest supported grid size. */
 export const MIN_SIZE = 5;

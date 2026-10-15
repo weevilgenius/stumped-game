@@ -1,4 +1,6 @@
-import { GENERATOR_VERSION, type GeneratorSettings, MAX_SIZE, MIN_SIZE, TIERS } from './board';
+import {
+  GENERATOR_VERSION, type GeneratorSettings, MAX_SIZE, MIN_SIZE, OLDEST_GENERATOR_VERSION, TIERS,
+} from './board';
 
 /* ========================================================= *\
  *  Seed codes                                               *
@@ -15,6 +17,8 @@ export interface SeedCode {
   readonly settings: GeneratorSettings;
   /** 32-bit unsigned PRNG seed. */
   readonly seed: number;
+  /** Generator version that builds the board. */
+  readonly version: number;
 }
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -36,13 +40,17 @@ const checkChar = (body: string): string => {
  * Encodes generator settings and a seed as an 11-character code.
  * @param settings generator settings
  * @param seed 32-bit unsigned seed
+ * @param version generator version
  * @returns the seed code
- * @throws RangeError if a setting or the seed is out of range
+ * @throws RangeError if a setting, the seed, or the version is out of range
  */
-export function encodeSeedCode(settings: GeneratorSettings, seed: number): string {
+export function encodeSeedCode(settings: GeneratorSettings, seed: number, version = GENERATOR_VERSION): string {
   const { size, tier, silver, sizeMix, shape, freebies } = settings;
+  if (version < OLDEST_GENERATOR_VERSION || version > GENERATOR_VERSION) {
+    throw new RangeError(`Generator version out of range: ${version}`);
+  }
   const fields: [number, number][] = [
-    [5, GENERATOR_VERSION],
+    [5, version],
     [3, size - MIN_SIZE],
     [2, TIERS.indexOf(tier)],
     [1, silver ? 1 : 0],
@@ -74,7 +82,7 @@ export function encodeSeedCode(settings: GeneratorSettings, seed: number): strin
  * Decodes a seed code typed or pasted by a person. Ignores case, spaces, and
  * hyphens, and reads I and L as 1 and O as 0.
  * @param code the seed code
- * @returns settings and seed, or null if the code is invalid or from an unknown generator version
+ * @returns settings, seed, and generator version, or null if the code is invalid or from an unknown version
  */
 export function decodeSeedCode(code: string): SeedCode | null {
   const clean = code.toUpperCase().replace(/[\s-]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0');
@@ -104,8 +112,9 @@ export function decodeSeedCode(code: string): SeedCode | null {
   const tierIndex = take(2);
   const size = take(3) + MIN_SIZE;
   const version = take(5);
-  if (padding !== 0 || version !== GENERATOR_VERSION || size > MAX_SIZE || tierIndex >= TIERS.length) {
+  if (padding !== 0 || version < OLDEST_GENERATOR_VERSION || version > GENERATOR_VERSION
+    || size > MAX_SIZE || tierIndex >= TIERS.length) {
     return null;
   }
-  return { settings: { size, tier: TIERS[tierIndex], silver, sizeMix, shape, freebies }, seed };
+  return { settings: { size, tier: TIERS[tierIndex], silver, sizeMix, shape, freebies }, seed, version };
 }

@@ -8,9 +8,11 @@ const MID: GeneratorSettings = { size: 8, tier: 'medium', silver: false, sizeMix
 describe('encodeSeedCode', () => {
   // Vectors computed independently; changing them breaks every shared code.
   it('matches known vectors', () => {
-    expect(encodeSeedCode(MIN, 0)).toBe('1000000000Z');
-    expect(encodeSeedCode(MAX, 0xFFFFFFFF)).toBe('1PZZZZZZZYW');
-    expect(encodeSeedCode(MID, 123456789)).toBe('1D9R7BF6HAE');
+    expect(encodeSeedCode(MIN, 0, 1)).toBe('1000000000Z');
+    expect(encodeSeedCode(MAX, 0xFFFFFFFF, 1)).toBe('1PZZZZZZZYW');
+    expect(encodeSeedCode(MID, 123456789, 1)).toBe('1D9R7BF6HAE');
+    expect(encodeSeedCode(MID, 123456789, 2)).toBe(encodeSeedCode(MID, 123456789));
+    expect(encodeSeedCode(MID, 123456789, 2)).toMatch(/^2D9R7BF6HA.$/);
   });
 
   it('rejects out-of-range settings', () => {
@@ -18,20 +20,24 @@ describe('encodeSeedCode', () => {
     expect(() => encodeSeedCode({ ...MIN, shape: 4 }, 0)).toThrow();
     expect(() => encodeSeedCode(MIN, -1)).toThrow();
     expect(() => encodeSeedCode(MIN, 2 ** 32)).toThrow();
+    expect(() => encodeSeedCode(MIN, 0, 0)).toThrow();
+    expect(() => encodeSeedCode(MIN, 0, 3)).toThrow();
   });
 });
 
 describe('decodeSeedCode', () => {
   it('round-trips every field', () => {
     for (const [settings, seed] of [[MIN, 0], [MAX, 0xFFFFFFFF], [MID, 123456789]] as const) {
-      expect(decodeSeedCode(encodeSeedCode(settings, seed))).toEqual({ settings, seed });
+      for (const version of [1, 2]) {
+        expect(decodeSeedCode(encodeSeedCode(settings, seed, version))).toEqual({ settings, seed, version });
+      }
     }
   });
 
   it('is lenient about case, separators, and look-alike letters', () => {
-    expect(decodeSeedCode(' 1d9r7-bf6ha-e ')).toEqual({ settings: MID, seed: 123456789 });
-    expect(decodeSeedCode('i0000ooooOZ')).toEqual({ settings: MIN, seed: 0 });
-    expect(decodeSeedCode('L000000000z')).toEqual({ settings: MIN, seed: 0 });
+    expect(decodeSeedCode(' 1d9r7-bf6ha-e ')).toEqual({ settings: MID, seed: 123456789, version: 1 });
+    expect(decodeSeedCode('i0000ooooOZ')).toEqual({ settings: MIN, seed: 0, version: 1 });
+    expect(decodeSeedCode('L000000000z')).toEqual({ settings: MIN, seed: 0, version: 1 });
   });
 
   it('rejects every single-character typo', () => {
@@ -56,6 +62,7 @@ describe('decodeSeedCode', () => {
 
   it('rejects codes with valid checks but unsupported contents', () => {
     expect(decodeSeedCode(withCheck('0000000000'))).toBeNull(); // version 0
+    expect(decodeSeedCode(withCheck('3000000000'))).toBeNull(); // version 3, newer than this build
     expect(decodeSeedCode(withCheck('Z000000000'))).toBeNull(); // version 31
     expect(decodeSeedCode(withCheck('1R00000000'))).toBeNull(); // size 11
     expect(decodeSeedCode(withCheck('1300000000'))).toBeNull(); // tier 3
