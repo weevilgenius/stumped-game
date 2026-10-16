@@ -4,6 +4,7 @@ import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
 import { createWorkerGenerator } from './generator';
+import { fillHelpBoards } from './help';
 import { SIZE_RANGES, type SizeRange } from './settings';
 import { watchForUpdates } from './updates';
 
@@ -136,6 +137,7 @@ const render = (): void => {
         onChange: controller.changed,
         elapsed: controller.tick,
         onExit: controller.showMenu,
+        onHelp: openHelp,
       });
     }
   } else {
@@ -276,12 +278,34 @@ $('timesButton').onclick = (): void => {
 };
 
 /* ========================================================= *\
+ *  How to play                                              *
+\* ========================================================= */
+
+const helpDialog = $<HTMLDialogElement>('help');
+
+/** Shows the rules. Play time stops while they are open over a puzzle. */
+const openHelp = (): void => {
+  if (helpDialog.open) {
+    return;
+  }
+  if (!helpDialog.querySelector('.mini-board')) {
+    fillHelpBoards(helpDialog, PALETTE);
+  }
+  controller.setHidden(true);
+  $('helpBody').scrollTo({ top: 0 });
+  helpDialog.showModal();
+};
+
+helpDialog.onclose = (): void => controller.setHidden(document.hidden);
+$('helpButton').onclick = openHelp;
+
+/* ========================================================= *\
  *  Startup                                                  *
 \* ========================================================= */
 
 controller.subscribe(render);
 controller.setHidden(document.hidden);
-document.addEventListener('visibilitychange', () => controller.setHidden(document.hidden));
+document.addEventListener('visibilitychange', () => controller.setHidden(document.hidden || helpDialog.open));
 render();
 
 // A link with a seed code starts that puzzle. The code is dropped from the URL so a reload does not restart it.

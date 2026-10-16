@@ -83,6 +83,8 @@ export interface PuzzleOptions {
   readonly elapsed: () => number;
   /** Called when the screen closes: the back button, or the end of the puzzle. */
   readonly onExit: () => void;
+  /** Called when the player asks how to play. The scene keeps running underneath. */
+  readonly onHelp: () => void;
 }
 
 interface Rect {
@@ -369,8 +371,11 @@ class PuzzleScene extends Phaser.Scene {
     const { u, model } = this;
     const mid = r.y + r.h / 2;
     this.button('back', r.x + 42 * u, mid, 84 * u, 38 * u, '‹ Menu', () => this.exit());
+    const helpSize = 38 * u;
+    this.button('help', r.x + r.w - helpSize / 2, mid, helpSize, helpSize, '?', () => this.options.onHelp());
     const left = r.x + 96 * u;
-    const span = r.x + r.w - left;
+    const right = r.x + r.w - helpSize - 10 * u;
+    const span = right - left;
 
     const countX = left + span * 0.16;
     this.add.image(countX - 20 * u, mid, 'count');
@@ -384,7 +389,7 @@ class PuzzleScene extends Phaser.Scene {
       this.acornIcons.push(this.add.image(left + span * 0.57 + (i - (total - 1) / 2) * 27 * u, mid, 'acorn'));
     }
     if (this.options.showTimer) {
-      this.timerText = this.add.text(r.x + r.w - 2 * u, mid, formatTime(model.elapsed), this.textStyle(18))
+      this.timerText = this.add.text(right, mid, formatTime(model.elapsed), this.textStyle(18))
         .setOrigin(1, 0.5);
     }
   }
@@ -493,7 +498,7 @@ class PuzzleScene extends Phaser.Scene {
       ? this.add.image(x, y, content)
       : this.add.text(x, y, content, this.textStyle(16)).setOrigin(0.5);
     const labels: Record<string, string> = {
-      back: 'Menu', hypothesis: 'What if?', woodpecker: 'Woodpecker: reveal a stump',
+      back: 'Menu', help: 'How to play', hypothesis: 'What if?', woodpecker: 'Woodpecker: reveal a stump',
       owl: 'Owl: explain a deduction', squirrel: 'Squirrel: mark empty squares',
       previous: 'Previous explanation page', next: 'Next explanation page',
     };

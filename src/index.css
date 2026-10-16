@@ -239,6 +239,7 @@ input[type='checkbox'] {
 .masthead nav {
   display: flex;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .home {
@@ -868,4 +869,161 @@ fieldset label + label {
   bottom: 8px;
   background: var(--ink);
   color: #f7edd5;
+}
+
+/* ---------- How to play ---------- */
+
+#help {
+  width: min(94vw, 560px);
+}
+
+#help form {
+  max-height: calc(90dvh - 50px);
+}
+
+#helpBody {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -8px;
+  padding: 0 8px;
+  line-height: 1.45;
+}
+
+#helpBody:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+#helpBody h3 {
+  margin: 22px 0 10px;
+  font: normal 21px var(--serif);
+}
+
+#helpBody p {
+  margin: 0;
+}
+
+#helpBody ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-intro {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.help-rules {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.help-rules li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#helpBody > p + .help-list {
+  margin-top: 12px;
+}
+
+.help-list li {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 14px;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.help-list li > :first-child {
+  justify-self: center;
+}
+
+/* A small board, drawn like the puzzle screen: rounded squares over the forest green. */
+.mini-board {
+  display: grid;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.help-rules .mini-board,
+.help-intro .mini-board {
+  max-width: 160px;
+}
+
+[data-help-board='tap'] .mini-board,
+[data-help-board='reveal'] .mini-board,
+[data-help-board='wrong'] .mini-board {
+  width: 44px;
+}
+
+[data-help-board='drag'] .mini-board {
+  width: 76px;
+}
+
+[data-help-board='whatIf'] .mini-board {
+  width: 60px;
+}
+
+.mini-board i {
+  aspect-ratio: 1;
+  border-radius: 12%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100%;
+}
+
+.mini-board i.stump {
+  background-size: 86%;
+}
+
+.mini-board i.tentative {
+  background-size: 52%;
+}
+
+/* Pencil X's are half size, in the upper right, as on the board. */
+.mini-board i.hypoX {
+  background-size: 50%;
+  background-position: 98% 2%;
+}
+
+/* Squares outside the example, darkened as the owl does. */
+.mini-board i.dim {
+  filter: brightness(0.4);
+}
+
+/* The wooden buttons of the puzzle screen. */
+.wood {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  height: 40px;
+  padding: 0 8px;
+  border: 1px solid #5e3b1f;
+  border-radius: 9px;
+  background: #8a5a33;
+  color: #f7edd5;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wood img {
+  height: 32px;
 }

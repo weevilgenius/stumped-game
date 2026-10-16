@@ -670,3 +670,27 @@ test('a failed generator worker reports the failure and a retry starts a fresh o
   await puzzleReady(page);
   await expect(page.locator('#storageNotice')).toBeHidden();
 });
+
+test('help opens from the main screen and over a puzzle without losing it, and stops the clock', async ({ page }) => {
+  await page.goto('/');
+  const help = page.locator('#help');
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(help).toBeVisible();
+  await expect(help.locator('.help-rules .mini-board')).toHaveCount(4);
+  await help.getByRole('button', { name: 'Close' }).click();
+  await expect(help).toBeHidden();
+
+  await openPuzzle(page);
+  await tap(page, 0);
+  await press(page, 'help');
+  await expect(help).toBeVisible();
+  const before = (await model(page)).elapsed;
+  await page.waitForTimeout(1500);
+  await page.keyboard.press('Escape');
+  await expect(help).toBeHidden();
+  const game = await model(page);
+  expect(game.elapsed - before).toBeLessThan(500);
+  expect(game.marks[0]).toBe(X);
+  await tap(page, 1);
+  expect(await marks(page, [0, 1])).toEqual([X, X]);
+});
