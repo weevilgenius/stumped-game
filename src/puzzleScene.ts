@@ -840,9 +840,11 @@ class PuzzleScene extends Phaser.Scene {
     const board = this.cellSize * model.puzzle.size;
     const won = model.status === 'won';
     const title = won ? (isPerfectlyMarked(model) ? 'Perfectly Marked' : 'Solved!') : 'Stumped.';
+    const bannerW = Math.min(board * 0.94, 310 * u);
     const parts: Phaser.GameObjects.GameObject[] = [
-      this.add.rectangle(0, 0, Math.min(board * 0.94, 310 * u), 104 * u, INK, 0.94)
-        .setRounded(16 * u).setStrokeStyle(3 * u, CREAM),
+      // Filled shapes, not an outline stroke, for the same reason as the buttons: see the control buttons above.
+      this.add.rectangle(0, 0, bannerW, 104 * u, CREAM).setRounded(16 * u),
+      this.add.rectangle(0, 0, bannerW - 6 * u, 98 * u, INK).setRounded(13 * u),
       this.add.text(0, won ? -16 * u : 0, title, this.textStyle(30)).setOrigin(0.5),
     ];
     if (won) {
