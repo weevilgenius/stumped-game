@@ -488,6 +488,26 @@ export function isClean(result: Result): boolean {
 }
 
 /**
+ * Compares a solve with previously posted times for its size and difficulty.
+ * Ties are not beaten; the current play is excluded if already recorded.
+ * @param result the completed play
+ * @param results every recorded result
+ * @returns the finish banner award, or null without a qualifying history
+ */
+export function timeAward(result: Result, results: readonly Result[]): string | null {
+  const previous = results.filter((other) => other.id !== result.id
+    && other.size === result.size && other.tier === result.tier);
+  if (previous.length === 0) {
+    return null;
+  }
+  const beaten = previous.filter((other) => result.time < other.time).length;
+  if (beaten === previous.length) {
+    return 'Best Time!';
+  }
+  return beaten / previous.length >= 0.9 ? 'Top 10% Time!' : null;
+}
+
+/**
  * Lists the times for one size and difficulty, clean solves first, then by time.
  * @param results every recorded result
  * @param size grid size

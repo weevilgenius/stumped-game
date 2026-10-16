@@ -3,7 +3,7 @@ import { parseBoard } from './engine/testBoards';
 import {
   applyExplanation, beginStroke, bestTimes, canHint, completedUnits, doubleTap, enterHypothesis, explain,
   explainPages, extendStroke, flaggedStumps, formatTime, type Game, HYPO_STUMP, isClean, isPerfectlyMarked, leaveHypothesis,
-  MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, newGame, type Result, resultOf, squirrel, stumps, undo, woodpecker,
+  MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, newGame, type Result, resultOf, squirrel, stumps, timeAward, undo, woodpecker,
 } from './game';
 
 // Unique, solved with easy steps only. Region E is the single square 22.
@@ -443,6 +443,22 @@ describe('results', () => {
     ];
     expect(bestTimes(results, 5, 'easy').map((r) => r.code))
       .toEqual(['fast clean', 'slow clean', 'fast helped', 'slow repeat']);
+  });
+
+  it('awards strictly faster times within the matching band, excluding the current play', () => {
+    const current = result({ time: 20_000 });
+    const history = Array.from({ length: 10 }, (_, index) => result({
+      id: `previous-${index}`, time: (index + 1) * 10_000,
+    }));
+    expect(timeAward(current, history)).toBeNull(); // Only eight times beaten.
+    expect(timeAward(result({ time: 10_000 }), history)).toBe('Top 10% Time!');
+    expect(timeAward(result({ time: 9_999 }), history)).toBe('Best Time!');
+    expect(timeAward(current, [current, result({ id: 'other-size', size: 6 }),
+      result({ id: 'other-tier', tier: 'hard' })])).toBeNull();
+    expect(timeAward(current, [])).toBeNull();
+    expect(timeAward(current, [result({ id: 'tie', time: 20_000 })])).toBeNull();
+    expect(timeAward(current, [current, result({ id: 'helped', hints: ['owl'], repeat: true })]))
+      .toBe('Best Time!');
   });
 
   it('formats times as minutes and seconds', () => {
