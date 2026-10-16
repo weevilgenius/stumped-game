@@ -254,8 +254,8 @@ When you open a pull request, note the agent that produced the changes in the PR
 
 Update the package version whenever you complete a new feature or bug fix. Follow
 semantic versioning but with a focus on user experience (i.e. a major update reflects
-major UI or gameplay changes, a patch update is a minor tweak or bug fix, etc). Do
-not apply git tags to versions.
+major UI or gameplay changes, a patch update is a minor tweak or bug fix, etc). It
+is only necessary to bump the version once per pull request.
 
 ## Important Notes
 
