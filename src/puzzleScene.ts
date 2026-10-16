@@ -483,7 +483,10 @@ class PuzzleScene extends Phaser.Scene {
     onTap: () => void, dim?: () => boolean,
   ): void {
     const { u } = this;
-    const back = this.add.rectangle(x, y, w, h, WOOD).setRounded(10 * u).setStrokeStyle(2 * u, WOOD_DARK);
+    // Filled shapes avoid Phaser's rounded-outline stroke path, whose duplicate
+    // corner points can produce invalid vertices and streaks on some mobile GPUs.
+    const border = this.add.rectangle(x, y, w + 2 * u, h + 2 * u, WOOD_DARK).setRounded(11 * u);
+    const back = this.add.rectangle(x, y, w - 2 * u, h - 2 * u, WOOD).setRounded(9 * u);
     const face = this.textures.exists(content)
       ? this.add.image(x, y, content)
       : this.add.text(x, y, content, this.textStyle(16)).setOrigin(0.5);
@@ -496,9 +499,11 @@ class PuzzleScene extends Phaser.Scene {
       view: { name, label: labels[name] ?? content, bounds: [(x - w / 2) / u, (y - h / 2) / u, w / u, h / u], disabled: false },
       onTap, dim,
     });
-    back.setInteractive().on('pointerdown', () => this.activateControl(name));
+    back.setInteractive(new Phaser.Geom.Rectangle(-u, -u, w, h),
+      (area: Phaser.Geom.Rectangle, px: number, py: number) => Phaser.Geom.Rectangle.Contains(area, px, py))
+      .on('pointerdown', () => this.activateControl(name));
     if (dim) {
-      this.dimmers.push({ parts: [back, face], dim });
+      this.dimmers.push({ parts: [border, back, face], dim });
     }
     const canvas = this.game.canvas.getBoundingClientRect();
     this.spots[name] = { x: canvas.x + x / u, y: canvas.y + y / u };

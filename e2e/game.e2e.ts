@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import type Phaser from 'phaser';
 import type { Game } from '../src/game';
 
 /**
@@ -42,7 +43,7 @@ interface Scene {
   explanation: object | null;
   spots: Record<string, Spot>;
   cellSpot: (cell: number) => Spot;
-  game: { pause: () => void; resume: () => void };
+  game: { pause: () => void; resume: () => void; renderer: Phaser.Renderer.WebGL.WebGLRenderer };
 }
 
 /** Waits for the puzzle screen to be up and running a game in progress. */
@@ -133,6 +134,30 @@ test('a link with a seed code opens that puzzle', async ({ page }) => {
   expect(puzzle.solution).toEqual(SOLUTION);
   expect(page.url()).not.toContain('code=');
   await expect(page.locator('#menu')).toBeHidden();
+});
+
+test('puzzle controls render without non-finite stroke vertices after rotation', async ({ page }) => {
+  await openPuzzle(page);
+  await page.evaluate(() => {
+    const scene = (window as unknown as { stumped: Scene }).stumped;
+    const node = scene.game.renderer.renderNodes.getNode('DrawLine') as Phaser.Renderer.WebGL.RenderNodes.DrawLine;
+    const run = node.run.bind(node);
+    // Check geometry before the GPU sees it: drivers handle NaN differently,
+    // so a screenshot alone cannot catch the streaks on every machine.
+    node.run = (...args): void => {
+      run(...args);
+      if (args[8].some((value) => !Number.isFinite(value))) {
+        throw new Error('Non-finite puzzle stroke vertex');
+      }
+    };
+  });
+  await press(page, 'hypothesis');
+  const { width, height } = page.viewportSize()!;
+  await page.setViewportSize({ width: height, height: width });
+  await puzzleReady(page);
+  await press(page, 'discard');
+  await press(page, 'owl');
+  await press(page, 'done');
 });
 
 test('a tap toggles an X at once, and undo steps back', async ({ page }) => {
