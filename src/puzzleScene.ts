@@ -5,7 +5,7 @@ import type { Conflict } from './engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
   explainPages, extendStroke, flaggedStumps, formatTime, type Game, type Hint, HINTS, HYPO_STUMP,
-  isPerfectlyMarked, leaveHypothesis, MARK_X, type RevealResult, squirrel, type StrokeMode, stumps, undo,
+  isPerfectlyMarked, leaveHypothesis, MARK_X, type Result, resultOf, type RevealResult, squirrel, type StrokeMode, stumps, timeAward, undo,
   woodpecker,
 } from './game';
 import acornUrl from './assets/acorn_icon@8x.png';
@@ -55,7 +55,7 @@ const CONFLICT_MS = 650;
 /** How long input stays blocked once the red X lands. */
 const WRONG_MS = 350;
 /** How long the end-of-puzzle banner shows before returning to the main screen. */
-const END_MS = 2200;
+const END_MS = 4000;
 /**
  * How long button presses are ignored after one set of buttons replaces
  * another. Double tapping is the game's main gesture, and without this a
@@ -73,6 +73,8 @@ const MAX_PIXEL_RATIO = 3;
 export interface PuzzleOptions {
   /** The game to play. The scene changes it in place. */
   readonly model: Game;
+  /** Recorded times to compare with the completed play. */
+  readonly results: readonly Result[];
   /** Whether to show the timer. Time is recorded either way. */
   readonly showTimer: boolean;
   /** Called after every change worth saving. */
@@ -611,8 +613,9 @@ class PuzzleScene extends Phaser.Scene {
     const explanation = this.explanation;
     const message = explanation
       ? `Explanation ${explanation.index + 1} of ${explanation.pages.length}. ${explanation.pages[explanation.index].text}`
-      : this.model.status === 'won' ? 'Solved!' : this.model.status === 'lost' ? 'Stumped.'
-        : this.blocked() ? 'Wrong reveal. Wait for feedback to finish.' : '';
+      : this.model.status === 'won' ? `Solved! ${timeAward(resultOf(this.model), this.options.results) ?? ''}`.trim()
+        : this.model.status === 'lost' ? 'Stumped.'
+          : this.blocked() ? 'Wrong reveal. Wait for feedback to finish.' : '';
     this.accessible?.render(
       [this.boardX / this.u, this.boardY / this.u, this.cellSize * this.model.puzzle.size / this.u],
       [...this.controls.values()].map(({ view, dim }) => ({
@@ -824,6 +827,8 @@ class PuzzleScene extends Phaser.Scene {
 
   private finish(): void {
     this.ended = true;
+    // Freeze and record the final play time before comparing it with history.
+    this.options.onChange();
     if (this.model.status === 'won') {
       const hop = this.markSprites.filter((sprite, cell) => sprite && this.markKinds[cell] === 'stump');
       this.tweens.add({
@@ -840,15 +845,20 @@ class PuzzleScene extends Phaser.Scene {
     const board = this.cellSize * model.puzzle.size;
     const won = model.status === 'won';
     const title = won ? (isPerfectlyMarked(model) ? 'Perfectly Marked' : 'Solved!') : 'Stumped.';
+    const award = won ? timeAward(resultOf(model), this.options.results) : null;
+    const height = award ? 140 : 104;
     const bannerW = Math.min(board * 0.94, 310 * u);
     const parts: Phaser.GameObjects.GameObject[] = [
       // Filled shapes, not an outline stroke, for the same reason as the buttons: see the control buttons above.
-      this.add.rectangle(0, 0, bannerW, 104 * u, CREAM).setRounded(16 * u),
-      this.add.rectangle(0, 0, bannerW - 6 * u, 98 * u, INK).setRounded(13 * u),
-      this.add.text(0, won ? -16 * u : 0, title, this.textStyle(30)).setOrigin(0.5),
+      this.add.rectangle(0, 0, bannerW, height * u, CREAM).setRounded(16 * u),
+      this.add.rectangle(0, 0, bannerW - 6 * u, (height - 6) * u, INK).setRounded(13 * u),
+      this.add.text(0, won ? (award ? -34 : -16) * u : 0, title, this.textStyle(30)).setOrigin(0.5),
     ];
     if (won) {
-      parts.push(this.add.text(0, 24 * u, formatTime(model.elapsed), this.textStyle(20)).setOrigin(0.5));
+      parts.push(this.add.text(0, (award ? 6 : 24) * u, formatTime(model.elapsed), this.textStyle(20)).setOrigin(0.5));
+    }
+    if (award) {
+      parts.push(this.add.text(0, 44 * u, award, this.textStyle(22)).setOrigin(0.5));
     }
     const banner = this.add.container(this.boardX + board / 2, this.boardY + board / 2, parts).setDepth(10);
     if (animate) {

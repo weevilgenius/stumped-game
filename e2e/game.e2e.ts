@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type Phaser from 'phaser';
-import type { Game } from '../src/game';
+import type { Game, Result } from '../src/game';
 
 /**
  * Functional end-to-end tests.
@@ -454,6 +454,44 @@ test('resizing a hidden canvas then resuming preserves marks and immediate hit a
   expect(await marks(page, [0, 6, 63])).toEqual([X, STUMP, X]);
 });
 
+for (const award of ['Best Time!', 'Top 10% Time!']) {
+  test(`finish banner displays ${award} and survives resizing`, async ({ page }, testInfo) => {
+    await page.clock.install();
+    await openPuzzle(page);
+    await page.addInitScript((label) => {
+      const save = JSON.parse(localStorage.getItem('stumped-main.save')!) as { game: Game; results: Result[] };
+      save.results = Array.from({ length: 10 }, (_, index) => ({
+        id: `previous-${index}`, code: save.game.puzzle.code,
+        size: save.game.puzzle.size, tier: save.game.puzzle.tier,
+        time: label === 'Top 10% Time!' && index === 0 ? 0 : 1_000_000,
+        hints: [], acornsLost: 0, silver: false, repeat: false, date: 0,
+      }));
+      localStorage.setItem('stumped-main.save', JSON.stringify(save));
+    }, award);
+    await page.reload();
+    await puzzleReady(page);
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+    await solve(page);
+    const bannerTexts = (): Promise<string[]> => page.evaluate(() => {
+      const scene = (window as unknown as { stumped: Scene & {
+        children: { list: Phaser.GameObjects.GameObject[] };
+      } }).stumped;
+      return scene.children.list.flatMap((child) => {
+        const container = child as Phaser.GameObjects.Container;
+        return container.type === 'Container'
+          ? container.list.filter((part) => part.type === 'Text').map((part) => (part as Phaser.GameObjects.Text).text)
+          : [];
+      });
+    });
+    expect(await bannerTexts()).toContain(award);
+    const { width, height } = page.viewportSize()!;
+    await page.setViewportSize({ width: height, height: width });
+    await page.clock.runFor(400);
+    expect(await bannerTexts()).toContain(award);
+    await page.screenshot({ path: `screenshots/finish-${award === 'Best Time!' ? 'best' : 'top'}-${testInfo.project.name}.png` });
+  });
+}
+
 test('solving records once through repeated input, banner resize, reloads and a retry', async ({ page }) => {
   await page.clock.install();
   await openPuzzle(page);
@@ -477,12 +515,12 @@ test('solving records once through repeated input, banner resize, reloads and a 
   await expect(page.locator('#thumb')).toBeDisabled();
 
   await page.getByRole('button', { name: 'Best times' }).click();
-  await expect(page.locator('#timesList li')).toHaveCount(1);
+  await expect(page.locator('#timesList li:not(.times-empty)')).toHaveCount(1);
   await expect(page.locator('#timesList .star')).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Best times' }).click();
-  await expect(page.locator('#timesList li')).toHaveCount(1);
+  await expect(page.locator('#timesList li:not(.times-empty)')).toHaveCount(1);
   await page.getByRole('button', { name: 'Close' }).click();
 
   // A retry is a repeat play: it is recorded too, but cannot be clean.
@@ -491,12 +529,15 @@ test('solving records once through repeated input, banner resize, reloads and a 
   await puzzleReady(page);
   const retry = await model(page);
   expect([retry.repeat, retry.marks.every((mark) => mark === 0)]).toEqual([true, true]);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await solve(page);
   await page.clock.runFor(3000);
+  await expect(page.locator('#menu')).toBeHidden();
+  await page.clock.runFor(1500);
   await expect(page.locator('#menu')).toBeVisible({ timeout: 5000 });
   await page.reload();
   await page.getByRole('button', { name: 'Best times' }).click();
-  await expect(page.locator('#timesList li')).toHaveCount(2);
+  await expect(page.locator('#timesList li:not(.times-empty)')).toHaveCount(2);
   await expect(page.locator('#timesList .star')).toHaveCount(1);
 });
 
@@ -506,11 +547,11 @@ test('losing the last acorn ends the puzzle without giving it away', async ({ pa
     await doubleTap(page, cell);
     await page.waitForTimeout(WRONG_REVEAL_MS);
   }
-  await expect(page.locator('#menu')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#menu')).toBeVisible({ timeout: 8000 });
   await expect(page.locator('#current')).toContainText('Stumped.');
   await expect(page.locator('#thumb i[style*="background-image"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Best times' }).click();
-  await expect(page.locator('#timesList')).toContainText('No times yet.');
+  await expect(page.locator('#timesContext')).toContainText('No times yet');
 });
 
 test('new puzzles follow the size and difficulty settings', async ({ page }) => {

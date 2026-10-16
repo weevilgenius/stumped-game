@@ -131,6 +131,7 @@ const render = (): void => {
       stage.hidden = false;
       openPuzzle(stage, {
         model: game,
+        results: controller.results,
         showTimer: controller.settings.timer,
         onChange: controller.changed,
         elapsed: controller.tick,
