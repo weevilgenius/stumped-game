@@ -846,19 +846,22 @@ class PuzzleScene extends Phaser.Scene {
     const won = model.status === 'won';
     const title = won ? (isPerfectlyMarked(model) ? 'Perfectly Marked' : 'Solved!') : 'Stumped.';
     const award = won ? timeAward(resultOf(model), this.options.results) : null;
-    const height = award ? 140 : 104;
+    const height = award ? 176 : 104;
     const bannerW = Math.min(board * 0.94, 310 * u);
     const parts: Phaser.GameObjects.GameObject[] = [
       // Filled shapes, not an outline stroke, for the same reason as the buttons: see the control buttons above.
       this.add.rectangle(0, 0, bannerW, height * u, CREAM).setRounded(16 * u),
       this.add.rectangle(0, 0, bannerW - 6 * u, (height - 6) * u, INK).setRounded(13 * u),
-      this.add.text(0, won ? (award ? -34 : -16) * u : 0, title, this.textStyle(30)).setOrigin(0.5),
+      this.add.text(0, won ? (award ? -52 : -16) * u : 0, title, this.textStyle(30)).setOrigin(0.5),
     ];
     if (won) {
-      parts.push(this.add.text(0, (award ? 6 : 24) * u, formatTime(model.elapsed), this.textStyle(20)).setOrigin(0.5));
+      parts.push(this.add.text(0, (award ? -12 : 24) * u, formatTime(model.elapsed), this.textStyle(20)).setOrigin(0.5));
     }
     if (award) {
-      parts.push(this.add.text(0, 44 * u, award, this.textStyle(22)).setOrigin(0.5));
+      parts.push(this.add.text(0, 26 * u, award, this.textStyle(22)).setOrigin(0.5));
+      const { size, tier } = model.puzzle;
+      const details = `${size}x${size} ${tier[0].toUpperCase()}${tier.slice(1)}`;
+      parts.push(this.add.text(0, 60 * u, details, this.textStyle(18)).setOrigin(0.5));
     }
     const banner = this.add.container(this.boardX + board / 2, this.boardY + board / 2, parts).setDepth(10);
     if (animate) {

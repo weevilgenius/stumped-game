@@ -483,11 +483,11 @@ for (const award of ['Best Time!', 'Top 10% Time!']) {
           : [];
       });
     });
-    expect(await bannerTexts()).toContain(award);
+    expect(await bannerTexts()).toEqual(['Solved!', expect.any(String), award, '8x8 Medium']);
     const { width, height } = page.viewportSize()!;
     await page.setViewportSize({ width: height, height: width });
     await page.clock.runFor(400);
-    expect(await bannerTexts()).toContain(award);
+    expect(await bannerTexts()).toEqual(['Solved!', expect.any(String), award, '8x8 Medium']);
     await page.screenshot({ path: `screenshots/finish-${award === 'Best Time!' ? 'best' : 'top'}-${testInfo.project.name}.png` });
   });
 }
