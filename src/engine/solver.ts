@@ -478,7 +478,7 @@ export function countSolutions(board: Board, limit = 2): number {
 \* ========================================================= */
 
 const unitName = (unit: Unit): string => (unit.kind === 'region'
-  ? 'that patch'
+  ? 'that color'
   : `${unit.kind === 'row' ? 'row' : 'column'} ${unit.index + 1}`);
 
 const listLines = (axis: 'row' | 'col', lines: readonly number[]): string => {
@@ -493,40 +493,44 @@ const listLines = (axis: 'row' | 'col', lines: readonly number[]): string => {
 
 /**
  * Explains a step in plain words for the explain hint. Rows and columns are
- * numbered from 1; regions are referred to as highlighted patches.
+ * numbered from 1; regions are referred to as highlighted colors or color patches.
  * @param step a deduction
  * @returns a sentence or two
  */
 export function describeStep(step: Step): string {
   switch (step.type) {
   case 'elimination':
-    return 'A stump rules out every other square in its row, column, and patch, and every square touching it.';
+    return 'A stump rules out every other square in its row, column, and color, and every square touching it.';
   case 'forced': {
-    const name = step.unit.kind === 'region' ? 'This patch' : unitName(step.unit).replace(/^./, (c) => c.toUpperCase());
-    return `${name} has only one open square left, so its stump must go there.`;
+    const name = step.unit.kind === 'region'
+      ? 'This color patch'
+      : unitName(step.unit).replace(/^./, (c) => c.toUpperCase());
+    return `${name} has only one open square left, so this must be a stump.`;
   }
   case 'confinement': {
     const lines = listLines(step.axis, step.lines);
     const nouns = step.axis === 'row' ? 'rows' : 'columns';
     if (!step.reverse && step.k === 1) {
-      return `This patch's open squares all lie in ${lines}, so its stump is there `
-        + `and no other square in ${lines} can hold one.`;
+      return `This color patch's open squares all lie in ${lines}, so no other square in ${lines} can be a stump.`;
     }
     if (!step.reverse) {
-      return `These ${step.k} patches fit entirely inside ${lines}, so their stumps fill those ${nouns} `
-        + 'and no other square in them can hold one.';
+      return `These ${step.k} color patches fit entirely inside ${lines}, so their stumps fill those ${nouns} `
+        + 'and all other squares in them can be removed.';
     }
     if (step.k === 1) {
-      return `The open squares of ${lines} all lie in one patch, so that patch's stump is in ${lines} `
-        + 'and the rest of the patch is ruled out.';
+      return `The open squares of ${lines} all lie in one color, so that color's stump must be in ${lines} `
+        + 'and the rest of the color patch is ruled out.';
     }
-    return `The open squares of ${lines} all lie in these ${step.k} patches, so those patches' stumps `
-      + `are in those ${nouns} and the rest of the patches is ruled out.`;
+    return `The open squares of ${lines} all lie in these ${step.k} colors, so those colors' stumps `
+      + `must be in those ${nouns} and the rest of the color squares are ruled out.`;
   }
   case 'blocking':
-    return `A stump here would rule out every open square in ${unitName(step.unit)}, so this square can't hold one.`;
+    return step.unit.kind === 'region'
+      ? 'A stump here would rule out every open square in this color, so this square can be eliminated.'
+      : `A stump here would make it impossible to put a stump in ${unitName(step.unit)}, `
+        + 'so this square can be eliminated.';
   case 'chain':
     return `If a stump went here, then after ${step.steps.length} steps ${unitName(step.unit)} `
-      + 'would have no open square left, so this square can\'t hold one.';
+      + 'would have no open squares left, so this square must be eliminated.';
   }
 }
