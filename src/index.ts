@@ -5,7 +5,6 @@ import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, res
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
-import { SIZE_RANGES, type SizeRange } from './settings';
 import { watchForUpdates } from './updates';
 
 /* ========================================================= *\
@@ -64,13 +63,17 @@ const badges = (result: Result): string => [
   result.repeat ? '<span title="Repeat play">↻</span>' : '',
 ].join(' ');
 
+/** Joins choices as prose: "a", "a or b", "a, b or c". */
+const either = (choices: readonly string[]): string => (
+  choices.length > 1 ? `${choices.slice(0, -1).join(', ')} or ${choices.at(-1)}` : choices.join(''));
+
 /** The kind of puzzle New puzzle deals, from the settings. */
 const summary = (): string => {
-  const { size, tier, silver } = controller.settings;
+  const { sizes, tiers, silver } = controller.settings;
   return [
-    typeof size === 'string' ? `${size[0].toUpperCase()}${size.slice(1)}`
-      : size ? `${size}×${size}` : 'Any size',
-    tier ? `${tier[0].toUpperCase()}${tier.slice(1)} difficulty` : 'Any difficulty',
+    sizes ? either(sizes.map((size) => `${size}×${size}`)) : 'Any size',
+    tiers ? `${either(tiers.map((tier, index) => (index ? tier : `${tier[0].toUpperCase()}${tier.slice(1)}`)))} difficulty`
+      : 'Any difficulty',
     silver ? 'Silver acorn' : 'A fresh puzzle every time',
   ].join(' · ');
 };
@@ -197,7 +200,14 @@ $<HTMLFormElement>('codeForm').onsubmit = (event): void => {
 
 const settingsDialog = $<HTMLDialogElement>('settings');
 const settingsForm = settingsDialog.querySelector('form')!;
-const SELECTS = ['size', 'tier', 'sizeMix', 'shape', 'freebies'] as const;
+const SELECTS = ['sizeMix', 'shape', 'freebies'] as const;
+/** Groups of toggles where checking none means Any, which has the empty value. */
+const TOGGLES = ['sizes', 'tiers'] as const;
+
+/** The toggles in a group, Any first. */
+const toggles = (name: typeof TOGGLES[number]): HTMLInputElement[] => [
+  ...settingsForm.querySelectorAll<HTMLInputElement>(`input[name=${name}]`),
+];
 
 $('settingsButton').onclick = (): void => {
   for (const name of SELECTS) {
@@ -206,18 +216,37 @@ $('settingsButton').onclick = (): void => {
   for (const name of ['timer', 'silver'] as const) {
     (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
   }
+  for (const name of TOGGLES) {
+    const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
+    for (const toggle of toggles(name)) {
+      toggle.checked = chosen.includes(toggle.value);
+    }
+  }
   settingsDialog.showModal();
 };
 
-settingsForm.onchange = (): void => {
+settingsForm.onchange = (event): void => {
+  const changed = event.target as HTMLInputElement;
+  const group = TOGGLES.find((name) => name === changed.name);
+  if (group) {
+    // Any clears the other choices; any other choice clears Any; clearing them all brings Any back.
+    const [any, ...others] = toggles(group);
+    if (changed === any) {
+      others.forEach((toggle) => (toggle.checked = false));
+    }
+    any.checked = !others.some((toggle) => toggle.checked);
+  }
   const data = new FormData(settingsForm);
-  const size = data.get('size');
+  const chosen = (name: typeof TOGGLES[number]): string[] | undefined => {
+    const values = data.getAll(name).filter((value): value is string => typeof value === 'string' && value !== '');
+    return values.length ? values : undefined;
+  };
   const level = (name: string): number | undefined => (data.get(name) ? Number(data.get(name)) : undefined);
   controller.updateSettings({
     timer: data.has('timer'),
     silver: data.has('silver'),
-    size: typeof size === 'string' && Object.keys(SIZE_RANGES).includes(size) ? size as SizeRange : level('size'),
-    tier: (data.get('tier') as Tier | '') || undefined,
+    sizes: chosen('sizes')?.map(Number),
+    tiers: chosen('tiers') as Tier[] | undefined,
     sizeMix: level('sizeMix'),
     shape: level('shape'),
     freebies: level('freebies'),

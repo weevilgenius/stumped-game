@@ -23,18 +23,32 @@ const won = (): Save => {
 };
 
 describe('save round trips', () => {
-  it.each(['smaller', 'medium', 'larger'] as const)('restores the %s size preference', (size) => {
+  it('restores toggled sizes and difficulties', () => {
     const save = fresh();
-    save.settings.size = size;
+    save.settings = { ...save.settings, sizes: [7, 8, 10], tiers: ['easy', 'hard'] };
     expect(read(save)).toEqual(save);
-    expect(migrateSave(legacy(save), createId)?.settings.size).toBe(size);
+    expect(migrateSave(legacy(save), createId)?.settings).toEqual(save.settings);
+  });
+
+  it.each([
+    [{ size: 'smaller' }, { sizes: [5, 6, 7] }],
+    [{ size: 'medium' }, { sizes: [7, 8] }],
+    [{ size: 'larger' }, { sizes: [8, 9, 10] }],
+    [{ size: 9, tier: 'hard' }, { sizes: [9], tiers: ['hard'] }],
+    [{ tier: 'easy' }, { tiers: ['easy'] }],
+    [{}, {}],
+  ])('turns the earlier choice %j into toggles %j', (earlier, toggles) => {
+    const save = { ...fresh(), settings: { timer: true, silver: false, ...earlier } };
+    const expected = { timer: true, silver: false, ...toggles };
+    expect(read(save)?.settings).toEqual(expected);
+    expect(migrateSave(legacy(save), createId)?.settings).toEqual(expected);
   });
 
   it('restores defaults, preferences, and a marked active game with history', () => {
     expect(read(newSave())).toEqual(newSave());
     const save = fresh();
-    const { silver: _silver, ...fixed } = SETTINGS;
-    save.settings = { ...fixed, timer: false, silver: true };
+    const { size, tier, sizeMix, shape, freebies } = SETTINGS;
+    save.settings = { sizes: [size], tiers: [tier], sizeMix, shape, freebies, timer: false, silver: true };
     beginStroke(save.game!, 0);
     expect(read(save)).toEqual(save);
   });
@@ -107,6 +121,11 @@ describe('invalid saves', () => {
     ['settings', { timer: true, silver: false, size: 11 }],
     ['settings', { timer: true, silver: false, size: 'small' }],
     ['settings', { timer: true, silver: false, tier: 'expert' }],
+    ['settings', { timer: true, silver: false, sizes: [] }],
+    ['settings', { timer: true, silver: false, sizes: [6, 6] }],
+    ['settings', { timer: true, silver: false, sizes: [4] }],
+    ['settings', { timer: true, silver: false, tiers: 'easy' }],
+    ['settings', { timer: true, silver: false, tiers: ['expert'] }],
     ['settings', { timer: true, silver: false, freebies: -1 }],
     ['played', ['not-a-code']],
     ['results', [{}]],

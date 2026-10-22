@@ -4,7 +4,7 @@ import {
 import { type Game, newGame, type Result, resultOf } from './game';
 import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
-import { SIZE_RANGES, type SizeRange } from './settings';
+import type { Choices } from './settings';
 
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
@@ -14,9 +14,7 @@ import { SIZE_RANGES, type SizeRange } from './settings';
 \* ========================================================= */
 
 /** Player settings. A missing generator setting means random. */
-export interface Settings extends Partial<Pick<GeneratorSettings, 'tier' | 'sizeMix' | 'shape' | 'freebies'>> {
-  /** Fixed size or random size range; omitted to allow any size. */
-  size?: number | SizeRange;
+export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'sizeMix' | 'shape' | 'freebies'>> {
   /** Show the timer during play. */
   timer: boolean;
   /** Give every puzzle a single acorn. */
@@ -223,12 +221,13 @@ export function createController(deps: ControllerDeps): Controller {
     const key = JSON.stringify([silver, fixed]);
     if (prepared?.key !== key) {
       prepared?.abort.abort();
+      const { sizes, tiers, ...rest } = fixed;
       // With the setting off, about one puzzle in five is still silver, unless size and difficulty are both fixed.
-      const always = silver || (typeof fixed.size === 'number' && fixed.tier !== undefined ? false : undefined);
-      const size = typeof fixed.size === 'string'
-        ? SIZE_RANGES[fixed.size][Math.floor(deps.random() * SIZE_RANGES[fixed.size].length)] : fixed.size;
+      const always = silver || (sizes?.length === 1 && tiers?.length === 1 ? false : undefined);
+      const pick = <T>(choices: readonly T[] | undefined): T | undefined => (
+        choices?.[Math.floor(deps.random() * choices.length)]);
       const request = {
-        settings: randomSettings(deps.random, { ...fixed, size, silver: always }),
+        settings: randomSettings(deps.random, { ...rest, size: pick(sizes), tier: pick(tiers), silver: always }),
         seed: Math.floor(deps.random() * 2 ** 32),
       };
       const abort = new AbortController();
