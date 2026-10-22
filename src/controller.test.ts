@@ -203,34 +203,42 @@ describe('replacing a game', () => {
     controller.boot(null);
     controller.updateSettings({ timer: false, silver: false });
     expect(fake.requests).toHaveLength(1);
-    controller.updateSettings({ timer: false, silver: false, size: 6 });
+    controller.updateSettings({ timer: false, silver: false, sizes: [6] });
     expect(fake.requests).toHaveLength(2);
     expect(fake.requests[1].settings.size).toBe(6);
   });
 });
 
-describe('size ranges', () => {
-  it.each([
-    ['smaller', [5, 6, 7]],
-    ['medium', [7, 8]],
-    ['larger', [8, 9, 10]],
-  ] as const)('chooses every size in %s with equal probability', (size, sizes) => {
+describe('multiple choices', () => {
+  it('chooses every toggled size and difficulty with equal probability', () => {
+    const sizes = [7, 8, 10];
+    const tiers = ['easy', 'hard'] as const;
     for (const [index, expected] of sizes.entries()) {
       for (const offset of [0, 0.5, 0.999]) {
         const { fake, controller } = setup();
         fake.manual = true;
         fake.random = (index + offset) / sizes.length;
-        controller.updateSettings({ timer: true, silver: false, size, tier: 'easy' });
-        expect(fake.requests.at(-1)!.settings.size).toBe(expected);
-        expect(fake.requests.at(-1)!.settings.silver).toBe(fake.random < 0.2);
-        expect(saved(fake.store).settings.size).toBe(size);
+        controller.updateSettings({ timer: true, silver: false, sizes, tiers: [...tiers] });
+        const request = fake.requests.at(-1)!.settings;
+        expect(request.size).toBe(expected);
+        expect(request.tier).toBe(tiers[Math.floor(fake.random * tiers.length)]);
+        expect(request.silver).toBe(fake.random < 0.2);
+        expect(saved(fake.store).settings).toMatchObject({ sizes, tiers });
       }
     }
   });
 
+  it('never deals silver by chance when one size and one difficulty are on', () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    fake.random = 0;
+    controller.updateSettings({ timer: true, silver: false, sizes: [5], tiers: ['easy'] });
+    expect(fake.requests.at(-1)!.settings).toMatchObject({ size: 5, tier: 'easy', silver: false });
+  });
+
   it('chooses a new size for the next prefetched puzzle', async () => {
     const { fake, controller } = setup();
-    controller.updateSettings({ timer: true, silver: true, size: 'smaller', tier: 'easy' });
+    controller.updateSettings({ timer: true, silver: true, sizes: [5, 6, 7], tiers: ['easy'] });
     fake.random = 0.999;
     await controller.newPuzzle();
     expect(game(controller).puzzle.size).toBe(6);
@@ -315,7 +323,7 @@ describe('generation failures and stale results', () => {
     fake.manual = true;
     controller.boot(null);
     const start = controller.newPuzzle();
-    controller.updateSettings({ timer: false, silver: false, size: 6 });
+    controller.updateSettings({ timer: false, silver: false, sizes: [6] });
     expect(controller.busy).toBe(false);
     // The taken puzzle and the one prepared under the old settings are both stopped.
     expect(fake.signals.map((signal) => signal!.aborted)).toEqual([true, true, false]);

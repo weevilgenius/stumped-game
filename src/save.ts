@@ -1,5 +1,5 @@
 import type { Settings } from './controller';
-import { SIZE_RANGES } from './settings';
+import { type LegacyChoices, SIZE_RANGES, upgradeChoices } from './settings';
 import { decodeSeedCode, encodeSeedCode, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, type Step, TIERS } from './engine';
 import { type Game, type Hint, HINTS, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
 
@@ -48,11 +48,18 @@ const hints = (value: unknown): value is Hint[] => Array.isArray(value) && uniqu
   && value.every((hint: unknown) => HINTS.some((h) => h === hint));
 const marks = (value: unknown, count: number, max: number): value is number[] => cells(value, max) && value.length === count;
 
+/** A non-empty list of distinct toggled choices, or undefined for Any. */
+const choices = (value: unknown, valid: (choice: unknown) => boolean): boolean => value === undefined
+  || (Array.isArray(value) && value.length > 0 && unique(value) && value.every(valid));
+
+/** Accepts current settings, and the single-choice size and tier that earlier versions saved. */
 const validSettings = (value: unknown): value is Settings => object(value)
   && typeof value.timer === 'boolean' && typeof value.silver === 'boolean'
   && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE)
     || Object.keys(SIZE_RANGES).some((range) => range === value.size))
   && (value.tier === undefined || tier(value.tier))
+  && choices(value.sizes, (size) => integer(size, MIN_SIZE, MAX_SIZE))
+  && choices(value.tiers, tier)
   && [value.sizeMix, value.shape, value.freebies].every((v) => v === undefined || integer(v, 0, 3));
 
 const validPuzzle = (value: unknown): value is Puzzle => {
@@ -187,11 +194,18 @@ const validSave = (value: unknown): value is Save => {
   return !recorded || (game.status === 'won' && matchesResult(recorded, game));
 };
 
+/** Turns the single-choice size and difficulty that earlier versions saved into the matching toggles. */
+const upgrade = (save: Save): Save => {
+  const { size, tier: legacyTier, ...settings } = save.settings as Settings & LegacyChoices;
+  return size === undefined && legacyTier === undefined ? save
+    : { ...save, settings: { ...settings, ...upgradeChoices({ size, tier: legacyTier }) } };
+};
+
 /** Parses compatible saves, returning null without exposing malformed data. */
 export function parseSave(raw: string): Save | null {
   try {
     const value: unknown = JSON.parse(raw);
-    return validSave(value) ? value : null;
+    return validSave(value) ? upgrade(value) : null;
   } catch {
     return null;
   }
@@ -225,7 +239,7 @@ export function migrateSave(raw: Record<typeof LEGACY_KEYS[number], string | nul
         value.game.id = recorded.id;
       }
     }
-    return value;
+    return upgrade(value);
   } catch {
     return null;
   }

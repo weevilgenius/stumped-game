@@ -86,19 +86,23 @@
     <dialog id="settings">
       <form method="dialog">
         <h2>Settings</h2>
-        <label>Size
-          <select name="size">
-            <option value="">Any</option>
-            <option value="smaller">Smaller</option><option value="medium">Medium</option><option value="larger">Larger</option>
-            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
-          </select>
-        </label>
-        <label>Difficulty
-          <select name="tier">
-            <option value="">Any</option>
-            <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
-          </select>
-        </label>
+        <fieldset class="toggles">
+          <legend>Size</legend>
+          <label><input type="checkbox" name="sizes" value="" />Any</label>
+          <label><input type="checkbox" name="sizes" value="5" />5×5</label>
+          <label><input type="checkbox" name="sizes" value="6" />6×6</label>
+          <label><input type="checkbox" name="sizes" value="7" />7×7</label>
+          <label><input type="checkbox" name="sizes" value="8" />8×8</label>
+          <label><input type="checkbox" name="sizes" value="9" />9×9</label>
+          <label><input type="checkbox" name="sizes" value="10" />10×10</label>
+        </fieldset>
+        <fieldset class="toggles">
+          <legend>Difficulty</legend>
+          <label><input type="checkbox" name="tiers" value="" />Any</label>
+          <label><input type="checkbox" name="tiers" value="easy" />Easy</label>
+          <label><input type="checkbox" name="tiers" value="medium" />Medium</label>
+          <label><input type="checkbox" name="tiers" value="hard" />Hard</label>
+        </fieldset>
         <label>Silver acorn mode <input type="checkbox" name="silver" /></label>
         <label>Show timer <input type="checkbox" name="timer" /></label>
         <fieldset>

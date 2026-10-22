@@ -680,6 +680,58 @@ fieldset label + label {
   margin-top: 6px;
 }
 
+/* Wide enough on larger screens to keep every size chip in one row. */
+#settings {
+  width: min(92vw, 540px);
+}
+
+/* Size and difficulty: chips that toggle on and off, with Any when none are on. */
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.toggles label {
+  position: relative;
+  justify-content: center;
+  min-width: 3.2em;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.toggles label + label {
+  margin-top: 0;
+}
+
+.toggles label:has(:checked) {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-green);
+}
+
+.toggles label:has(:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* The checkbox stays in the form and the accessibility tree; the chip shows its state. */
+.toggles input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 /* One scroll surface keeps every difficulty on the same size section. */
 #times {
   width: min(96vw, 1000px);

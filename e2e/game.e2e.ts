@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import type { Game, Result } from '../src/game';
 
@@ -558,8 +558,8 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings' }).click();
   const settings = page.locator('#settings');
-  await settings.locator('[name=size]').selectOption('5');
-  await settings.locator('[name=tier]').selectOption('easy');
+  await settings.getByRole('checkbox', { name: '5×5' }).check();
+  await settings.getByRole('checkbox', { name: 'Easy' }).check();
   await settings.getByLabel('Show timer').uncheck();
   await page.getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'New puzzle' }).click();
@@ -579,38 +579,52 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
   expect((await model(page)).puzzle.size).toBe(5);
 });
 
-for (const [size, expected, label] of [
-  ['smaller', 5, 'Smaller'],
-  ['medium', 7, 'Medium'],
-  ['larger', 8, 'Larger'],
-] as const) {
-  test(`${size} size range persists and controls new puzzles`, async ({ page }) => {
-    await page.addInitScript(() => {
-      // The controller captures this source at startup; restore it before Phaser creates textures.
-      const random = Math.random;
-      Math.random = () => 0;
-      document.addEventListener('DOMContentLoaded', () => { Math.random = random; }, { once: true });
-    });
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Settings' }).click();
-    const settings = page.locator('#settings');
-    const select = settings.locator('[name=size]');
-    await expect(select.locator('option').first()).toHaveText('Any');
-    await select.selectOption(size);
-    await settings.locator('[name=tier]').selectOption('easy');
-    await settings.getByRole('button', { name: 'Done' }).click();
-    await expect(page.locator('#summary')).toHaveText(`${label} · Easy difficulty · A fresh puzzle every time`);
-
-    await page.reload();
-    await expect(page.locator('#summary')).toHaveText(`${label} · Easy difficulty · A fresh puzzle every time`);
-    await page.getByRole('button', { name: 'Settings' }).click();
-    await expect(select).toHaveValue(size);
-    await settings.getByRole('button', { name: 'Done' }).click();
-    await page.getByRole('button', { name: 'New puzzle' }).click();
-    await puzzleReady(page);
-    expect((await model(page)).puzzle.size).toBe(expected);
+test('toggled sizes and difficulties persist and control new puzzles', async ({ page }) => {
+  await page.addInitScript(() => {
+    // The controller captures this source at startup; restore it before Phaser creates textures.
+    const random = Math.random;
+    Math.random = () => 0;
+    document.addEventListener('DOMContentLoaded', () => { Math.random = random; }, { once: true });
   });
-}
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const settings = page.locator('#settings');
+  const size = (name: string): Locator => settings.getByRole('group', { name: 'Size' }).getByRole('checkbox', { name });
+  const tier = (name: string): Locator => settings.getByRole('group', { name: 'Difficulty' }).getByRole('checkbox', { name });
+  await expect(size('Any')).toBeChecked();
+  await expect(tier('Any')).toBeChecked();
+
+  // Choosing a size or difficulty turns Any off; turning them all off turns it back on.
+  await size('7×7').check();
+  await expect(size('Any')).not.toBeChecked();
+  await size('7×7').uncheck();
+  await expect(size('Any')).toBeChecked();
+  for (const name of ['7×7', '8×8', '10×10']) {
+    await size(name).check();
+  }
+  await tier('Easy').check();
+  await tier('Medium').check();
+  await tier('Any').check();
+  await expect(tier('Easy')).not.toBeChecked();
+  await expect(tier('Medium')).not.toBeChecked();
+  await tier('Easy').check();
+  await settings.getByRole('button', { name: 'Done' }).click();
+  const summary = '7×7, 8×8 or 10×10 · Easy difficulty · A fresh puzzle every time';
+  await expect(page.locator('#summary')).toHaveText(summary);
+
+  await page.reload();
+  await expect(page.locator('#summary')).toHaveText(summary);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  for (const name of ['7×7', '8×8', '10×10', 'Easy']) {
+    await expect(settings.getByRole('checkbox', { name, exact: true })).toBeChecked();
+  }
+  await expect(size('9×9')).not.toBeChecked();
+  await expect(size('Any')).not.toBeChecked();
+  await settings.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'New puzzle' }).click();
+  await puzzleReady(page);
+  expect((await model(page)).puzzle.size).toBe(7);
+});
 
 test('a bad seed code is refused and a good one plays', async ({ page }) => {
   await page.goto('/');
