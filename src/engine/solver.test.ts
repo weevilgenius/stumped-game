@@ -206,5 +206,7 @@ describe('describeStep', () => {
     })).toMatch(/rows 1 and 2/);
     expect(describeStep({ type: 'blocking', cell: 7, unit: { kind: 'col', index: 0 }, eliminated: [7] }))
       .toMatch(/column 1/);
+    expect(describeStep({ type: 'blocking', cell: 7, unit: { kind: 'region', index: 0 }, eliminated: [7] }))
+      .toMatch(/in this color,/);
   });
 });

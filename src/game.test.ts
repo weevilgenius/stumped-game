@@ -539,7 +539,7 @@ describe('explainPages', () => {
     expect(pages[0]).toMatchObject({ marked: [0], stumps: [0], xs: [20, 21, 22, 23, 24] });
     expect(pages[1]).toMatchObject({ marked: [0], stumps: [0], xs: [1, 5, 6] });
     expect(pages[2]).toMatchObject({ marked: [2], stumps: [0, 2], xs: [1, 5, 6] });
-    expect(pages[2].text).toMatch(/Now row 5 has no open square left\.$/);
+    expect(pages[2].text).toMatch(/Now row 5 has no open squares left\.$/);
     expect(pages[2].lit).toEqual(expect.arrayContaining([20, 21, 22, 23, 24]));
   });
 });

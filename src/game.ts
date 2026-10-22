@@ -548,7 +548,7 @@ export interface ExplainPage {
 }
 
 const unitLabel = (unit: Unit): string => (unit.kind === 'region'
-  ? 'that patch'
+  ? 'that color'
   : `${unit.kind === 'row' ? 'row' : 'column'} ${unit.index + 1}`);
 
 /**
@@ -564,7 +564,7 @@ export function explainPages(game: Game, explanation: Explanation): ExplainPage[
   if (explanation.type === 'wrongX') {
     const { cell } = explanation;
     return [{
-      text: 'This X is on a square that holds a stump. Closing this hint removes the X.',
+      text: 'This X is marked incorrectly.',
       lit: [cell], marked: [cell], xs: [], stumps: [],
     }];
   }
@@ -613,7 +613,7 @@ export function explainPages(game: Game, explanation: Explanation): ExplainPage[
       sim = applyStep(sim, sub);
       const last = i === step.steps.length - 1;
       pages.push({
-        text: page.text + (last ? ` Now ${unitLabel(step.unit)} has no open square left.` : ''),
+        text: page.text + (last ? ` Now ${unitLabel(step.unit)} has no open squares left.` : ''),
         lit: last ? [...page.lit, ...unitCells(puzzle, step.unit)] : page.lit,
         marked: page.marked,
         xs: cells.filter((cell) => sim[cell] === EXCLUDED && state[cell] === OPEN),
