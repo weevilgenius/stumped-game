@@ -12,7 +12,12 @@ jobs:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+          # Optional but recommended for CI:
+          require-lockfile: true
       - run: pnpm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
