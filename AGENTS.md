@@ -21,34 +21,21 @@ changes:
 - Check all three: `pnpm run check`
 - Build project: `pnpm run build`
 
-## Hosting (GitHub Pages)
+## Hosting
 
-The game is published to GitHub Pages from the `gh-pages` branch, alongside
-the frozen agent bake-off builds (see README):
+The game is hosted on Firebase Hosting at https://stumpedgame.app. Pushes to
+`main` that touch `src/`, `public/`, or `package.json` deploy the `dist` build
+(`.github/workflows/firebase-hosting-merge.yml`; commits starting with `deps:`
+are skipped), and pull requests get a Firebase preview channel.
 
-```
-https://weevilgenius.github.io/stumped-game/          main
-https://weevilgenius.github.io/stumped-game/<agent>/  gemini, grok, fable, astra
-```
+The `gh-pages` branch no longer hosts the main game. It holds only the frozen
+agent bake-off builds linked from the README
+(`https://weevilgenius.github.io/stumped-game/<agent>/` for gemini, grok,
+fable, astra) and a root page linking to the new site. Do not delete them.
 
-All five apps, and any other project site under `weevilgenius.github.io`,
-share one origin, which means:
-- **localStorage is shared.** Main uses the key prefix `stumped-main.`
-  (`STORAGE_PREFIX` in `src/index.ts`) and must not
-  reuse the agent keys (`stumped_*`, `stumped-save-v1`, `stumped.game`,
-  `stumped.settings`, `stumped.v1`, etc.), even when porting code from an agent
-  branch, or saves will clobber each other. Never call `localStorage.clear()`
-  or iterate over all keys.
-- **Cache Storage is shared.** Main's service worker (emitted by
-  `vite.config.ts` in production builds) names its caches with the prefix
-  `stumped-main-`. It must keep a unique prefix (the agents use `stumped-grok-`, `stumped-fable-`, and
-  `stumped-astra-`),
-  only delete caches with that prefix, and only read from its own cache (open
-  it by name; do not use the global `caches.match`).
-- **Main's service worker scope contains the agent folders.** Agent pages with
-  their own service worker are controlled by it, but gemini has none, so
-  main's worker controls gemini's pages too. Its fetch handler should answer
-  only from its own cache and otherwise fall through to the network.
+Main's localStorage key prefix `stumped-main.` (`STORAGE_PREFIX` in
+`src/index.ts`) and cache prefix `stumped-main-` date from the shared GitHub
+Pages origin. Keep them unchanged so existing saves and caches stay valid.
 
 ## Source Layout
 
