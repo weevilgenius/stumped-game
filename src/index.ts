@@ -45,6 +45,9 @@ const applyTheme = (): void => {
     const name = form.toLowerCase() === 'many' ? theme.piece.many : theme.piece.one;
     word.textContent = form === form.toLowerCase() ? name : `${name[0].toUpperCase()}${name.slice(1)}`;
   }
+  for (const words of document.querySelectorAll<HTMLElement>('[data-silver]')) {
+    words.textContent = words.dataset.silver === 'lower' ? theme.silverName.toLowerCase() : theme.silverName;
+  }
 };
 
 const setTheme = (name: ThemeName): void => {
@@ -103,7 +106,7 @@ const badges = (result: Result): string => [
   isClean(result) ? '<span class="star" title="Clean solve">★</span>' : '',
   ...result.hints.map((hint) => icon(hint, `Used the ${theme.hintNames[hint].toLowerCase()}`)),
   result.acornsLost > 0 ? `${icon('acorn', 'Acorns lost')}−${result.acornsLost}` : '',
-  result.silver ? icon('silver', 'Silver acorn mode') : '',
+  result.silver ? icon('silver', `${theme.silverName} mode`) : '',
   result.repeat ? '<span title="Repeat play">↻</span>' : '',
 ].join(' ');
 
@@ -118,7 +121,7 @@ const summary = (): string => {
     sizes ? either(sizes.map((size) => `${size}×${size}`)) : 'Any size',
     tiers ? `${either(tiers.map((tier, index) => (index ? tier : `${tier[0].toUpperCase()}${tier.slice(1)}`)))} difficulty`
       : 'Any difficulty',
-    silver ? 'Silver acorn' : 'A fresh puzzle every time',
+    silver ? theme.silverName : 'A fresh puzzle every time',
   ].join(' · ');
 };
 
@@ -162,7 +165,7 @@ const renderMenu = (): void => {
     lost: RETRY_LINES[theme.name],
   }[status];
   $('info').innerHTML = `<b>${puzzle.size}×${puzzle.size} ${puzzle.tier}</b>`
-    + `${puzzle.silver && status !== 'won' ? ` ${icon('silver', 'Silver acorn mode')}` : ''}`
+    + `${puzzle.silver && status !== 'won' ? ` ${icon('silver', `${theme.silverName} mode`)}` : ''}`
     + `<br>${state}<br><code>${puzzle.code}</code>`;
 };
 

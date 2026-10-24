@@ -15,6 +15,7 @@ describe('themes', () => {
       const theme = THEMES[name];
       expect(theme.name).toBe(name);
       expect(new Set(theme.palette).size, name).toBe(10);
+      expect(theme.silverName, name).toMatch(/^[A-Z]/);
       for (const icon of ['stump', 'acorn', 'silver', ...HINTS] as const) {
         expect(theme.icons[icon], `${name} ${icon}`).toBeTruthy();
       }
