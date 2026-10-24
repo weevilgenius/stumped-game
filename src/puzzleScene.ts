@@ -150,7 +150,8 @@ class PuzzleScene extends Phaser.Scene {
     this.buttonsFrom = 0;
     this.ended = false;
     // A relaunch with the explain hint open comes back to it.
-    this.explanation = this.model.explaining && { pages: explainPages(this.model, this.model.explaining), index: 0 };
+    const { explaining } = this.model;
+    this.explanation = explaining && { pages: explainPages(this.model, explaining, this.theme.piece), index: 0 };
     this.complete = new Set(completedUnits(this.model).keys());
     this.shownSeconds = -1;
   }
@@ -830,7 +831,7 @@ class PuzzleScene extends Phaser.Scene {
     if (hint === 'owl') {
       const source = explain(this.model);
       if (source) {
-        this.explanation = { pages: explainPages(this.model, source), index: 0 };
+        this.explanation = { pages: explainPages(this.model, source, this.theme.piece), index: 0 };
         this.options.onChange();
         this.swapControls();
       }

@@ -1,6 +1,6 @@
 import {
-  allUnits, applyStep, colOf, type Conflict, conflicts, describeStep, EXCLUDED, nextStep, OPEN, type Puzzle, rowOf,
-  type Step, STUMP, type Tier, type Unit, unitCells,
+  allUnits, applyStep, colOf, type Conflict, conflicts, describeStep, EXCLUDED, nextStep, OPEN, type PieceNames, type Puzzle,
+  rowOf, type Step, STUMP, STUMP_NAMES, type Tier, type Unit, unitCells,
 } from './engine';
 
 /* ========================================================= *\
@@ -557,9 +557,10 @@ const unitLabel = (unit: Unit): string => (unit.kind === 'region'
  * assumed stump has led to so far.
  * @param game the game, with the marks the explanation was found from
  * @param explanation the explanation
+ * @param piece what to call the pieces
  * @returns the pages, in order
  */
-export function explainPages(game: Game, explanation: Explanation): ExplainPage[] {
+export function explainPages(game: Game, explanation: Explanation, piece: PieceNames = STUMP_NAMES): ExplainPage[] {
   const { puzzle } = game;
   if (explanation.type === 'wrongX') {
     const { cell } = explanation;
@@ -570,7 +571,7 @@ export function explainPages(game: Game, explanation: Explanation): ExplainPage[
   }
   const cells = puzzle.regions.map((_, cell) => cell);
   const pageFor = (step: Step, state: Uint8Array): ExplainPage => {
-    const text = describeStep(step);
+    const text = describeStep(step, piece);
     switch (step.type) {
     case 'elimination':
       return { text, lit: [step.stump, ...step.eliminated], marked: [step.stump], xs: step.eliminated, stumps: [] };

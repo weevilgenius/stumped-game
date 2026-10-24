@@ -1,3 +1,4 @@
+import { type PieceNames, STUMP_NAMES } from './engine';
 import type { Hint } from './game';
 import acornUrl from './assets/acorn_icon@8x.png';
 import owlUrl from './assets/owl_icon@8x.png';
@@ -8,7 +9,7 @@ import woodpeckerUrl from './assets/woodpecker_icon@8x.png';
 import calaveraUrl from './assets/vallarta/calavera.svg?no-inline';
 import geckoUrl from './assets/vallarta/gecko.svg?no-inline';
 import margaritaUrl from './assets/vallarta/margarita.svg?no-inline';
-import silverMargaritaUrl from './assets/vallarta/margarita-silver.svg?no-inline';
+import pinaColadaUrl from './assets/vallarta/pina-colada.svg?no-inline';
 import tecoloteUrl from './assets/vallarta/owl.svg?no-inline';
 import parrotUrl from './assets/vallarta/parrot.svg?no-inline';
 
@@ -46,6 +47,8 @@ export interface Theme {
   readonly cream: number;
   /** Papel picado flag colors strung above the board, or empty for none. */
   readonly flags: readonly number[];
+  /** What the Owl calls the pieces. */
+  readonly piece: PieceNames;
   /** What each hint button is called, for screen readers. */
   readonly hintNames: Readonly<Record<Hint, string>>;
 }
@@ -64,6 +67,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     ink: 0x2b1d12,
     cream: 0xf7edd5,
     flags: [],
+    piece: STUMP_NAMES,
     hintNames: { woodpecker: 'Woodpecker', owl: 'Owl', squirrel: 'Squirrel' },
   },
   vallarta: {
@@ -71,7 +75,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     // Marigold, rosa mexicano, turquoise, lime, cobalt, sun yellow, lilac, coral, jade, terracotta.
     palette: [0xF5A623, 0xE4407B, 0x22B5BF, 0xA4D04A, 0x4A6FD6, 0xF7DA5B, 0xA77BE0, 0xF59A8C, 0x2E9E6E, 0xC5562F],
     icons: {
-      stump: calaveraUrl, acorn: margaritaUrl, silver: silverMargaritaUrl,
+      stump: calaveraUrl, acorn: margaritaUrl, silver: pinaColadaUrl,
       woodpecker: parrotUrl, owl: tecoloteUrl, squirrel: geckoUrl,
     },
     background: 0x2a1d4a,
@@ -79,6 +83,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     woodDark: 0x7a3218,
     ink: 0x2a1d4a,
     cream: 0xfff3d6,
+    piece: { one: 'skull', many: 'skulls', a: 'a skull' },
     flags: [0xe8458b, 0xf5a623, 0x18a7b5, 0x8e44ad, 0x59b83a, 0xff7a1a, 0xf6c21b, 0x3d6fd1],
     hintNames: { woodpecker: 'Parrot', owl: 'Owl', squirrel: 'Gecko' },
   },

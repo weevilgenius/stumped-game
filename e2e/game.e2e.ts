@@ -728,4 +728,8 @@ test('the Puerto Vallarta theme is saved on its own and dresses the puzzle', asy
   await page.goto(`/?code=${CODE}`);
   await puzzleReady(page);
   await expect(page.getByRole('button', { name: 'Parrot: reveal a stump' })).toBeAttached();
+  // The owl names the theme's pieces.
+  await press(page, 'owl');
+  const status = page.locator('.accessible-puzzle [role="status"]');
+  await expect(status).toContainText(/skull/i);
 });
