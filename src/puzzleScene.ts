@@ -57,6 +57,8 @@ export interface PuzzleOptions {
   readonly results: readonly Result[];
   /** Whether to show the timer. Time is recorded either way. */
   readonly showTimer: boolean;
+  /** Whether action and outcome sound effects are enabled. */
+  readonly soundEnabled: boolean;
   /** Called after every change worth saving. */
   readonly onChange: () => void;
   /** Play time so far in milliseconds, read every frame. */
@@ -907,6 +909,9 @@ class PuzzleScene extends Phaser.Scene {
 
   /** Missing or unavailable audio must never interrupt gameplay. */
   private playSound(cue: GameSound, delay = 0): void {
+    if (!this.options.soundEnabled) {
+      return;
+    }
     const key = `sfx-${cue}`;
     if (this.cache.audio.exists(key)) {
       if (this.sound.locked) {

@@ -23,6 +23,20 @@ const won = (): Save => {
 };
 
 describe('save round trips', () => {
+  it('defaults sound to on for new saves and accepts older saves without a sound setting', () => {
+    expect(newSave().settings.sound).toBe(true);
+    const save = fresh();
+    delete save.settings.sound;
+    expect(read(save)?.settings.sound ?? true).toBe(true);
+  });
+
+  it('preserves sound off and rejects malformed sound preferences', () => {
+    const save = fresh();
+    save.settings.sound = false;
+    expect(read(save)?.settings.sound).toBe(false);
+    expect(read({ ...save, settings: { ...save.settings, sound: 'false' } })).toBeNull();
+  });
+
   it('restores toggled sizes and difficulties', () => {
     const save = fresh();
     save.settings = { ...save.settings, sizes: [7, 8, 10], tiers: ['easy', 'hard'] };

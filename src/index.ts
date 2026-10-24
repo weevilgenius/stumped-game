@@ -189,6 +189,7 @@ const render = (): void => {
         model: game,
         results: controller.results,
         showTimer: controller.settings.timer,
+        soundEnabled: controller.settings.sound ?? true,
         onChange: controller.changed,
         elapsed: controller.tick,
         onExit: controller.showMenu,
@@ -266,8 +267,8 @@ $('settingsButton').onclick = (): void => {
   for (const name of SELECTS) {
     (settingsForm.elements.namedItem(name) as HTMLSelectElement).value = String(controller.settings[name] ?? '');
   }
-  for (const name of ['timer', 'silver'] as const) {
-    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
+  for (const name of ['timer', 'silver', 'sound'] as const) {
+    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name] ?? true;
   }
   (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
   for (const name of TOGGLES) {
@@ -303,6 +304,7 @@ settingsForm.onchange = (event): void => {
   const level = (name: string): number | undefined => (data.get(name) ? Number(data.get(name)) : undefined);
   controller.updateSettings({
     timer: data.has('timer'),
+    sound: data.has('sound'),
     silver: data.has('silver'),
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
