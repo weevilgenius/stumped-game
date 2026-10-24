@@ -18,7 +18,7 @@ for the full design and game rules.
 
 ## Playing
 
-[Play it](https://weevilgenius.github.io/stumped-game/), or run it locally:
+[Play it](https://stumpedgame.app/), or run it locally:
 
 ```
 pnpm install
