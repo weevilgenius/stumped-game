@@ -17,6 +17,8 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="description" content="A quiet woodland logic puzzle. Find your way, one square at a time. Play offline, without ads." />
     <title>Stumped</title>
+    <!-- Sets the saved theme before the first paint. index.ts reads and validates it again. -->
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem('stumped-main.theme') ?? 'woods'; } catch {}</script>
     <script type="module" src="/src/index.ts"></script>
   </head>
   <body>
@@ -25,9 +27,16 @@
     <main id="menu">
       <header class="masthead">
         <span class="brand">
-          <svg class="leaf" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <svg class="leaf for-woods" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <path d="M26 5C11 3 3 9 7 20c10 5 18-1 19-15Z" fill="currentColor" />
             <path d="m5 28 15-17" stroke="var(--paper)" stroke-width="2" />
+          </svg>
+          <svg class="leaf for-vallarta" viewBox="0 0 32 32" aria-hidden="true">
+            <g fill="var(--leaf)">
+              <circle cx="16" cy="7" r="6" /><circle cx="24.6" cy="13.2" r="6" /><circle cx="21.3" cy="23.3" r="6" />
+              <circle cx="10.7" cy="23.3" r="6" /><circle cx="7.4" cy="13.2" r="6" />
+            </g>
+            <circle cx="16" cy="16" r="5" fill="var(--accent)" />
           </svg>
           <span class="wordmark">stumped<span>.</span></span>
         </span>
@@ -43,13 +52,20 @@
       </p>
       <div class="home">
         <section class="art">
-          <img src="/src/assets/logo_menu.jpg" alt="Stumped: a woodland sudoku, illustrated among the trees" />
-          <p class="caption"><span class="eyebrow">A quiet little challenge</span><span>Rooted in logic.</span></p>
+          <img class="for-woods" src="/src/assets/logo_menu.jpg" alt="Stumped: a woodland sudoku, illustrated among the trees" />
+          <img
+            class="for-vallarta" src="/src/assets/vallarta/scene.svg" loading="lazy"
+            alt="Stumped en Puerto Vallarta: a sunset over the bay, with palms, a parrot, papel picado, a sugar skull, and a margarita"
+          />
+          <p class="caption for-woods"><span class="eyebrow">A quiet little challenge</span><span>Rooted in logic.</span></p>
         </section>
         <div class="panel">
-          <p class="eyebrow">Your patch of peace</p>
-          <h1>A little time <br />in the woods.</h1>
-          <p class="intro">A fresh forest. A few hidden stumps. <br />Find your way, one square at a time.</p>
+          <p class="eyebrow for-woods">Your patch of peace</p>
+          <h1 class="for-woods">A little time <br />in the woods.</h1>
+          <p class="intro for-woods">A fresh forest. A few hidden stumps. <br />Find your way, one square at a time.</p>
+          <p class="eyebrow for-vallarta">Vacaciones en Vallarta</p>
+          <h1 class="for-vallarta">A little time <br />by the bay.</h1>
+          <p class="intro for-vallarta">A sunny fiesta. A few hidden calaveras. <br />Find your way, one square at a time.</p>
           <button id="new" type="button" class="primary">New puzzle <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
           <p id="summary"></p>
           <p id="status" role="status">Growing a puzzle&hellip;</p>
@@ -86,6 +102,12 @@
     <dialog id="settings">
       <form method="dialog">
         <h2>Settings</h2>
+        <label>Theme
+          <select name="theme">
+            <option value="woods">Woodland</option>
+            <option value="vallarta">Puerto Vallarta</option>
+          </select>
+        </label>
         <fieldset class="toggles">
           <legend>Size</legend>
           <label><input type="checkbox" name="sizes" value="" />Any</label>
@@ -150,7 +172,7 @@
         <div id="helpBody" role="region" aria-labelledby="helpTitle" tabindex="0">
           <div class="help-intro">
             <div data-help-board="solved"></div>
-            <p>Every forest hides one stump for each row. Find them all by logic, before you run out of acorns.</p>
+            <p>Every forest hides one stump for each row. Find them all by logic, before you run out of <span class="for-woods">acorns</span><span class="for-vallarta">margaritas</span>.</p>
           </div>
 
           <h3>The rules</h3>
@@ -168,10 +190,10 @@
             <li><div data-help-board="reveal"></div><p><b>Double tap</b> a square to reveal its stump.</p></li>
             <li>
               <div data-help-board="wrong"></div>
-              <p>A wrong guess leaves a red X and costs an acorn <img class="icon" src="/src/assets/acorn_icon@2x.png" alt="" />.
-                You start with three, or one in silver acorn mode <img class="icon" src="/src/assets/silver_acorn_icon@2x.png" alt="" />.</p>
+              <p>A wrong guess leaves a red X and costs <span class="for-woods">an acorn</span><span class="for-vallarta">a margarita</span> <img class="icon" src="/src/assets/acorn_icon@2x.png" data-icon="acorn" alt="" />.
+                You start with three, or one in silver acorn mode <img class="icon" src="/src/assets/silver_acorn_icon@2x.png" data-icon="silver" alt="" />.</p>
             </li>
-            <li><span class="wood">Undo</span><p>Takes back your last tap or drag. Reveals, hints, and lost acorns stay.</p></li>
+            <li><span class="wood">Undo</span><p>Takes back your last tap or drag. Reveals, hints, and lost <span class="for-woods">acorns</span><span class="for-vallarta">margaritas</span> stay.</p></li>
             <li>
               <span class="wood">What if?</span>
               <p>Opens a pencil layer to test an idea. Double tap for a pencil stump, which is never checked and costs nothing.
@@ -183,9 +205,9 @@
           <h3>Hints</h3>
           <p>Each hint works once per puzzle, but not while What if? is on. A solve with a hint doesn&rsquo;t earn the clean solve <span class="star">&#9733;</span>.</p>
           <ul class="help-list">
-            <li><span class="wood"><img src="/src/assets/woodpecker_icon@2x.png" alt="" /></span><p><b>Woodpecker</b> reveals a stump for you, in the patch with the fewest open squares.</p></li>
-            <li><span class="wood"><img src="/src/assets/owl_icon@2x.png" alt="" /></span><p><b>Owl</b> explains the next step you can work out, and makes that mark when you close it. It is also the only way to learn that one of your X&rsquo;s covers a stump.</p></li>
-            <li><span class="wood"><img src="/src/assets/squirrel_icon@2x.png" alt="" /></span><p><b>Squirrel</b> puts X&rsquo;s on three random squares that have no stump.</p></li>
+            <li><span class="wood"><img src="/src/assets/woodpecker_icon@2x.png" data-icon="woodpecker" alt="" /></span><p><b class="for-woods">Woodpecker</b><b class="for-vallarta">Parrot</b> reveals a stump for you, in the patch with the fewest open squares.</p></li>
+            <li><span class="wood"><img src="/src/assets/owl_icon@2x.png" data-icon="owl" alt="" /></span><p><b>Owl</b> explains the next step you can work out, and makes that mark when you close it. It is also the only way to learn that one of your X&rsquo;s covers a stump.</p></li>
+            <li><span class="wood"><img src="/src/assets/squirrel_icon@2x.png" data-icon="squirrel" alt="" /></span><p><b class="for-woods">Squirrel</b><b class="for-vallarta">Gecko</b> puts X&rsquo;s on three random squares that have no stump.</p></li>
           </ul>
         </div>
         <button autofocus>Close</button>

@@ -2,7 +2,8 @@ import './index.css';
 import type { Tier } from './engine';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
+import { openPuzzle } from './puzzleScene';
+import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
 import { watchForUpdates } from './updates';
@@ -15,6 +16,43 @@ import { watchForUpdates } from './updates';
 
 /** Prefix for main's localStorage keys; the bake-off apps on the same origin use their own. */
 const STORAGE_PREFIX = 'stumped-main.';
+
+/* ========================================================= *\
+ *  Theme. Kept apart from the save, so older versions       *
+ *  never see it and changing it never touches a puzzle.     *
+\* ========================================================= */
+
+const THEME_KEY = `${STORAGE_PREFIX}theme`;
+
+let theme = THEMES[parseTheme((() => {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+})())];
+
+/** Shows the main screen and dialogs in the current theme. The puzzle screen reads it when opened. */
+const applyTheme = (): void => {
+  document.documentElement.dataset.theme = theme.name;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', cssColor(theme.background));
+  for (const image of document.querySelectorAll<HTMLImageElement>('img[data-icon]')) {
+    image.src = theme.icons[image.dataset.icon as IconName];
+  }
+};
+
+const setTheme = (name: ThemeName): void => {
+  theme = THEMES[name];
+  try {
+    localStorage.setItem(THEME_KEY, name);
+  } catch {
+    // The theme still applies until the page is closed.
+  }
+  applyTheme();
+  renderMenu();
+};
+
+applyTheme();
 
 /* ========================================================= *\
  *  Puzzle generation, in a worker                           *
@@ -51,13 +89,13 @@ const sizeStorageNotice = (): void => document.documentElement.style.setProperty
 );
 new ResizeObserver(sizeStorageNotice).observe(storageNotice);
 
-const icon = (name: keyof typeof ICONS, label: string): string => (
-  `<img class="icon" src="${ICONS[name]}" alt="${label}" title="${label}">`);
+const icon = (name: IconName, label: string): string => (
+  `<img class="icon" src="${theme.icons[name]}" alt="${label}" title="${label}">`);
 
 /** Icons for whatever qualified a solve: a star if clean, else hints, acorns lost, and repeat. */
 const badges = (result: Result): string => [
   isClean(result) ? '<span class="star" title="Clean solve">★</span>' : '',
-  ...result.hints.map((hint) => icon(hint, `Used the ${hint}`)),
+  ...result.hints.map((hint) => icon(hint, `Used the ${theme.hintNames[hint].toLowerCase()}`)),
   result.acornsLost > 0 ? `${icon('acorn', 'Acorns lost')}−${result.acornsLost}` : '',
   result.silver ? icon('silver', 'Silver acorn mode') : '',
   result.repeat ? '<span title="Repeat play">↻</span>' : '',
@@ -78,11 +116,16 @@ const summary = (): string => {
   ].join(' · ');
 };
 
-/** The line above the current puzzle, by its status. */
+/** The line above the current puzzle, by theme and status. */
 const EYEBROWS = {
-  playing: 'Your forest is waiting',
-  won: 'A forest well found',
-  lost: 'Stumped.',
+  woods: { playing: 'Your forest is waiting', won: 'A forest well found', lost: 'Stumped.' },
+  vallarta: { playing: 'Your fiesta is waiting', won: '¡Bien hecho!', lost: 'Stumped.' },
+} as const;
+
+/** The invitation to try a lost puzzle again, by theme. */
+const RETRY_LINES = {
+  woods: 'Another walk through the woods?',
+  vallarta: 'Another stroll down the Malecón?',
 } as const;
 
 const renderMenu = (): void => {
@@ -99,18 +142,18 @@ const renderMenu = (): void => {
   // A lost puzzle can be retried, so the thumbnail only ever shows stumps the player revealed.
   thumb.replaceChildren(...marks.map((mark, cell) => {
     const square = document.createElement('i');
-    square.style.backgroundColor = `#${PALETTE[puzzle.colors[puzzle.regions[cell]]].toString(16).padStart(6, '0')}`;
+    square.style.backgroundColor = cssColor(theme.palette[puzzle.colors[puzzle.regions[cell]]]);
     if (mark === MARK_STUMP) {
-      square.style.backgroundImage = `url("${ICONS.stump}")`;
+      square.style.backgroundImage = `url("${theme.icons.stump}")`;
     }
     return square;
   }));
   $('resume').hidden = status !== 'playing';
-  $('currentEyebrow').textContent = EYEBROWS[status];
+  $('currentEyebrow').textContent = EYEBROWS[theme.name][status];
   const state = {
     playing: `In progress, ${formatTime(elapsed)}`,
     won: `Solved in <b>${formatTime(elapsed)}</b> ${badges(resultOf(game))}`,
-    lost: 'Another walk through the woods?',
+    lost: RETRY_LINES[theme.name],
   }[status];
   $('info').innerHTML = `<b>${puzzle.size}×${puzzle.size} ${puzzle.tier}</b>`
     + `${puzzle.silver && status !== 'won' ? ` ${icon('silver', 'Silver acorn mode')}` : ''}`
@@ -141,6 +184,7 @@ const render = (): void => {
         elapsed: controller.tick,
         onExit: controller.showMenu,
         onHelp: openHelp,
+        theme,
       });
     }
   } else {
@@ -216,6 +260,7 @@ $('settingsButton').onclick = (): void => {
   for (const name of ['timer', 'silver'] as const) {
     (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
   }
+  (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
   for (const name of TOGGLES) {
     const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
     for (const toggle of toggles(name)) {
@@ -227,6 +272,11 @@ $('settingsButton').onclick = (): void => {
 
 settingsForm.onchange = (event): void => {
   const changed = event.target as HTMLInputElement;
+  // The theme is saved on its own, so changing it leaves the puzzle being prepared alone.
+  if (changed.name === 'theme') {
+    setTheme(parseTheme(changed.value));
+    return;
+  }
   const group = TOGGLES.find((name) => name === changed.name);
   if (group) {
     // Any clears the other choices; any other choice clears Any; clearing them all brings Any back.
@@ -311,14 +361,17 @@ $('timesButton').onclick = (): void => {
 \* ========================================================= */
 
 const helpDialog = $<HTMLDialogElement>('help');
+/** The theme the example boards were last drawn in. */
+let helpTheme: ThemeName | null = null;
 
 /** Shows the rules. Play time stops while they are open over a puzzle. */
 const openHelp = (): void => {
   if (helpDialog.open) {
     return;
   }
-  if (!helpDialog.querySelector('.mini-board')) {
-    fillHelpBoards(helpDialog, PALETTE);
+  if (helpTheme !== theme.name) {
+    helpTheme = theme.name;
+    fillHelpBoards(helpDialog, theme.palette, theme.icons.stump);
   }
   controller.setHidden(true);
   $('helpBody').scrollTo({ top: 0 });

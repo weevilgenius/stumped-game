@@ -8,32 +8,8 @@ import {
   isPerfectlyMarked, leaveHypothesis, MARK_X, type Result, resultOf, type RevealResult, squirrel, type StrokeMode, stumps, timeAward, undo,
   woodpecker,
 } from './game';
-import acornUrl from './assets/acorn_icon@8x.png';
-import owlUrl from './assets/owl_icon@8x.png';
-import silverUrl from './assets/silver_acorn_icon@8x.png';
-import squirrelUrl from './assets/squirrel_icon@8x.png';
-import stumpUrl from './assets/stump_icon.png';
-import woodpeckerUrl from './assets/woodpecker_icon@8x.png';
+import { cssColor, type Theme } from './theme';
 
-/* ========================================================= *\
- *  Theme                                                    *
-\* ========================================================= */
-
-/** Region colors in priority order. A board of size N uses the first N. */
-export const PALETTE: readonly number[] = [
-  0xE4BB49, 0x5B75B2, 0xD57374, 0xAED994, 0x48B5B2, 0xFAB4D0, 0xA7BFD7, 0x9778D6, 0xAD6F48, 0xFEAA6C,
-];
-
-/** Icon image URLs, shared with the main screen. */
-export const ICONS = {
-  stump: stumpUrl, acorn: acornUrl, silver: silverUrl, woodpecker: woodpeckerUrl, owl: owlUrl, squirrel: squirrelUrl,
-} as const;
-
-const BACKGROUND = 0x20382a;
-const WOOD = 0x8a5a33;
-const WOOD_DARK = 0x5e3b1f;
-const INK = 0x2b1d12;
-const CREAM = 0xf7edd5;
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 /* ========================================================= *\
@@ -64,6 +40,8 @@ const END_MS = 4000;
 const SWAP_GUARD_MS = 300;
 /** Sharpest canvas scale used, in device pixels per CSS pixel. */
 const MAX_PIXEL_RATIO = 3;
+/** Size vector icons are drawn at before they are scaled down to fit a square. */
+const VECTOR_ICON_PX = 512;
 
 /* ========================================================= *\
  *  Scene                                                    *
@@ -85,6 +63,8 @@ export interface PuzzleOptions {
   readonly onExit: () => void;
   /** Called when the player asks how to play. The scene keeps running underneath. */
   readonly onHelp: () => void;
+  /** Colors and art to draw with. */
+  readonly theme: Theme;
 }
 
 interface Rect {
@@ -125,6 +105,7 @@ const cross = (color: string, outline?: string): Paint => (ctx, size) => {
 class PuzzleScene extends Phaser.Scene {
   private options!: PuzzleOptions;
   private model!: Game;
+  private theme!: Theme;
 
   /** Device pixels per CSS pixel. Sizes are written in CSS pixels times this. */
   private u = 1;
@@ -161,6 +142,7 @@ class PuzzleScene extends Phaser.Scene {
   init(options: PuzzleOptions): void {
     this.options = options;
     this.model = options.model;
+    this.theme = options.theme;
     this.textureKey = '';
     this.stroke = null;
     this.lastTap = null;
@@ -174,8 +156,13 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
-    for (const [key, url] of Object.entries(ICONS)) {
-      this.load.image(`raw-${key}`, url);
+    // Each theme's art is loaded once, under its own keys, and kept for the next puzzle.
+    for (const [key, url] of Object.entries(this.theme.icons)) {
+      if (/\.svg($|\?)/.test(url)) {
+        this.load.svg(this.rawKey(key), url, { width: VECTOR_ICON_PX, height: VECTOR_ICON_PX });
+      } else {
+        this.load.image(this.rawKey(key), url);
+      }
     }
   }
 
@@ -204,6 +191,11 @@ class PuzzleScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       Object.assign(window, { stumped: this });
     }
+  }
+
+  /** Texture key for a theme's source art. */
+  private rawKey(icon: string): string {
+    return `raw-${this.theme.name}-${icon}`;
   }
 
   update(): void {
@@ -240,6 +232,7 @@ class PuzzleScene extends Phaser.Scene {
     this.countText = undefined;
     this.timerText = undefined;
 
+    this.cameras.main.setBackgroundColor(this.theme.background);
     const { width, height, zoom } = this.scale;
     const n = this.model.puzzle.size;
     const u = this.u = 1 / zoom;
@@ -269,6 +262,9 @@ class PuzzleScene extends Phaser.Scene {
     }
 
     this.makeTextures();
+    if (tall >= wide) {
+      this.drawFlags(bar, this.boardY - 2 * pad);
+    }
     this.drawBoard();
     this.drawStatus(status);
     if (this.explanation) {
@@ -293,7 +289,7 @@ class PuzzleScene extends Phaser.Scene {
   /** Redraws the source art at the exact sizes on screen, so nothing is scaled at draw time. */
   private makeTextures(): void {
     const { cellSize: cell, u } = this;
-    const key = `${cell}/${u}/${this.model.puzzle.silver}`;
+    const key = `${cell}/${u}/${this.model.puzzle.silver}/${this.theme.name}`;
     if (key === this.textureKey) {
       return;
     }
@@ -301,7 +297,7 @@ class PuzzleScene extends Phaser.Scene {
     const icon = (source: string, inset = 0): Paint => (ctx, size) => {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
-        this.textures.get(`raw-${source}`).getSourceImage() as HTMLImageElement,
+        this.textures.get(this.rawKey(source)).getSourceImage() as HTMLImageElement,
         inset, inset, size - 2 * inset, size - 2 * inset,
       );
     };
@@ -342,17 +338,71 @@ class PuzzleScene extends Phaser.Scene {
     const { cellSize: cell, boardX: x0, boardY: y0, u } = this;
     const { size: n, regions, colors } = this.model.puzzle;
     const board = cell * n;
+    const { palette } = this.theme;
     const g = this.add.graphics();
     if (this.model.hypo) {
       // A gold ring marks hypothesis mode.
       const ring = 2 * u;
-      g.lineStyle(3 * u, PALETTE[0])
+      g.lineStyle(3 * u, palette[0])
         .strokeRoundedRect(x0 - ring, y0 - ring, board + 2 * ring, board + 2 * ring, cell * 0.1 + ring);
     }
     regions.forEach((region, i) => {
-      g.fillStyle(PALETTE[colors[region]]);
+      g.fillStyle(palette[colors[region]]);
       this.fillCell(g, i);
     });
+  }
+
+  /**
+   * Strings papel picado across the empty space above the board, if the theme has flags and there is room.
+   * @param top the top of the space
+   * @param bottom the bottom of the space
+   */
+  private drawFlags(top: number, bottom: number): void {
+    const { flags, background } = this.theme;
+    const { u } = this;
+    const flagH = Math.min(bottom - top - 12 * u, 52 * u);
+    if (flags.length === 0 || flagH < 28 * u) {
+      return;
+    }
+    const { width } = this.scale;
+    const flagW = flagH * 0.82;
+    const count = Math.max(3, Math.floor(width / (flagW * 1.25)));
+    const step = width / count;
+    const sag = flagH * 0.3;
+    const y0 = top + 4 * u;
+    const ropeY = (x: number): number => y0 + sag * 4 * (x / width) * (1 - x / width);
+    const g = this.add.graphics().setDepth(-1);
+    g.lineStyle(2 * u, this.theme.cream, 0.8);
+    g.beginPath();
+    for (let x = 0; x <= width; x += width / 32) {
+      if (x === 0) {
+        g.moveTo(x, ropeY(x));
+      } else {
+        g.lineTo(x, ropeY(x));
+      }
+    }
+    g.strokePath();
+    for (let i = 0; i < count; i++) {
+      const cx = (i + 0.5) * step;
+      const y = ropeY(cx);
+      const left = cx - flagW / 2;
+      // Each flag: a sheet with a zigzag hem, then holes cut in it, which show the background.
+      const teeth = 6;
+      const hem = flagH * 0.1;
+      const points = [new Phaser.Math.Vector2(left, y), new Phaser.Math.Vector2(left + flagW, y)];
+      for (let t = 0; t <= teeth; t++) {
+        points.push(new Phaser.Math.Vector2(left + flagW - t * flagW / teeth, y + flagH - (t % 2 ? hem : 0)));
+      }
+      g.fillStyle(flags[i % flags.length]).fillPoints(points, true);
+      g.fillStyle(background);
+      const d = flagW * 0.16;
+      const my = y + flagH * 0.4;
+      g.fillTriangle(cx - d, my, cx, my - d * 1.3, cx + d, my).fillTriangle(cx - d, my, cx, my + d * 1.3, cx + d, my);
+      for (const [dx, dy] of [[-0.3, 0.17], [0.3, 0.17], [-0.3, 0.66], [0.3, 0.66]]) {
+        g.fillCircle(cx + dx * flagW, y + dy * flagH, flagW * 0.06);
+      }
+      g.fillRect(cx - flagW * 0.14, y + flagH * 0.7, flagW * 0.28, flagH * 0.05);
+    }
   }
 
   /** Space between neighboring squares, where the background shows through. */
@@ -492,14 +542,15 @@ class PuzzleScene extends Phaser.Scene {
     const { u } = this;
     // Filled shapes avoid Phaser's rounded-outline stroke path, whose duplicate
     // corner points can produce invalid vertices and streaks on some mobile GPUs.
-    const border = this.add.rectangle(x, y, w + 2 * u, h + 2 * u, WOOD_DARK).setRounded(11 * u);
-    const back = this.add.rectangle(x, y, w - 2 * u, h - 2 * u, WOOD).setRounded(9 * u);
+    const border = this.add.rectangle(x, y, w + 2 * u, h + 2 * u, this.theme.woodDark).setRounded(11 * u);
+    const back = this.add.rectangle(x, y, w - 2 * u, h - 2 * u, this.theme.wood).setRounded(9 * u);
     const face = this.textures.exists(content)
       ? this.add.image(x, y, content)
       : this.add.text(x, y, content, this.textStyle(16)).setOrigin(0.5);
+    const names = this.theme.hintNames;
     const labels: Record<string, string> = {
-      back: 'Menu', help: 'How to play', hypothesis: 'What if?', woodpecker: 'Woodpecker: reveal a stump',
-      owl: 'Owl: explain a deduction', squirrel: 'Squirrel: mark empty squares',
+      back: 'Menu', help: 'How to play', hypothesis: 'What if?', woodpecker: `${names.woodpecker}: reveal a stump`,
+      owl: `${names.owl}: explain a deduction`, squirrel: `${names.squirrel}: mark empty squares`,
       previous: 'Previous explanation page', next: 'Next explanation page',
     };
     this.controls.set(name, {
@@ -517,7 +568,7 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   private textStyle(size: number): Phaser.Types.GameObjects.Text.TextStyle {
-    return { fontFamily: FONT, fontSize: `${Math.round(size * this.u)}px`, fontStyle: 'bold', color: '#f7edd5' };
+    return { fontFamily: FONT, fontSize: `${Math.round(size * this.u)}px`, fontStyle: 'bold', color: cssColor(this.theme.cream) };
   }
 
   private center(cell: number): { x: number; y: number } {
@@ -855,8 +906,8 @@ class PuzzleScene extends Phaser.Scene {
     const bannerW = Math.min(board * 0.94, 310 * u);
     const parts: Phaser.GameObjects.GameObject[] = [
       // Filled shapes, not an outline stroke, for the same reason as the buttons: see the control buttons above.
-      this.add.rectangle(0, 0, bannerW, height * u, CREAM).setRounded(16 * u),
-      this.add.rectangle(0, 0, bannerW - 6 * u, (height - 6) * u, INK).setRounded(13 * u),
+      this.add.rectangle(0, 0, bannerW, height * u, this.theme.cream).setRounded(16 * u),
+      this.add.rectangle(0, 0, bannerW - 6 * u, (height - 6) * u, this.theme.ink).setRounded(13 * u),
       this.add.text(0, won ? (award ? -52 : -16) * u : 0, title, this.textStyle(30)).setOrigin(0.5),
     ];
     if (won) {
@@ -911,7 +962,7 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
   const game = phaser = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    backgroundColor: BACKGROUND,
+    backgroundColor: options.theme.background,
     banner: false,
     disableContextMenu: true,
     // Unused, and off so Phaser never listens for keys typed into the seed code box.
