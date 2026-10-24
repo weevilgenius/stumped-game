@@ -5,6 +5,7 @@ import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, res
 import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
+import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 
 /* ========================================================= *\
@@ -36,6 +37,7 @@ const controller = createController({
   random: Math.random,
   confirm: (question) => confirm(question),
 });
+setMuted(controller.settings.muted ?? false);
 
 /* ========================================================= *\
  *  Screens                                                  *
@@ -216,6 +218,7 @@ $('settingsButton').onclick = (): void => {
   for (const name of ['timer', 'silver'] as const) {
     (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
   }
+  (settingsForm.elements.namedItem('sound') as HTMLInputElement).checked = !controller.settings.muted;
   for (const name of TOGGLES) {
     const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
     for (const toggle of toggles(name)) {
@@ -245,12 +248,14 @@ settingsForm.onchange = (event): void => {
   controller.updateSettings({
     timer: data.has('timer'),
     silver: data.has('silver'),
+    muted: !data.has('sound'),
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
     sizeMix: level('sizeMix'),
     shape: level('shape'),
     freebies: level('freebies'),
   });
+  setMuted(!data.has('sound'));
   $('summary').textContent = summary();
 };
 
