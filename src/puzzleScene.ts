@@ -9,6 +9,7 @@ import {
   woodpecker,
 } from './game';
 import { cssColor, type Theme } from './theme';
+import { playSound, type Sound } from './sound';
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
@@ -38,6 +39,8 @@ const END_MS = 4000;
  * double tap on one button would also press whichever button took its place.
  */
 const SWAP_GUARD_MS = 300;
+/** The sound each kind of stroke makes on the squares it changes. */
+const STROKE_SOUNDS: Record<NonNullable<StrokeMode>, Sound> = { place: 'x', erase: 'erase', lift: 'erase' };
 /** Sharpest canvas scale used, in device pixels per CSS pixel. */
 const MAX_PIXEL_RATIO = 3;
 /** Size vector icons are drawn at before they are scaled down to fit a square. */
@@ -712,6 +715,7 @@ class PuzzleScene extends Phaser.Scene {
     }
     const mode = beginStroke(this.model, cell);
     if (mode) {
+      this.playEffect(STROKE_SOUNDS[mode]);
       this.changed();
     }
     return mode;
@@ -790,7 +794,8 @@ class PuzzleScene extends Phaser.Scene {
     }
     stroke.x = pointer.x;
     stroke.y = pointer.y;
-    if (changed) {
+    if (changed && stroke.mode) {
+      this.playEffect(STROKE_SOUNDS[stroke.mode]);
       this.changed();
     }
   }
@@ -803,6 +808,12 @@ class PuzzleScene extends Phaser.Scene {
 
   private onReveal(result: RevealResult | null, cell: number): void {
     if (!result || result.correct) {
+      if (result) {
+        this.playEffect('stump');
+      } else if (this.model.hypo) {
+        // In hypothesis mode a double tap places or lifts a tentative stump.
+        this.playEffect('x');
+      }
       this.changed();
       return;
     }
@@ -814,6 +825,7 @@ class PuzzleScene extends Phaser.Scene {
     this.busyUntil = this.time.now + wait + WRONG_MS;
     this.options.onChange();
     this.time.delayedCall(wait, () => {
+      this.playEffect('wrong');
       this.cameras.main.shake(160, 0.006);
       this.refresh();
     });
@@ -839,18 +851,25 @@ class PuzzleScene extends Phaser.Scene {
     if (hint === 'owl') {
       const source = explain(this.model);
       if (source) {
+        this.playEffect('owl');
         this.explanation = { pages: explainPages(this.model, source, this.theme.piece), index: 0 };
         this.options.onChange();
         this.swapControls();
       }
       return;
     }
+    this.playEffect(hint);
     if (hint === 'woodpecker') {
       woodpecker(this.model);
     } else {
       squirrel(this.model);
     }
     this.changed();
+  }
+
+  /** Plays one of the theme's sounds. */
+  private playEffect(sound: Sound, delay = 0): void {
+    playSound(this.theme.sounds, sound, delay);
   }
 
   /** Closes the explanation and makes its mark for the player. */
@@ -860,6 +879,8 @@ class PuzzleScene extends Phaser.Scene {
     }
     this.explanation = null;
     this.swapControls();
+    const source = this.model.explaining;
+    this.playEffect(source?.type === 'wrongX' ? 'erase' : source?.step.type === 'forced' ? 'stump' : 'x');
     applyExplanation(this.model);
     this.changed();
   }
@@ -894,6 +915,8 @@ class PuzzleScene extends Phaser.Scene {
     this.ended = true;
     // Freeze and record the final play time before comparing it with history.
     this.options.onChange();
+    // Let the last stump or red X sound first.
+    this.playEffect(this.model.status === 'won' ? 'win' : 'lose', 0.25);
     if (this.model.status === 'won') {
       const hop = this.markSprites.filter((sprite, cell) => sprite && this.markKinds[cell] === 'stump');
       this.tweens.add({

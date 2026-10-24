@@ -1,5 +1,6 @@
 import { type PieceNames, STUMP_NAMES } from './engine';
 import type { Hint } from './game';
+import { type SoundSet, VALLARTA_SOUNDS, WOODS_SOUNDS } from './sound';
 import acornUrl from './assets/acorn_icon@8x.png';
 import owlUrl from './assets/owl_icon@8x.png';
 import silverUrl from './assets/silver_acorn_icon@8x.png';
@@ -53,6 +54,8 @@ export interface Theme {
   readonly silverName: string;
   /** What each hint button is called, for screen readers. */
   readonly hintNames: Readonly<Record<Hint, string>>;
+  /** Sound effects. */
+  readonly sounds: SoundSet;
 }
 
 /** Every theme, by name. */
@@ -72,6 +75,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     piece: STUMP_NAMES,
     silverName: 'Silver acorn',
     hintNames: { woodpecker: 'Woodpecker', owl: 'Owl', squirrel: 'Squirrel' },
+    sounds: WOODS_SOUNDS,
   },
   vallarta: {
     name: 'vallarta',
@@ -90,6 +94,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     silverName: 'Piña colada',
     flags: [0xe8458b, 0xf5a623, 0x18a7b5, 0x8e44ad, 0x59b83a, 0xff7a1a, 0xf6c21b, 0x3d6fd1],
     hintNames: { woodpecker: 'Parrot', owl: 'Owl', squirrel: 'Gecko' },
+    sounds: VALLARTA_SOUNDS,
   },
 };
 
