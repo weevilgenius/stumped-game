@@ -172,22 +172,22 @@
         <div id="helpBody" role="region" aria-labelledby="helpTitle" tabindex="0">
           <div class="help-intro">
             <div data-help-board="solved"></div>
-            <p>Every forest hides one stump for each row. Find them all by logic, before you run out of <span class="for-woods">acorns</span><span class="for-vallarta">margaritas</span>.</p>
+            <p>Every <span class="for-woods">forest</span><span class="for-vallarta">board</span> hides one <span data-piece="one">stump</span> for each row. Find them all by logic, before you run out of <span class="for-woods">acorns</span><span class="for-vallarta">margaritas</span>.</p>
           </div>
 
           <h3>The rules</h3>
           <ul class="help-rules">
-            <li><div data-help-board="row"></div><p><b>One stump</b> in every row.</p></li>
-            <li><div data-help-board="column"></div><p><b>One stump</b> in every column.</p></li>
-            <li><div data-help-board="patch"></div><p><b>One stump</b> in every color patch.</p></li>
-            <li><div data-help-board="touch"></div><p><b>Stumps never touch,</b> not even at the corners.</p></li>
+            <li><div data-help-board="row"></div><p><b>One <span data-piece="one">stump</span></b> in every row.</p></li>
+            <li><div data-help-board="column"></div><p><b>One <span data-piece="one">stump</span></b> in every column.</p></li>
+            <li><div data-help-board="patch"></div><p><b>One <span data-piece="one">stump</span></b> in every color patch.</p></li>
+            <li><div data-help-board="touch"></div><p><b><span data-piece="Many">Stumps</span> never touch,</b> not even at the corners.</p></li>
           </ul>
 
           <h3>Controls</h3>
           <ul class="help-list">
-            <li><div data-help-board="tap"></div><p><b>Tap</b> a square to put an X on it, as a note that no stump is there. Tap again to clear it.</p></li>
+            <li><div data-help-board="tap"></div><p><b>Tap</b> a square to put an X on it, as a note that no <span data-piece="one">stump</span> is there. Tap again to clear it.</p></li>
             <li><div data-help-board="drag"></div><p><b>Drag</b> across squares to mark them all. Start on an X to erase instead.</p></li>
-            <li><div data-help-board="reveal"></div><p><b>Double tap</b> a square to reveal its stump.</p></li>
+            <li><div data-help-board="reveal"></div><p><b>Double tap</b> a square to reveal its <span data-piece="one">stump</span>.</p></li>
             <li>
               <div data-help-board="wrong"></div>
               <p>A wrong guess leaves a red X and costs <span class="for-woods">an acorn</span><span class="for-vallarta">a margarita</span> <img class="icon" src="/src/assets/acorn_icon@2x.png" data-icon="acorn" alt="" />.
@@ -196,18 +196,18 @@
             <li><span class="wood">Undo</span><p>Takes back your last tap or drag. Reveals, hints, and lost <span class="for-woods">acorns</span><span class="for-vallarta">margaritas</span> stay.</p></li>
             <li>
               <span class="wood">What if?</span>
-              <p>Opens a pencil layer to test an idea. Double tap for a pencil stump, which is never checked and costs nothing.
+              <p>Opens a pencil layer to test an idea. Double tap for a pencil <span data-piece="one">stump</span>, which is never checked and costs nothing.
                 <b>Keep</b> turns your pencil X&rsquo;s into real ones, and <b>Discard</b> throws them away.</p>
             </li>
-            <li><div data-help-board="whatIf"></div><p>Pencil stumps are small, and pencil X&rsquo;s sit in the corner. A pencil stump that breaks a rule gets a red ring.</p></li>
+            <li><div data-help-board="whatIf"></div><p>Pencil <span data-piece="many">stumps</span> are small, and pencil X&rsquo;s sit in the corner. A pencil <span data-piece="one">stump</span> that breaks a rule gets a red ring.</p></li>
           </ul>
 
           <h3>Hints</h3>
           <p>Each hint works once per puzzle, but not while What if? is on. A solve with a hint doesn&rsquo;t earn the clean solve <span class="star">&#9733;</span>.</p>
           <ul class="help-list">
-            <li><span class="wood"><img src="/src/assets/woodpecker_icon@2x.png" data-icon="woodpecker" alt="" /></span><p><b class="for-woods">Woodpecker</b><b class="for-vallarta">Parrot</b> reveals a stump for you, in the patch with the fewest open squares.</p></li>
-            <li><span class="wood"><img src="/src/assets/owl_icon@2x.png" data-icon="owl" alt="" /></span><p><b>Owl</b> explains the next step you can work out, and makes that mark when you close it. It is also the only way to learn that one of your X&rsquo;s covers a stump.</p></li>
-            <li><span class="wood"><img src="/src/assets/squirrel_icon@2x.png" data-icon="squirrel" alt="" /></span><p><b class="for-woods">Squirrel</b><b class="for-vallarta">Gecko</b> puts X&rsquo;s on three random squares that have no stump.</p></li>
+            <li><span class="wood"><img src="/src/assets/woodpecker_icon@2x.png" data-icon="woodpecker" alt="" /></span><p><b class="for-woods">Woodpecker</b><b class="for-vallarta">Parrot</b> reveals a <span data-piece="one">stump</span> for you, in the patch with the fewest open squares.</p></li>
+            <li><span class="wood"><img src="/src/assets/owl_icon@2x.png" data-icon="owl" alt="" /></span><p><b>Owl</b> explains the next step you can work out, and makes that mark when you close it. It is also the only way to learn that one of your X&rsquo;s covers a <span data-piece="one">stump</span>.</p></li>
+            <li><span class="wood"><img src="/src/assets/squirrel_icon@2x.png" data-icon="squirrel" alt="" /></span><p><b class="for-woods">Squirrel</b><b class="for-vallarta">Gecko</b> puts X&rsquo;s on three random squares that have no <span data-piece="one">stump</span>.</p></li>
           </ul>
         </div>
         <button autofocus>Close</button>

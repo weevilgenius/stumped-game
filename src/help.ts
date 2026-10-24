@@ -1,4 +1,4 @@
-import type { Board } from './engine';
+import { type Board, type PieceNames, STUMP_NAMES } from './engine';
 import stumpUrl from './assets/stump_icon.png';
 
 /* ========================================================= *\
@@ -84,6 +84,12 @@ const cross = (color: string, outline?: string): string => {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 };
 
+/** Puts the theme's piece names in place of "a stump", "stumps", and "stump" in a description. */
+const namePieces = (text: string, piece: PieceNames): string => text
+  .replace(/\b([Aa]) stump\b/g, (_, a: string) => (a === 'A' ? `${piece.a[0].toUpperCase()}${piece.a.slice(1)}` : piece.a))
+  .replace(/\bstumps\b/g, piece.many)
+  .replace(/\bstump\b/g, piece.one);
+
 /** Background image for each mark but the stumps, which come from the theme. */
 const MARK_IMAGES: Record<Exclude<HelpMark, 'stump' | 'tentative'>, string> = {
   x: cross('rgba(43, 29, 18, 0.8)'),
@@ -96,13 +102,16 @@ const MARK_IMAGES: Record<Exclude<HelpMark, 'stump' | 'tentative'>, string> = {
  * @param board the example
  * @param palette region colors, as on the puzzle screen
  * @param stump stump image URL, as on the puzzle screen
+ * @param piece what to call the pieces in the spoken description
  * @returns the board element
  */
-export function drawHelpBoard(board: HelpBoard, palette: readonly number[], stump = stumpUrl): HTMLElement {
+export function drawHelpBoard(
+  board: HelpBoard, palette: readonly number[], stump = stumpUrl, piece: PieceNames = STUMP_NAMES,
+): HTMLElement {
   const element = document.createElement('div');
   element.className = 'mini-board';
   element.setAttribute('role', 'img');
-  element.setAttribute('aria-label', board.label);
+  element.setAttribute('aria-label', namePieces(board.label, piece));
   element.style.gridTemplateColumns = `repeat(${board.cols}, 1fr)`;
   element.replaceChildren(...board.colors.map((color, cell) => {
     const square = document.createElement('i');
@@ -125,12 +134,15 @@ export function drawHelpBoard(board: HelpBoard, palette: readonly number[], stum
  * @param root the help dialog
  * @param palette region colors, as on the puzzle screen
  * @param stump stump image URL, as on the puzzle screen
+ * @param piece what to call the pieces in the spoken descriptions
  */
-export function fillHelpBoards(root: ParentNode, palette: readonly number[], stump = stumpUrl): void {
+export function fillHelpBoards(
+  root: ParentNode, palette: readonly number[], stump = stumpUrl, piece: PieceNames = STUMP_NAMES,
+): void {
   for (const slot of root.querySelectorAll<HTMLElement>('[data-help-board]')) {
     const board = HELP_BOARDS[slot.dataset.helpBoard ?? ''];
     if (board) {
-      slot.replaceChildren(drawHelpBoard(board, palette, stump));
+      slot.replaceChildren(drawHelpBoard(board, palette, stump, piece));
     }
   }
 }
