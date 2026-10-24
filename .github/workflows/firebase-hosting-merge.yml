@@ -3,11 +3,18 @@
 
 name: Deploy to Firebase Hosting on merge
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
 jobs:
   build_and_deploy:
+    # Skip dependency-only commits (even if package.json changed)
+    if: ${{ !startsWith(github.event.head_commit.message, 'deps:') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
