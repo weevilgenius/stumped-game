@@ -30,6 +30,16 @@ describe('help boards', () => {
     expect(squares[6].classList.contains('dim')).toBe(false);
   });
 
+  it('names the pieces as the theme does', () => {
+    const skulls = { one: 'skull', many: 'skulls', a: 'a skull' };
+    expect(drawHelpBoard(HELP_BOARDS.solved, PALETTE, 'skull.svg', skulls).getAttribute('aria-label'))
+      .toBe('A solved five by five forest with five skulls');
+    expect(drawHelpBoard(HELP_BOARDS.touch, PALETTE, 'skull.svg', skulls).getAttribute('aria-label'))
+      .toBe('A skull with X marks on all eight squares around it');
+    expect(drawHelpBoard(HELP_BOARDS.whatIf, PALETTE, 'skull.svg', skulls).getAttribute('aria-label'))
+      .toBe('A pencil skull and a small pencil X');
+  });
+
   it('fills placeholders by name', () => {
     const root = document.createElement('div');
     root.innerHTML = '<div data-help-board="drag"></div><div data-help-board="missing"></div>';

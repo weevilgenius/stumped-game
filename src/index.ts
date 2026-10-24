@@ -39,6 +39,12 @@ const applyTheme = (): void => {
   for (const image of document.querySelectorAll<HTMLImageElement>('img[data-icon]')) {
     image.src = theme.icons[image.dataset.icon as IconName];
   }
+  // Piece names in the help text: one or many, capitalized when the placeholder is.
+  for (const word of document.querySelectorAll<HTMLElement>('[data-piece]')) {
+    const form = word.dataset.piece ?? '';
+    const name = form.toLowerCase() === 'many' ? theme.piece.many : theme.piece.one;
+    word.textContent = form === form.toLowerCase() ? name : `${name[0].toUpperCase()}${name.slice(1)}`;
+  }
 };
 
 const setTheme = (name: ThemeName): void => {
@@ -371,7 +377,7 @@ const openHelp = (): void => {
   }
   if (helpTheme !== theme.name) {
     helpTheme = theme.name;
-    fillHelpBoards(helpDialog, theme.palette, theme.icons.stump);
+    fillHelpBoards(helpDialog, theme.palette, theme.icons.stump, theme.piece);
   }
   controller.setHidden(true);
   $('helpBody').scrollTo({ top: 0 });
