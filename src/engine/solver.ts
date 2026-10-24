@@ -491,46 +491,62 @@ const listLines = (axis: 'row' | 'col', lines: readonly number[]): string => {
   return `${noun}s ${numbers.join(', ')}${numbers.length > 1 ? ',' : ''} and ${last}`;
 };
 
+/** What the pieces are called in explanations, so a theme can name its own. */
+export interface PieceNames {
+  /** One piece, as in "that color's stump". */
+  readonly one: string;
+  /** More than one, as in "their stumps". */
+  readonly many: string;
+  /** One piece with its article, as in "this must be a stump". */
+  readonly a: string;
+}
+
+/** The pieces' own name. */
+export const STUMP_NAMES: PieceNames = { one: 'stump', many: 'stumps', a: 'a stump' };
+
+const capitalize = (text: string): string => text.replace(/^./, (c) => c.toUpperCase());
+
 /**
  * Explains a step in plain words for the explain hint. Rows and columns are
  * numbered from 1; regions are referred to as highlighted colors or color patches.
  * @param step a deduction
+ * @param piece what to call the pieces
  * @returns a sentence or two
  */
-export function describeStep(step: Step): string {
+export function describeStep(step: Step, piece: PieceNames = STUMP_NAMES): string {
   switch (step.type) {
   case 'elimination':
-    return 'A stump rules out every other square in its row, column, and color, and every square touching it.';
+    return `${capitalize(piece.a)} rules out every other square in its row, column, and color, and every square touching it.`;
   case 'forced': {
     const name = step.unit.kind === 'region'
       ? 'This color patch'
-      : unitName(step.unit).replace(/^./, (c) => c.toUpperCase());
-    return `${name} has only one open square left, so this must be a stump.`;
+      : capitalize(unitName(step.unit));
+    return `${name} has only one open square left, so this must be ${piece.a}.`;
   }
   case 'confinement': {
     const lines = listLines(step.axis, step.lines);
     const nouns = step.axis === 'row' ? 'rows' : 'columns';
     if (!step.reverse && step.k === 1) {
-      return `This color patch's open squares all lie in ${lines}, so no other square in ${lines} can be a stump.`;
+      return `This color patch's open squares all lie in ${lines}, so no other square in ${lines} can be ${piece.a}.`;
     }
     if (!step.reverse) {
-      return `These ${step.k} color patches fit entirely inside ${lines}, so their stumps fill those ${nouns} `
+      return `These ${step.k} color patches fit entirely inside ${lines}, so their ${piece.many} fill those ${nouns} `
         + 'and all other squares in them can be removed.';
     }
     if (step.k === 1) {
-      return `The open squares of ${lines} all lie in one color, so that color's stump must be in ${lines} `
+      return `The open squares of ${lines} all lie in one color, so that color's ${piece.one} must be in ${lines} `
         + 'and the rest of the color patch is ruled out.';
     }
-    return `The open squares of ${lines} all lie in these ${step.k} colors, so those colors' stumps `
+    return `The open squares of ${lines} all lie in these ${step.k} colors, so those colors' ${piece.many} `
       + `must be in those ${nouns} and the rest of the color squares are ruled out.`;
   }
   case 'blocking':
     return step.unit.kind === 'region'
-      ? 'A stump here would rule out every open square in this color, so this square can be eliminated.'
-      : `A stump here would make it impossible to put a stump in ${unitName(step.unit)}, `
+      ? `${capitalize(piece.a)} here would rule out every open square in this color, so this square can be eliminated.`
+      : `${capitalize(piece.a)} here would make it impossible to put ${piece.a} in ${unitName(step.unit)}, `
         + 'so this square can be eliminated.';
   case 'chain':
-    return `If a stump went here, then after ${step.steps.length} steps ${unitName(step.unit)} `
+    return `If ${piece.a} went here, then after ${step.steps.length} steps ${unitName(step.unit)} `
       + 'would have no open squares left, so this square must be eliminated.';
   }
 }

@@ -209,4 +209,25 @@ describe('describeStep', () => {
     expect(describeStep({ type: 'blocking', cell: 7, unit: { kind: 'region', index: 0 }, eliminated: [7] }))
       .toMatch(/in this color,/);
   });
+
+  it('calls the pieces whatever it is told to', () => {
+    const skulls = { one: 'skull', many: 'skulls', a: 'a skull' };
+    const steps: Step[] = [
+      { type: 'elimination', stump: 0, eliminated: [1] },
+      { type: 'forced', unit: { kind: 'row', index: 2 }, place: 14, eliminated: [] },
+      { type: 'confinement', k: 1, axis: 'row', reverse: false, regions: [0], lines: [0], eliminated: [9] },
+      { type: 'confinement', k: 2, axis: 'row', reverse: false, regions: [0, 1], lines: [0, 1], eliminated: [9] },
+      { type: 'confinement', k: 1, axis: 'col', reverse: true, regions: [0], lines: [0], eliminated: [9] },
+      { type: 'confinement', k: 2, axis: 'col', reverse: true, regions: [0, 1], lines: [0, 1], eliminated: [9] },
+      { type: 'blocking', cell: 7, unit: { kind: 'col', index: 0 }, eliminated: [7] },
+      { type: 'blocking', cell: 7, unit: { kind: 'region', index: 0 }, eliminated: [7] },
+      { type: 'chain', cell: 7, unit: { kind: 'row', index: 0 }, steps: [], eliminated: [7] },
+    ];
+    for (const step of steps) {
+      expect(describeStep(step), step.type).toMatch(/stump/i);
+      const text = describeStep(step, skulls);
+      expect(text, step.type).toMatch(/skull/i);
+      expect(text, step.type).not.toMatch(/stump/i);
+    }
+  });
 });
