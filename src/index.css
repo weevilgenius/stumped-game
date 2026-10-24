@@ -1079,3 +1079,86 @@ fieldset label + label {
 .wood img {
   height: 32px;
 }
+
+/* ---------- Puerto Vallarta theme ---------- */
+
+/* Each theme's words and art; the other theme's are hidden. */
+:root[data-theme='vallarta'] .for-woods,
+:root:not([data-theme='vallarta']) .for-vallarta {
+  display: none !important;
+}
+
+/* Sun-bleached paper by day, a Day of the Dead night in dark mode. */
+:root[data-theme='vallarta'] {
+  --bg: #2a1d4a;
+  --gold: #f5a623;
+  --ink: #2a1d4a;
+  --paper: #fdf3e3;
+  --surface: #fffaf1;
+  --text: #3b1f3a;
+  --muted: #7a5c6c;
+  --line: #efd5bd;
+  --green: #c2185b;
+  --on-green: #fff8ec;
+  --leaf: #f5a623;
+  --accent: #e4407b;
+  --eyebrow: #b5532e;
+  --focus: #18a7b5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='vallarta'] {
+    --paper: #1e1733;
+    --surface: #2a2145;
+    --text: #fbecd8;
+    --muted: #c3aecb;
+    --line: #463a66;
+    --green: #e4407b;
+    --leaf: #f5a623;
+    --accent: #f5a623;
+    --eyebrow: #f5b56a;
+  }
+}
+
+:root[data-theme='vallarta'] .art {
+  background: #3a2470;
+}
+
+/* The scene keeps its beach in view on a short, wide card. */
+:root[data-theme='vallarta'] .art img {
+  object-position: center 85%;
+}
+
+:root[data-theme='vallarta'] #thumb {
+  border-color: var(--bg);
+  background: var(--bg);
+}
+
+:root[data-theme='vallarta'] .wood {
+  border-color: #7a3218;
+  background: #b5532e;
+  color: #fff3d6;
+}
+
+:root[data-theme='vallarta'] dialog::backdrop {
+  background: #2a1d4a80;
+}
+
+/* A strip of papel picado along the top of the main screen. */
+:root[data-theme='vallarta'] .masthead {
+  position: relative;
+}
+
+:root[data-theme='vallarta'] .masthead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background:
+    linear-gradient(45deg, var(--paper) 25%, transparent 25%) 0 100% / 14px 7px repeat-x,
+    linear-gradient(-45deg, var(--paper) 25%, transparent 25%) 0 100% / 14px 7px repeat-x,
+    linear-gradient(90deg, #e8458b 0 16.6%, #f5a623 0 33.3%, #18a7b5 0 50%, #8e44ad 0 66.6%, #59b83a 0 83.3%, #ff7a1a 0) 0 0 / 360px 100%;
+  opacity: 0.85;
+}

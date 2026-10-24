@@ -84,10 +84,8 @@ const cross = (color: string, outline?: string): string => {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 };
 
-/** Background image for each mark. */
-const MARK_IMAGES: Record<HelpMark, string> = {
-  stump: `url("${stumpUrl}")`,
-  tentative: `url("${stumpUrl}")`,
+/** Background image for each mark but the stumps, which come from the theme. */
+const MARK_IMAGES: Record<Exclude<HelpMark, 'stump' | 'tentative'>, string> = {
   x: cross('rgba(43, 29, 18, 0.8)'),
   red: cross('#d62828', '#ffffff'),
   hypoX: cross('#ffffff', 'rgba(43, 29, 18, 0.85)'),
@@ -97,9 +95,10 @@ const MARK_IMAGES: Record<HelpMark, string> = {
  * Draws an example board.
  * @param board the example
  * @param palette region colors, as on the puzzle screen
+ * @param stump stump image URL, as on the puzzle screen
  * @returns the board element
  */
-export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTMLElement {
+export function drawHelpBoard(board: HelpBoard, palette: readonly number[], stump = stumpUrl): HTMLElement {
   const element = document.createElement('div');
   element.className = 'mini-board';
   element.setAttribute('role', 'img');
@@ -111,7 +110,7 @@ export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTM
     const mark = board.marks?.[cell];
     if (mark) {
       square.className = mark;
-      square.style.backgroundImage = MARK_IMAGES[mark];
+      square.style.backgroundImage = mark === 'stump' || mark === 'tentative' ? `url("${stump}")` : MARK_IMAGES[mark];
     }
     if (board.lit && !board.lit.includes(cell)) {
       square.classList.add('dim');
@@ -125,12 +124,13 @@ export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTM
  * Fills each `[data-help-board]` placeholder under `root` with its example board.
  * @param root the help dialog
  * @param palette region colors, as on the puzzle screen
+ * @param stump stump image URL, as on the puzzle screen
  */
-export function fillHelpBoards(root: ParentNode, palette: readonly number[]): void {
+export function fillHelpBoards(root: ParentNode, palette: readonly number[], stump = stumpUrl): void {
   for (const slot of root.querySelectorAll<HTMLElement>('[data-help-board]')) {
     const board = HELP_BOARDS[slot.dataset.helpBoard ?? ''];
     if (board) {
-      slot.replaceChildren(drawHelpBoard(board, palette));
+      slot.replaceChildren(drawHelpBoard(board, palette, stump));
     }
   }
 }

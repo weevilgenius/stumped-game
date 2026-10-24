@@ -708,3 +708,24 @@ test('help opens from the main screen and over a puzzle without losing it, and s
   await tap(page, 1);
   expect(await marks(page, [0, 1])).toEqual([X, X]);
 });
+
+test('the Puerto Vallarta theme is saved on its own and dresses the puzzle', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const settings = page.locator('#settings');
+  await expect(settings.getByLabel('Theme')).toHaveValue('woods');
+  await settings.getByLabel('Theme').selectOption('Puerto Vallarta');
+  await settings.getByRole('button', { name: 'Done' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'vallarta');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('A little time by the bay.');
+  // Kept apart from the save, which older cached versions also read.
+  expect(await page.evaluate(() => [
+    localStorage.getItem('stumped-main.theme'), localStorage.getItem('stumped-main.save')?.includes('vallarta') ?? false,
+  ])).toEqual(['vallarta', false]);
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'vallarta');
+  await page.goto(`/?code=${CODE}`);
+  await puzzleReady(page);
+  await expect(page.getByRole('button', { name: 'Parrot: reveal a stump' })).toBeAttached();
+});
