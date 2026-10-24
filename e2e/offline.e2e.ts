@@ -18,7 +18,7 @@ test('the installed app plays a seed code and another puzzle with no connection'
   test.setTimeout(60_000);
   // Keep generation small so this tests offline caching rather than random difficulty.
   await page.addInitScript(() => localStorage.setItem('stumped-main.settings', JSON.stringify({
-    timer: true, silver: false, size: 5, tier: 'easy', sizeMix: 1, shape: 1, freebies: 0,
+    timer: true, silver: false, vallarta: true, size: 5, tier: 'easy', sizeMix: 1, shape: 1, freebies: 0,
   })));
   await page.goto('./');
   await controlling(page);
@@ -30,9 +30,12 @@ test('the installed app plays a seed code and another puzzle with no connection'
 
   await context.setOffline(true);
   await page.reload();
+  await expect(page.locator('h1')).toContainText('in Vallarta.');
+  await expect(page.locator('.art > img')).toHaveJSProperty('naturalWidth', 720);
   await page.goto(`./?code=${SEED}`);
   await expect(page.locator('#game canvas')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('stumped-main.save'))).toContain(SEED);
+  await expect(page.getByRole('button', { name: 'Calavera: explain a deduction' })).toBeVisible();
 
   // The in-progress game would be written back on the way out, so freeze saves first.
   await page.evaluate(() => {

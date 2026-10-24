@@ -55,6 +55,7 @@ const choices = (value: unknown, valid: (choice: unknown) => boolean): boolean =
 /** Accepts current settings, and the single-choice size and tier that earlier versions saved. */
 const validSettings = (value: unknown): value is Settings => object(value)
   && typeof value.timer === 'boolean' && typeof value.silver === 'boolean'
+  && (value.vallarta === undefined || typeof value.vallarta === 'boolean')
   && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE)
     || Object.keys(SIZE_RANGES).some((range) => range === value.size))
   && (value.tier === undefined || tier(value.tier))

@@ -16,7 +16,7 @@ export interface AccessibleControl {
 /** Creates a semantic companion; actions and availability remain owned by the scene. */
 export function createAccessiblePuzzle(
   parent: HTMLElement, game: Game, onMark: (cell: number) => void,
-  onReveal: (cell: number) => void, onControl: (name: string) => void,
+  onReveal: (cell: number) => void, onControl: (name: string) => void, text: (value: string) => string = (value) => value,
 ): {
   render: (bounds: readonly [number, number, number], controls: readonly AccessibleControl[], blocked: boolean, message: string) => void;
   focus: () => void;
@@ -27,7 +27,7 @@ export function createAccessiblePuzzle(
   const instructions = document.createElement('p');
   instructions.id = 'puzzle-instructions';
   instructions.className = 'sr-only';
-  instructions.textContent = 'Find one stump in each row, column, and patch. Stumps cannot touch. Use arrow keys to move, Home and End within a row, Space to toggle an X, and Enter to reveal a stump or toggle a tentative stump in What if mode.';
+  instructions.textContent = text('Find one stump in each row, column, and patch. Stumps cannot touch. Use arrow keys to move, Home and End within a row, Space to toggle an X, and Enter to reveal a stump or toggle a tentative stump in What if mode.');
   const grid = document.createElement('div');
   grid.setAttribute('role', 'grid');
   grid.setAttribute('aria-label', `${game.puzzle.size} by ${game.puzzle.size} puzzle`);
@@ -41,7 +41,7 @@ export function createAccessiblePuzzle(
   reveal.className = 'sr-only accessible-reveal';
   reveal.onclick = () => onReveal(selected);
   const labelReveal = (): void => {
-    reveal.textContent = `${game.hypo ? 'Toggle tentative stump' : 'Reveal stump'} at row ${Math.floor(selected / n) + 1}, column ${selected % n + 1}`;
+    reveal.textContent = text(`${game.hypo ? 'Toggle tentative stump' : 'Reveal stump'} at row ${Math.floor(selected / n) + 1}, column ${selected % n + 1}`);
     reveal.setAttribute('aria-disabled', cells[selected]?.getAttribute('aria-disabled') ?? 'false');
   };
   const focusCell = (cell: number): void => {
@@ -115,7 +115,7 @@ export function createAccessiblePuzzle(
       cells.forEach((button, cell) => {
         const mark = ['open', 'X', 'wrong reveal, permanent X', 'revealed stump'][game.marks[cell]];
         const hypo = game.hypo?.[cell];
-        button.setAttribute('aria-label', `Row ${Math.floor(cell / n) + 1}, column ${cell % n + 1}, patch ${game.puzzle.regions[cell] + 1}: ${mark}${hypo === HYPO_STUMP ? ', tentative stump' : hypo === MARK_X ? ', hypothesis X' : ''}${flagged.includes(cell) ? ', rule conflict' : ''}`);
+        button.setAttribute('aria-label', text(`Row ${Math.floor(cell / n) + 1}, column ${cell % n + 1}, patch ${game.puzzle.regions[cell] + 1}: ${mark}${hypo === HYPO_STUMP ? ', tentative stump' : hypo === MARK_X ? ', hypothesis X' : ''}${flagged.includes(cell) ? ', rule conflict' : ''}`));
         button.setAttribute('aria-disabled', String(blocked || (game.marks[cell] === MARK_RED || game.marks[cell] === MARK_STUMP) || (!!game.hypo && game.marks[cell] !== MARK_NONE)));
       });
       labelReveal();
@@ -143,9 +143,9 @@ export function createAccessiblePuzzle(
         button.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
         button.setAttribute('aria-disabled', String(disabled));
       });
-      const text = `${stumps(game).length} of ${n} stumps found. ${game.acorns} acorns remaining. ${game.hypo ? 'What if mode. ' : ''}${message}`;
-      if (live.textContent !== text) {
-        live.textContent = text;
+      const announcement = text(`${stumps(game).length} of ${n} stumps found. ${game.acorns} acorns remaining. ${game.hypo ? 'What if mode. ' : ''}${message}`);
+      if (live.textContent !== announcement) {
+        live.textContent = announcement;
       }
     },
     focus: () => {

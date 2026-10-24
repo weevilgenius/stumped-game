@@ -1079,3 +1079,63 @@ fieldset label + label {
 .wood img {
   height: 32px;
 }
+
+/* Puerto Vallarta: Pacific blue, warm paper, bougainvillea, and marigold. */
+:root[data-theme='vallarta'] {
+  --bg: #153f50;
+  --paper: #fff2dd;
+  --surface: #fffaf0;
+  --text: #284551;
+  --muted: #6c6464;
+  --line: #e4cdb6;
+  --green: #963b61;
+  --on-green: #fff6e6;
+  --leaf: #128d8a;
+  --accent: #a65b18;
+  --eyebrow: #95601f;
+  --focus: #b13d6b;
+}
+
+:root[data-theme='vallarta'] .caption {
+  background: linear-gradient(transparent, #153f50ed);
+}
+
+.theme-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='vallarta'] {
+    --paper: #172f3c;
+    --surface: #203e4d;
+    --text: #ffedcf;
+    --muted: #c2b9b0;
+    --line: #46606c;
+    --green: #a84870;
+    --leaf: #67ccc0;
+    --accent: #f4bd55;
+    --eyebrow: #efbc6d;
+    --focus: #f4bd55;
+  }
+}
+
+/* Keep the celebration motifs visible when the tall poster is cropped on phones. */
+@media (max-width: 760px) {
+  :root[data-theme='vallarta'] .art::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    width: 112px;
+    height: 64px;
+    border-radius: 12px;
+    background-color: #fff2dded;
+    background-image: url('./assets/vallarta/calavera.svg'), url('./assets/vallarta/margarita.svg');
+    background-position: left center, right center;
+    background-size: 56px;
+    background-repeat: no-repeat;
+  }
+}

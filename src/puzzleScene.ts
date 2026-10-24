@@ -8,30 +8,9 @@ import {
   isPerfectlyMarked, leaveHypothesis, MARK_X, type Result, resultOf, type RevealResult, squirrel, type StrokeMode, stumps, timeAward, undo,
   woodpecker,
 } from './game';
-import acornUrl from './assets/acorn_icon@8x.png';
-import owlUrl from './assets/owl_icon@8x.png';
-import silverUrl from './assets/silver_acorn_icon@8x.png';
-import squirrelUrl from './assets/squirrel_icon@8x.png';
-import stumpUrl from './assets/stump_icon.png';
-import woodpeckerUrl from './assets/woodpecker_icon@8x.png';
+import { themeFor } from './theme';
+import type { Theme } from './theme';
 
-/* ========================================================= *\
- *  Theme                                                    *
-\* ========================================================= */
-
-/** Region colors in priority order. A board of size N uses the first N. */
-export const PALETTE: readonly number[] = [
-  0xE4BB49, 0x5B75B2, 0xD57374, 0xAED994, 0x48B5B2, 0xFAB4D0, 0xA7BFD7, 0x9778D6, 0xAD6F48, 0xFEAA6C,
-];
-
-/** Icon image URLs, shared with the main screen. */
-export const ICONS = {
-  stump: stumpUrl, acorn: acornUrl, silver: silverUrl, woodpecker: woodpeckerUrl, owl: owlUrl, squirrel: squirrelUrl,
-} as const;
-
-const BACKGROUND = 0x20382a;
-const WOOD = 0x8a5a33;
-const WOOD_DARK = 0x5e3b1f;
 const INK = 0x2b1d12;
 const CREAM = 0xf7edd5;
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -77,6 +56,8 @@ export interface PuzzleOptions {
   readonly results: readonly Result[];
   /** Whether to show the timer. Time is recorded either way. */
   readonly showTimer: boolean;
+  /** Optional Puerto Vallarta presentation; defaults to woodland for older callers. */
+  readonly vallarta?: boolean;
   /** Called after every change worth saving. */
   readonly onChange: () => void;
   /** Play time so far in milliseconds, read every frame. */
@@ -124,6 +105,7 @@ const cross = (color: string, outline?: string): Paint => (ctx, size) => {
 
 class PuzzleScene extends Phaser.Scene {
   private options!: PuzzleOptions;
+  private theme!: Theme;
   private model!: Game;
 
   /** Device pixels per CSS pixel. Sizes are written in CSS pixels times this. */
@@ -160,6 +142,7 @@ class PuzzleScene extends Phaser.Scene {
 
   init(options: PuzzleOptions): void {
     this.options = options;
+    this.theme = themeFor(options.vallarta);
     this.model = options.model;
     this.textureKey = '';
     this.stroke = null;
@@ -174,12 +157,18 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
-    for (const [key, url] of Object.entries(ICONS)) {
-      this.load.image(`raw-${key}`, url);
+    for (const [key, url] of Object.entries(this.theme.icons)) {
+      const texture = `raw-${this.theme.id}-${key}`;
+      if (url.endsWith('.svg')) {
+        this.load.svg(texture, url, { width: 256, height: 256 });
+      } else {
+        this.load.image(texture, url);
+      }
     }
   }
 
   create(): void {
+    this.cameras.main.setBackgroundColor(this.theme.background);
     const onUp = (pointer: Phaser.Input.Pointer): void => this.onPointerUp(pointer);
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       this.onPointerDown(pointer, over);
@@ -194,7 +183,7 @@ class PuzzleScene extends Phaser.Scene {
     this.game.canvas.setAttribute('aria-hidden', 'true');
     this.accessible = createAccessiblePuzzle(this.game.canvas.parentElement!, this.model,
       (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
-      (cell) => this.revealCell(cell), (name) => this.activateControl(name));
+      (cell) => this.revealCell(cell), (name) => this.activateControl(name), this.theme.text);
     this.events.once('shutdown', () => {
       this.accessible?.destroy();
       this.accessible = undefined;
@@ -293,7 +282,7 @@ class PuzzleScene extends Phaser.Scene {
   /** Redraws the source art at the exact sizes on screen, so nothing is scaled at draw time. */
   private makeTextures(): void {
     const { cellSize: cell, u } = this;
-    const key = `${cell}/${u}/${this.model.puzzle.silver}`;
+    const key = `${this.theme.id}/${cell}/${u}/${this.model.puzzle.silver}`;
     if (key === this.textureKey) {
       return;
     }
@@ -301,7 +290,7 @@ class PuzzleScene extends Phaser.Scene {
     const icon = (source: string, inset = 0): Paint => (ctx, size) => {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(
-        this.textures.get(`raw-${source}`).getSourceImage() as HTMLImageElement,
+        this.textures.get(`raw-${this.theme.id}-${source}`).getSourceImage() as HTMLImageElement,
         inset, inset, size - 2 * inset, size - 2 * inset,
       );
     };
@@ -346,11 +335,11 @@ class PuzzleScene extends Phaser.Scene {
     if (this.model.hypo) {
       // A gold ring marks hypothesis mode.
       const ring = 2 * u;
-      g.lineStyle(3 * u, PALETTE[0])
+      g.lineStyle(3 * u, this.theme.palette[0])
         .strokeRoundedRect(x0 - ring, y0 - ring, board + 2 * ring, board + 2 * ring, cell * 0.1 + ring);
     }
     regions.forEach((region, i) => {
-      g.fillStyle(PALETTE[colors[region]]);
+      g.fillStyle(this.theme.palette[colors[region]]);
       this.fillCell(g, i);
     });
   }
@@ -451,7 +440,7 @@ class PuzzleScene extends Phaser.Scene {
 
     // In place of the controls: the reasoning, and buttons to page through it and close.
     const many = pages.length > 1;
-    const text = this.add.text(r.x + 4 * u, r.y, (many ? `${index + 1}/${pages.length}  ` : '') + page.text, {
+    const text = this.add.text(r.x + 4 * u, r.y, (many ? `${index + 1}/${pages.length}  ` : '') + this.theme.text(page.text), {
       ...this.textStyle(15), fontStyle: 'normal', lineSpacing: 3 * u, wordWrap: { width: r.w - 8 * u },
     });
     const turn = (by: number) => (): void => {
@@ -492,8 +481,8 @@ class PuzzleScene extends Phaser.Scene {
     const { u } = this;
     // Filled shapes avoid Phaser's rounded-outline stroke path, whose duplicate
     // corner points can produce invalid vertices and streaks on some mobile GPUs.
-    const border = this.add.rectangle(x, y, w + 2 * u, h + 2 * u, WOOD_DARK).setRounded(11 * u);
-    const back = this.add.rectangle(x, y, w - 2 * u, h - 2 * u, WOOD).setRounded(9 * u);
+    const border = this.add.rectangle(x, y, w + 2 * u, h + 2 * u, this.theme.border).setRounded(11 * u);
+    const back = this.add.rectangle(x, y, w - 2 * u, h - 2 * u, this.theme.button).setRounded(9 * u);
     const face = this.textures.exists(content)
       ? this.add.image(x, y, content)
       : this.add.text(x, y, content, this.textStyle(16)).setOrigin(0.5);
@@ -503,7 +492,7 @@ class PuzzleScene extends Phaser.Scene {
       previous: 'Previous explanation page', next: 'Next explanation page',
     };
     this.controls.set(name, {
-      view: { name, label: labels[name] ?? content, bounds: [(x - w / 2) / u, (y - h / 2) / u, w / u, h / u], disabled: false },
+      view: { name, label: this.theme.text(labels[name] ?? content), bounds: [(x - w / 2) / u, (y - h / 2) / u, w / u, h / u], disabled: false },
       onTap, dim,
     });
     back.setInteractive(new Phaser.Geom.Rectangle(-u, -u, w, h),
@@ -911,7 +900,7 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
   const game = phaser = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    backgroundColor: BACKGROUND,
+    backgroundColor: themeFor(options.vallarta).background,
     banner: false,
     disableContextMenu: true,
     // Unused, and off so Phaser never listens for keys typed into the seed code box.

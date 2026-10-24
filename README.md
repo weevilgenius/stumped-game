@@ -25,6 +25,11 @@ pnpm install
 pnpm run dev
 ```
 
+In Settings, turn on **Puerto Vallarta theme** for our annual Mexico trip: parrots,
+margaritas, sugar skulls, and papel picado. The home screen, puzzle, and help all
+change together. The choice stays on your device and works offline; switching
+themes keeps your current puzzle and progress.
+
 ## Offline
 
 On the published site, the first visit saves a copy of the game in the

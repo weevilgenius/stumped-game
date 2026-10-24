@@ -74,7 +74,7 @@ test('explanations announce reasoning and block every cell action', async ({ pag
   await page.keyboard.press('Space');
   await activate(page, 'owl');
   await expect(control(page, 'done')).toBeFocused();
-  await expect(page.locator('.accessible-puzzle [role="status"]')).toContainText('This X is on a square');
+  await expect(page.locator('.accessible-puzzle [role="status"]')).toContainText('This X is marked incorrectly.');
   const before = await game(page);
   await cells.nth(8).focus();
   await page.keyboard.press('Space');

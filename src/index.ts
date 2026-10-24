@@ -2,7 +2,9 @@ import './index.css';
 import type { Tier } from './engine';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { ICONS, openPuzzle, PALETTE } from './puzzleScene';
+import { openPuzzle } from './puzzleScene';
+import { themeFor } from './theme';
+import type { Theme } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
 import { watchForUpdates } from './updates';
@@ -51,8 +53,64 @@ const sizeStorageNotice = (): void => document.documentElement.style.setProperty
 );
 new ResizeObserver(sizeStorageNotice).observe(storageNotice);
 
-const icon = (name: keyof typeof ICONS, label: string): string => (
-  `<img class="icon" src="${ICONS[name]}" alt="${label}" title="${label}">`);
+/** Presentation is a preference, independent of puzzle generation and saved marks. */
+const theme = (): Theme => themeFor(controller.settings.vallarta);
+const themedText = (text: string): string => theme().text(text);
+const originalHome = new Map<Element, string>();
+for (const selector of ['.panel > .eyebrow', 'h1', '.intro', '.caption', 'footer > span:last-child', '#status']) {
+  const element = document.querySelector(selector)!;
+  originalHome.set(element, element.innerHTML);
+}
+// Keep the source text so toggling either direction never compounds substitutions.
+const helpText = new Map<Text, string>();
+const helpWalker = document.createTreeWalker($('helpBody'), NodeFilter.SHOW_TEXT);
+while (helpWalker.nextNode()) {
+  const node = helpWalker.currentNode as Text;
+  helpText.set(node, node.data);
+}
+const helpIcons = new Map<HTMLImageElement, string>();
+for (const image of $('helpBody').querySelectorAll('img')) {
+  helpIcons.set(image, image.src);
+}
+let appliedTheme = '';
+const applyTheme = (): void => {
+  const current = theme();
+  if (appliedTheme === current.id) {
+    return;
+  }
+  appliedTheme = current.id;
+  document.documentElement.dataset.theme = current.id;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
+    `#${current.background.toString(16).padStart(6, '0')}`);
+  const art = document.querySelector<HTMLImageElement>('.art > img')!;
+  art.src = current.home;
+  art.alt = current.id === 'vallarta'
+    ? 'Puerto Vallarta: a parrot by the bay, margarita, sugar skull, and papel picado'
+    : 'Stumped: a woodland sudoku, illustrated among the trees';
+  const holidayCopy = [
+    'Our annual Mexico getaway', 'A little time <br>in Vallarta.',
+    'Parrots by the bay. Margaritas at sunset. <br>A little logic between adventures.',
+    '<span class="eyebrow">Puerto Vallarta · México</span><span>¡Salud to a little logic!</span>',
+    'Made for our family getaway', 'Preparing a puzzle&hellip;',
+  ];
+  [...originalHome].forEach(([element, original], i) => {
+    element.innerHTML = current.id === 'vallarta' ? holidayCopy[i] : original;
+  });
+  helpText.forEach((original, node) => node.data = current.text(original));
+  helpIcons.forEach((original, image) => {
+    const name = original.includes('silver') ? 'silver' : original.includes('acorn') ? 'acorn'
+      : original.includes('woodpecker') ? 'woodpecker' : original.includes('owl') ? 'owl' : 'squirrel';
+    image.src = current.icons[name];
+  });
+  fillHelpBoards($('help'), current.palette, current.icons.stump, current.text);
+  const silverLabel = settingsForm.querySelector('input[name="silver"]')?.parentElement?.firstChild;
+  if (silverLabel) {
+    silverLabel.textContent = current.text('Silver acorn mode ');
+  }
+};
+
+const icon = (name: keyof ReturnType<typeof theme>['icons'], label: string): string => (
+  `<img class="icon" src="${theme().icons[name]}" alt="${themedText(label)}" title="${themedText(label)}">`);
 
 /** Icons for whatever qualified a solve: a star if clean, else hints, acorns lost, and repeat. */
 const badges = (result: Result): string => [
@@ -74,7 +132,7 @@ const summary = (): string => {
     sizes ? either(sizes.map((size) => `${size}×${size}`)) : 'Any size',
     tiers ? `${either(tiers.map((tier, index) => (index ? tier : `${tier[0].toUpperCase()}${tier.slice(1)}`)))} difficulty`
       : 'Any difficulty',
-    silver ? 'Silver acorn' : 'A fresh puzzle every time',
+    silver ? themedText('Silver acorn') : 'A fresh puzzle every time',
   ].join(' · ');
 };
 
@@ -99,18 +157,18 @@ const renderMenu = (): void => {
   // A lost puzzle can be retried, so the thumbnail only ever shows stumps the player revealed.
   thumb.replaceChildren(...marks.map((mark, cell) => {
     const square = document.createElement('i');
-    square.style.backgroundColor = `#${PALETTE[puzzle.colors[puzzle.regions[cell]]].toString(16).padStart(6, '0')}`;
+    square.style.backgroundColor = `#${theme().palette[puzzle.colors[puzzle.regions[cell]]].toString(16).padStart(6, '0')}`;
     if (mark === MARK_STUMP) {
-      square.style.backgroundImage = `url("${ICONS.stump}")`;
+      square.style.backgroundImage = `url("${theme().icons.stump}")`;
     }
     return square;
   }));
   $('resume').hidden = status !== 'playing';
-  $('currentEyebrow').textContent = EYEBROWS[status];
+  $('currentEyebrow').textContent = themedText(EYEBROWS[status]);
   const state = {
     playing: `In progress, ${formatTime(elapsed)}`,
     won: `Solved in <b>${formatTime(elapsed)}</b> ${badges(resultOf(game))}`,
-    lost: 'Another walk through the woods?',
+    lost: themedText('Another walk through the woods?'),
   }[status];
   $('info').innerHTML = `<b>${puzzle.size}×${puzzle.size} ${puzzle.tier}</b>`
     + `${puzzle.silver && status !== 'won' ? ` ${icon('silver', 'Silver acorn mode')}` : ''}`
@@ -122,6 +180,7 @@ let opened: Game | null = null;
 
 /** Shows whichever screen the controller is on. */
 const render = (): void => {
+  applyTheme();
   storageNotice.textContent = [controller.recoveryNotice, controller.storageError, controller.generationError].filter(Boolean).join(' ');
   storageNotice.hidden = !storageNotice.textContent;
   sizeStorageNotice();
@@ -137,6 +196,7 @@ const render = (): void => {
         model: game,
         results: controller.results,
         showTimer: controller.settings.timer,
+        vallarta: controller.settings.vallarta,
         onChange: controller.changed,
         elapsed: controller.tick,
         onExit: controller.showMenu,
@@ -213,8 +273,8 @@ $('settingsButton').onclick = (): void => {
   for (const name of SELECTS) {
     (settingsForm.elements.namedItem(name) as HTMLSelectElement).value = String(controller.settings[name] ?? '');
   }
-  for (const name of ['timer', 'silver'] as const) {
-    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
+  for (const name of ['timer', 'silver', 'vallarta'] as const) {
+    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name] ?? false;
   }
   for (const name of TOGGLES) {
     const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
@@ -245,13 +305,15 @@ settingsForm.onchange = (event): void => {
   controller.updateSettings({
     timer: data.has('timer'),
     silver: data.has('silver'),
+    vallarta: data.has('vallarta'),
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
     sizeMix: level('sizeMix'),
     shape: level('shape'),
     freebies: level('freebies'),
   });
-  $('summary').textContent = summary();
+  applyTheme();
+  renderMenu();
 };
 
 /* ========================================================= *\
@@ -318,7 +380,7 @@ const openHelp = (): void => {
     return;
   }
   if (!helpDialog.querySelector('.mini-board')) {
-    fillHelpBoards(helpDialog, PALETTE);
+    fillHelpBoards(helpDialog, theme().palette, theme().icons.stump, theme().text);
   }
   controller.setHidden(true);
   $('helpBody').scrollTo({ top: 0 });

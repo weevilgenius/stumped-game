@@ -97,13 +97,15 @@ const MARK_IMAGES: Record<HelpMark, string> = {
  * Draws an example board.
  * @param board the example
  * @param palette region colors, as on the puzzle screen
+ * @param piece artwork for revealed and tentative pieces
+ * @param text presentation vocabulary
  * @returns the board element
  */
-export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTMLElement {
+export function drawHelpBoard(board: HelpBoard, palette: readonly number[], piece = stumpUrl, text = (value: string): string => value): HTMLElement {
   const element = document.createElement('div');
   element.className = 'mini-board';
   element.setAttribute('role', 'img');
-  element.setAttribute('aria-label', board.label);
+  element.setAttribute('aria-label', text(board.label));
   element.style.gridTemplateColumns = `repeat(${board.cols}, 1fr)`;
   element.replaceChildren(...board.colors.map((color, cell) => {
     const square = document.createElement('i');
@@ -111,7 +113,7 @@ export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTM
     const mark = board.marks?.[cell];
     if (mark) {
       square.className = mark;
-      square.style.backgroundImage = MARK_IMAGES[mark];
+      square.style.backgroundImage = mark === 'stump' || mark === 'tentative' ? `url("${piece}")` : MARK_IMAGES[mark];
     }
     if (board.lit && !board.lit.includes(cell)) {
       square.classList.add('dim');
@@ -125,12 +127,14 @@ export function drawHelpBoard(board: HelpBoard, palette: readonly number[]): HTM
  * Fills each `[data-help-board]` placeholder under `root` with its example board.
  * @param root the help dialog
  * @param palette region colors, as on the puzzle screen
+ * @param piece artwork for revealed and tentative pieces
+ * @param text presentation vocabulary
  */
-export function fillHelpBoards(root: ParentNode, palette: readonly number[]): void {
+export function fillHelpBoards(root: ParentNode, palette: readonly number[], piece = stumpUrl, text = (value: string): string => value): void {
   for (const slot of root.querySelectorAll<HTMLElement>('[data-help-board]')) {
     const board = HELP_BOARDS[slot.dataset.helpBoard ?? ''];
     if (board) {
-      slot.replaceChildren(drawHelpBoard(board, palette));
+      slot.replaceChildren(drawHelpBoard(board, palette, piece, text));
     }
   }
 }

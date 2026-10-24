@@ -48,7 +48,7 @@ describe('save round trips', () => {
     expect(read(newSave())).toEqual(newSave());
     const save = fresh();
     const { size, tier, sizeMix, shape, freebies } = SETTINGS;
-    save.settings = { sizes: [size], tiers: [tier], sizeMix, shape, freebies, timer: false, silver: true };
+    save.settings = { sizes: [size], tiers: [tier], sizeMix, shape, freebies, timer: false, silver: true, vallarta: true };
     beginStroke(save.game!, 0);
     expect(read(save)).toEqual(save);
   });
@@ -118,6 +118,7 @@ describe('invalid saves', () => {
 
   it.each([
     ['settings', { timer: 'yes', silver: false }],
+    ['settings', { timer: true, silver: false, vallarta: 'yes' }],
     ['settings', { timer: true, silver: false, size: 11 }],
     ['settings', { timer: true, silver: false, size: 'small' }],
     ['settings', { timer: true, silver: false, tier: 'expert' }],

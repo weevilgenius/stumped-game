@@ -17,6 +17,8 @@ import type { Choices } from './settings';
 export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'sizeMix' | 'shape' | 'freebies'>> {
   /** Show the timer during play. */
   timer: boolean;
+  /** Puerto Vallarta holiday theme; omitted by older saves. */
+  vallarta?: boolean;
   /** Give every puzzle a single acorn. */
   silver: boolean;
 }
@@ -217,7 +219,7 @@ export function createController(deps: ControllerDeps): Controller {
   };
 
   const prepare = (): Promise<Puzzle> => {
-    const { timer: _timer, silver, ...fixed } = settings;
+    const { timer: _timer, vallarta: _vallarta, silver, ...fixed } = settings;
     const key = JSON.stringify([silver, fixed]);
     if (prepared?.key !== key) {
       prepared?.abort.abort();
