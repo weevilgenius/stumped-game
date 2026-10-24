@@ -6,6 +6,7 @@ import { openPuzzle } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
+import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 
 /* ========================================================= *\
@@ -83,6 +84,7 @@ const controller = createController({
   random: Math.random,
   confirm: (question) => confirm(question),
 });
+setMuted(controller.settings.muted ?? false);
 
 /* ========================================================= *\
  *  Screens                                                  *
@@ -270,6 +272,7 @@ $('settingsButton').onclick = (): void => {
     (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
   }
   (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
+  (settingsForm.elements.namedItem('sound') as HTMLInputElement).checked = !controller.settings.muted;
   for (const name of TOGGLES) {
     const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
     for (const toggle of toggles(name)) {
@@ -304,12 +307,14 @@ settingsForm.onchange = (event): void => {
   controller.updateSettings({
     timer: data.has('timer'),
     silver: data.has('silver'),
+    muted: !data.has('sound'),
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
     sizeMix: level('sizeMix'),
     shape: level('shape'),
     freebies: level('freebies'),
   });
+  setMuted(!data.has('sound'));
   $('summary').textContent = summary();
 };
 
