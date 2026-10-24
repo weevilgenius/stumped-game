@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { SOUND_URLS } from './sounds';
+import type { GameSound } from './sounds';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
@@ -134,6 +136,7 @@ class PuzzleScene extends Phaser.Scene {
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
   private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
   private inputState = '';
+  private pendingSound?: { cue: GameSound; delay: number };
 
   constructor() {
     super('puzzle');
@@ -157,6 +160,9 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
+    for (const [key, url] of Object.entries(SOUND_URLS)) {
+      this.load.audio(`sfx-${key}`, url);
+    }
     // Each theme's art is loaded once, under its own keys, and kept for the next puzzle.
     for (const [key, url] of Object.entries(this.theme.icons)) {
       if (/\.svg($|\?)/.test(url)) {
@@ -168,6 +174,18 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   create(): void {
+    const onUnlocked = (): void => {
+      if (this.pendingSound) {
+        const { cue, delay } = this.pendingSound;
+        this.pendingSound = undefined;
+        this.playSound(cue, delay);
+      }
+    };
+    this.sound.on('unlocked', onUnlocked);
+    this.events.once('shutdown', () => {
+      this.sound.off('unlocked', onUnlocked);
+      this.pendingSound = undefined;
+    });
     const onUp = (pointer: Phaser.Input.Pointer): void => this.onPointerUp(pointer);
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       this.onPointerDown(pointer, over);
@@ -184,6 +202,9 @@ class PuzzleScene extends Phaser.Scene {
       (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
       (cell) => this.revealCell(cell), (name) => this.activateControl(name));
     this.events.once('shutdown', () => {
+      for (const key of Object.keys(SOUND_URLS)) {
+        this.sound.removeByKey(`sfx-${key}`);
+      }
       this.accessible?.destroy();
       this.accessible = undefined;
     });
@@ -704,6 +725,9 @@ class PuzzleScene extends Phaser.Scene {
     }
     const mode = beginStroke(this.model, cell);
     if (mode) {
+      if (mode === 'place') {
+        this.playSound('mark');
+      }
       this.changed();
     }
     return mode;
@@ -783,6 +807,9 @@ class PuzzleScene extends Phaser.Scene {
     stroke.x = pointer.x;
     stroke.y = pointer.y;
     if (changed) {
+      if (stroke.mode === 'place') {
+        this.playSound('mark');
+      }
       this.changed();
     }
   }
@@ -794,6 +821,9 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   private onReveal(result: RevealResult | null, cell: number): void {
+    if (result) {
+      this.playSound(result.correct ? 'correct' : 'wrong');
+    }
     if (!result || result.correct) {
       this.changed();
       return;
@@ -831,12 +861,14 @@ class PuzzleScene extends Phaser.Scene {
     if (hint === 'owl') {
       const source = explain(this.model);
       if (source) {
+        this.playSound('owl');
         this.explanation = { pages: explainPages(this.model, source, this.theme.piece), index: 0 };
         this.options.onChange();
         this.swapControls();
       }
       return;
     }
+    this.playSound(hint);
     if (hint === 'woodpecker') {
       woodpecker(this.model);
     } else {
@@ -873,6 +905,23 @@ class PuzzleScene extends Phaser.Scene {
    *  Feedback                                               *
   \* ------------------------------------------------------- */
 
+  /** Missing or unavailable audio must never interrupt gameplay. */
+  private playSound(cue: GameSound, delay = 0): void {
+    const key = `sfx-${cue}`;
+    if (this.cache.audio.exists(key)) {
+      if (this.sound.locked) {
+        // The first gesture also unlocks audio; play its cue once that completes.
+        this.pendingSound = { cue, delay };
+        return;
+      }
+      // Bound rapid drag feedback to one quiet tap at a time.
+      if (cue === 'mark' && this.sound.isPlaying(key)) {
+        return;
+      }
+      this.sound.play(key, { delay });
+    }
+  }
+
   /** Pulses squares once: a stump's row, column, or region has just been fully marked. */
   private pulse(cells: readonly number[]): void {
     for (const cell of cells) {
@@ -884,6 +933,7 @@ class PuzzleScene extends Phaser.Scene {
 
   private finish(): void {
     this.ended = true;
+    this.playSound(this.model.status === 'won' ? 'win' : 'lose', 0.3);
     // Freeze and record the final play time before comparing it with history.
     this.options.onChange();
     if (this.model.status === 'won') {
