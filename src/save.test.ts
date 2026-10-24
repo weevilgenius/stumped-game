@@ -30,6 +30,12 @@ describe('save round trips', () => {
     expect(migrateSave(legacy(save), createId)?.settings).toEqual(save.settings);
   });
 
+  it('restores muted sound', () => {
+    const save = fresh();
+    save.settings = { ...save.settings, muted: true };
+    expect(read(save)).toEqual(save);
+  });
+
   it.each([
     [{ size: 'smaller' }, { sizes: [5, 6, 7] }],
     [{ size: 'medium' }, { sizes: [7, 8] }],
@@ -127,6 +133,7 @@ describe('invalid saves', () => {
     ['settings', { timer: true, silver: false, tiers: 'easy' }],
     ['settings', { timer: true, silver: false, tiers: ['expert'] }],
     ['settings', { timer: true, silver: false, freebies: -1 }],
+    ['settings', { timer: true, silver: false, muted: 'yes' }],
     ['played', ['not-a-code']],
     ['results', [{}]],
     ['open', 1],

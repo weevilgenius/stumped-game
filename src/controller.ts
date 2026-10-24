@@ -19,6 +19,8 @@ export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'size
   timer: boolean;
   /** Give every puzzle a single acorn. */
   silver: boolean;
+  /** Silence sound effects. Missing in saves from before there was sound. */
+  muted?: boolean;
 }
 
 /** The screen that is up. */
@@ -217,7 +219,7 @@ export function createController(deps: ControllerDeps): Controller {
   };
 
   const prepare = (): Promise<Puzzle> => {
-    const { timer: _timer, silver, ...fixed } = settings;
+    const { timer: _timer, muted: _muted, silver, ...fixed } = settings;
     const key = JSON.stringify([silver, fixed]);
     if (prepared?.key !== key) {
       prepared?.abort.abort();

@@ -14,6 +14,7 @@ import silverUrl from './assets/silver_acorn_icon@8x.png';
 import squirrelUrl from './assets/squirrel_icon@8x.png';
 import stumpUrl from './assets/stump_icon.png';
 import woodpeckerUrl from './assets/woodpecker_icon@8x.png';
+import { playSound, type Sound } from './sound';
 
 /* ========================================================= *\
  *  Theme                                                    *
@@ -62,6 +63,8 @@ const END_MS = 4000;
  * double tap on one button would also press whichever button took its place.
  */
 const SWAP_GUARD_MS = 300;
+/** The sound each kind of stroke makes on the squares it changes. */
+const STROKE_SOUNDS: Record<NonNullable<StrokeMode>, Sound> = { place: 'x', erase: 'erase', lift: 'erase' };
 /** Sharpest canvas scale used, in device pixels per CSS pixel. */
 const MAX_PIXEL_RATIO = 3;
 
@@ -652,6 +655,7 @@ class PuzzleScene extends Phaser.Scene {
     }
     const mode = beginStroke(this.model, cell);
     if (mode) {
+      playSound(STROKE_SOUNDS[mode]);
       this.changed();
     }
     return mode;
@@ -730,7 +734,8 @@ class PuzzleScene extends Phaser.Scene {
     }
     stroke.x = pointer.x;
     stroke.y = pointer.y;
-    if (changed) {
+    if (changed && stroke.mode) {
+      playSound(STROKE_SOUNDS[stroke.mode]);
       this.changed();
     }
   }
@@ -743,6 +748,12 @@ class PuzzleScene extends Phaser.Scene {
 
   private onReveal(result: RevealResult | null, cell: number): void {
     if (!result || result.correct) {
+      if (result) {
+        playSound('stump');
+      } else if (this.model.hypo) {
+        // In hypothesis mode a double tap places or lifts a tentative stump.
+        playSound('x');
+      }
       this.changed();
       return;
     }
@@ -754,6 +765,7 @@ class PuzzleScene extends Phaser.Scene {
     this.busyUntil = this.time.now + wait + WRONG_MS;
     this.options.onChange();
     this.time.delayedCall(wait, () => {
+      playSound('wrong');
       this.cameras.main.shake(160, 0.006);
       this.refresh();
     });
@@ -779,12 +791,14 @@ class PuzzleScene extends Phaser.Scene {
     if (hint === 'owl') {
       const source = explain(this.model);
       if (source) {
+        playSound('owl');
         this.explanation = { pages: explainPages(this.model, source), index: 0 };
         this.options.onChange();
         this.swapControls();
       }
       return;
     }
+    playSound(hint);
     if (hint === 'woodpecker') {
       woodpecker(this.model);
     } else {
@@ -800,6 +814,8 @@ class PuzzleScene extends Phaser.Scene {
     }
     this.explanation = null;
     this.swapControls();
+    const source = this.model.explaining;
+    playSound(source?.type === 'wrongX' ? 'erase' : source?.step.type === 'forced' ? 'stump' : 'x');
     applyExplanation(this.model);
     this.changed();
   }
@@ -834,6 +850,8 @@ class PuzzleScene extends Phaser.Scene {
     this.ended = true;
     // Freeze and record the final play time before comparing it with history.
     this.options.onChange();
+    // Let the last stump or red X sound first.
+    playSound(this.model.status === 'won' ? 'win' : 'lose', 0.25);
     if (this.model.status === 'won') {
       const hop = this.markSprites.filter((sprite, cell) => sprite && this.markKinds[cell] === 'stump');
       this.tweens.add({
