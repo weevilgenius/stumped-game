@@ -49,6 +49,8 @@ export interface Theme {
   readonly flags: readonly number[];
   /** What the Owl calls the pieces. */
   readonly piece: PieceNames;
+  /** What the one-life mode is called, without "mode", as at the start of a sentence. */
+  readonly silverName: string;
   /** What each hint button is called, for screen readers. */
   readonly hintNames: Readonly<Record<Hint, string>>;
 }
@@ -68,6 +70,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     cream: 0xf7edd5,
     flags: [],
     piece: STUMP_NAMES,
+    silverName: 'Silver acorn',
     hintNames: { woodpecker: 'Woodpecker', owl: 'Owl', squirrel: 'Squirrel' },
   },
   vallarta: {
@@ -84,6 +87,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     ink: 0x2a1d4a,
     cream: 0xfff3d6,
     piece: { one: 'skull', many: 'skulls', a: 'a skull' },
+    silverName: 'Piña colada',
     flags: [0xe8458b, 0xf5a623, 0x18a7b5, 0x8e44ad, 0x59b83a, 0xff7a1a, 0xf6c21b, 0x3d6fd1],
     hintNames: { woodpecker: 'Parrot', owl: 'Owl', squirrel: 'Gecko' },
   },

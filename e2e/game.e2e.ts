@@ -715,6 +715,7 @@ test('the Puerto Vallarta theme is saved on its own and dresses the puzzle', asy
   const settings = page.locator('#settings');
   await expect(settings.getByLabel('Theme')).toHaveValue('woods');
   await settings.getByLabel('Theme').selectOption('Puerto Vallarta');
+  await expect(settings.getByRole('checkbox', { name: 'Piña colada mode' })).toBeVisible();
   await settings.getByRole('button', { name: 'Done' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'vallarta');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('A little time by the bay.');
