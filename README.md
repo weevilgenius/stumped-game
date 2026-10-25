@@ -16,6 +16,51 @@ woodpeckers, owls, and squirrels.
 See [Stumped Product Requirements](docs/Stumped%20Product%20Requirements.md)
 for the full design and game rules.
 
+## How to play
+
+<p align="center"><img src="docs/how-to-play/solved.png" width="160" alt="A solved five by five forest with five stumps"></p>
+
+Every forest hides one stump for each row. Find them all by logic, before you
+run out of acorns.
+
+### The rules
+
+| | |
+| :---: | --- |
+| <img src="docs/how-to-play/row.png" width="120" alt="A row with one stump"> | **One stump** in every row. |
+| <img src="docs/how-to-play/column.png" width="120" alt="A column with one stump"> | **One stump** in every column. |
+| <img src="docs/how-to-play/patch.png" width="120" alt="A color patch with one stump"> | **One stump** in every color patch. |
+| <img src="docs/how-to-play/touch.png" width="120" alt="A stump with X marks on all eight squares around it"> | **Stumps never touch,** not even at the corners. |
+
+### Controls
+
+| | |
+| :---: | --- |
+| <img src="docs/how-to-play/tap.png" width="44" alt="A square marked with an X"> | **Tap** a square to put an X on it, as a note that no stump is there. Tap again to clear it. |
+| <img src="docs/how-to-play/drag.png" width="76" alt="Three squares in a row marked with X"> | **Drag** across squares to mark them all. Start on an X to erase instead. |
+| <img src="docs/how-to-play/reveal.png" width="44" alt="A revealed stump"> | **Double tap** a square to reveal its stump. |
+| <img src="docs/how-to-play/wrong.png" width="44" alt="A red X from a wrong guess"> | A wrong guess leaves a red X and costs an acorn <img src="docs/how-to-play/acorn.png" width="18" alt="">. You start with three, or one in silver acorn mode <img src="docs/how-to-play/silver-acorn.png" width="18" alt="">. |
+| <img src="docs/how-to-play/undo.png" width="64" alt="Undo"> | Takes back your last tap or drag. Reveals, hints, and lost acorns stay. |
+| <img src="docs/how-to-play/what-if.png" width="72" alt="What if?"> | Opens a pencil layer to test an idea. Double tap for a pencil stump, which is never checked and costs nothing. **Keep** turns your pencil X's into real ones, and **Discard** throws them away. |
+| <img src="docs/how-to-play/pencil.png" width="60" alt="A pencil stump and a small pencil X"> | Pencil stumps are small, and pencil X's sit in the corner. A pencil stump that breaks a rule gets a red ring. |
+
+### Hints
+
+Each hint works once per puzzle, but not while What if? is on. A solve with a
+hint doesn't earn the clean solve ★.
+
+| | |
+| :---: | --- |
+| <img src="docs/how-to-play/woodpecker.png" width="64" alt="Woodpecker"> | **Woodpecker** reveals a stump for you, in the patch with the fewest open squares. |
+| <img src="docs/how-to-play/owl.png" width="64" alt="Owl"> | **Owl** explains the next step you can work out, and makes that mark when you close it. It is also the only way to learn that one of your X's covers a stump. |
+| <img src="docs/how-to-play/squirrel.png" width="64" alt="Squirrel"> | **Squirrel** puts X's on three random squares that have no stump. |
+
+In the Puerto Vallarta theme, stumps become skulls, acorns become margaritas,
+the woodpecker a parrot, and the squirrel a gecko. The rules are the same.
+
+The same guide is in the game: tap **Help** on the home screen, or **?** while
+playing.
+
 ## Playing
 
 [Play it](https://stumpedgame.app/), or run it locally:
