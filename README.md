@@ -36,6 +36,14 @@ A later visit while online replaces the copy when the build has changed. The
 local dev server does not install it. The other versions hosted beside the
 main game keep their own copies, and this one does not answer their pages.
 
+## Release notes
+
+Keep player-facing changes in `CHANGELOG.md`, newest release first, with headings
+like `## 0.9.0`. Use paragraphs, `###` subheadings, and `-` bullets; inline Markdown
+and HTML are displayed as plain text. Omit dependency and development-tool changes.
+The build deploys this file and caches it for offline History. What's new shows
+every release newer than the version running in the page.
+
 ## Agent bake-off
 
 Four agents independently built the game from clean copies of the same commit,
