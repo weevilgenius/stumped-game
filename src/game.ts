@@ -521,6 +521,20 @@ export function bestTimes(results: readonly Result[], size: number, tier: Tier):
 }
 
 /**
+ * Keeps the best 15 results for each size and difficulty, using the best-times ranking.
+ * @param results recorded results
+ * @returns retained results in their original order
+ */
+export function topResults(results: readonly Result[]): Result[] {
+  const groups = new Map<string, Result>();
+  for (const result of results) {
+    groups.set(`${result.size}:${result.tier}`, result);
+  }
+  const retained = new Set([...groups.values()].flatMap(({ size, tier }) => bestTimes(results, size, tier).slice(0, 15)));
+  return results.filter((result) => retained.has(result));
+}
+
+/**
  * @param ms a duration in milliseconds
  * @returns the duration as minutes and seconds, such as `2:05`
  */

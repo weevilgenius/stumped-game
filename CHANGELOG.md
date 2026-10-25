@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.2
+- Keep only your best 15 times for each puzzle size and difficulty.
+
 ## 0.10.1
 - Make Puerto Vallarta's color patches easier to tell apart, with fewer look-alike pinks and oranges.
 

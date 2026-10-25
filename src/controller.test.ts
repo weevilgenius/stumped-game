@@ -1,7 +1,7 @@
 import { type Controller, type ControllerDeps, createController } from './controller';
 import { decodeSeedCode, encodeSeedCode, generate, type Puzzle } from './engine';
 import { parseBoard } from './engine/testBoards';
-import { beginStroke, doubleTap, type Game, newGame } from './game';
+import { beginStroke, doubleTap, type Game, newGame, resultOf } from './game';
 import { newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
 
@@ -420,6 +420,43 @@ describe('completion', () => {
 });
 
 describe('persistence and recovery', () => {
+  it('trims existing saves on load and preserves replay history', () => {
+    const data = newSave();
+    data.results = Array.from({ length: 20 }, (_, index) => ({
+      ...resultOf(newGame(PUZZLE, false, `old-${index}`), 1000), time: 20 - index,
+    }));
+    data.played = [CODE];
+    const store = new Map([['save', JSON.stringify(data)]]);
+    const { controller } = setup(store);
+    expect(controller.results.map((result) => result.id)).toEqual(data.results.slice(5).map((result) => result.id));
+    expect(saved(store).results).toEqual(controller.results);
+    expect(saved(store).played).toEqual([CODE]);
+    expect(setup(store).controller.results).toEqual(controller.results);
+  });
+
+  it.each([10, 100])('retains only qualifying new wins with completion time %i', (time) => {
+    const store = savedStore(false);
+    const data = saved(store);
+    data.results = Array.from({ length: 15 }, (_, index) => ({
+      ...resultOf(newGame(PUZZLE, false, `old-${index}`), 1000), time: 20 + index,
+    }));
+    store.set('save', JSON.stringify(data));
+    const { controller, fake } = setup(store);
+    controller.resume();
+    fake.time = time;
+    solve(controller);
+    expect(controller.results).toHaveLength(15);
+    expect(controller.results.some((result) => result.id === game(controller).id)).toBe(time === 10);
+    const retained = [...controller.results];
+    controller.changed();
+    controller.showMenu();
+    expect(saved(store).results).toEqual(retained);
+    const relaunched = setup(store).controller;
+    relaunched.changed();
+    expect(relaunched.results).toEqual(retained);
+    expect(saved(store).results).toEqual(retained);
+  });
+
   it('retains the play ID across reloads and gives retries new IDs', () => {
     const { fake, controller } = setup(savedStore(false));
     const before = game(controller).id;

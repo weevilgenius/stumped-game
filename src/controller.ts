@@ -1,7 +1,7 @@
 import {
   decodeSeedCode, encodeSeedCode, type GeneratorSettings, type Puzzle, randomSettings,
 } from './engine';
-import { type Game, newGame, type Result, resultOf } from './game';
+import { type Game, newGame, type Result, resultOf, topResults } from './game';
 import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
 import type { Choices } from './settings';
@@ -50,7 +50,7 @@ export interface Controller {
   readonly settings: Readonly<Settings>;
   /** The current puzzle: the most recent one, in progress or finished. */
   readonly game: Game | null;
-  /** Every completed play. */
+  /** The best 15 completed plays for each size and difficulty. */
   readonly results: readonly Result[];
   /** The screen that is up. */
   readonly screen: Screen;
@@ -146,7 +146,11 @@ export function createController(deps: ControllerDeps): Controller {
   }
 
   let { settings, game } = data;
-  const { results, played } = data;
+  const { played } = data;
+  let results = topResults(data.results);
+  needsSave ||= results.length !== data.results.length;
+  // A completed play stays recorded even if its result falls outside the best 15.
+  let recordedId = game?.status === 'won' && data.results.some((result) => result.id === game?.id) ? game.id : null;
   let screen: Screen = 'menu';
   /** The start being generated; a result arriving after it changes is stale. Null when idle. */
   let starting: AbortController | null = null;
@@ -183,8 +187,9 @@ export function createController(deps: ControllerDeps): Controller {
   /** Records a finished play and writes all player data together. */
   const persist = (): void => {
     syncClock();
-    if (game?.status === 'won' && !results.some((result) => result.id === game?.id)) {
-      results.push(resultOf(game, deps.date()));
+    if (game?.status === 'won' && recordedId !== game.id) {
+      results = topResults([...results, resultOf(game, deps.date())]);
+      recordedId = game.id;
     }
     if (!writable) {
       return;
@@ -201,7 +206,7 @@ export function createController(deps: ControllerDeps): Controller {
     }
   };
 
-  if (needsSave || (game?.status === 'won' && !results.some((result) => result.id === game?.id))) {
+  if (needsSave || (game?.status === 'won' && recordedId !== game.id)) {
     persist();
   }
 
@@ -334,7 +339,9 @@ export function createController(deps: ControllerDeps): Controller {
     get game() {
       return game;
     },
-    results,
+    get results() {
+      return results;
+    },
     get recoveryNotice() {
       return recoveryNotice;
     },
