@@ -3,7 +3,7 @@ import { parseBoard } from './engine/testBoards';
 import {
   applyExplanation, beginStroke, bestTimes, canHint, completedUnits, doubleTap, enterHypothesis, explain,
   explainPages, extendStroke, flaggedStumps, formatTime, type Game, HYPO_STUMP, isClean, isPerfectlyMarked, leaveHypothesis,
-  MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, newGame, type Result, resultOf, squirrel, stumps, timeAward, undo, woodpecker,
+  MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, newGame, type Result, resultOf, squirrel, stumps, timeAward, topResults, undo, woodpecker,
 } from './game';
 
 // Unique, solved with easy steps only. Region E is the single square 22.
@@ -443,6 +443,26 @@ describe('results', () => {
     ];
     expect(bestTimes(results, 5, 'easy').map((r) => r.code))
       .toEqual(['fast clean', 'slow clean', 'fast helped', 'slow repeat']);
+  });
+
+  it('keeps 15 per size and difficulty, preferring clean solves and then faster times', () => {
+    const results = [5, 6].flatMap((size) => (['easy', 'hard'] as const).flatMap((tier) => [
+      ...Array.from({ length: 16 }, (_, index) => result({
+        id: `${size}-${tier}-${index}`, size, tier, time: 1000 - index,
+      })),
+      result({ id: `${size}-${tier}-helped`, size, tier, time: 1, hints: ['owl'] }),
+    ]));
+    const retained = topResults(results);
+    expect(retained).toHaveLength(60);
+    expect(retained).toEqual(results.filter((r) => !r.id.endsWith('-0') && !r.id.endsWith('-helped')));
+    expect(results).toHaveLength(68);
+  });
+
+  it('keeps earlier entries at a tied cutoff and preserves smaller groups', () => {
+    const tied = Array.from({ length: 16 }, (_, index) => result({ id: `tie-${index}` }));
+    const other = result({ size: 6 });
+    expect(topResults([...tied, other])).toEqual([...tied.slice(0, 15), other]);
+    expect(topResults([])).toEqual([]);
   });
 
   it('awards strictly faster times within the matching band, excluding the current play', () => {

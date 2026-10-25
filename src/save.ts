@@ -11,7 +11,7 @@ export interface Save {
   settings: Settings;
   /** Most recent play, including its histories and pending explanation. */
   game: Game | null;
-  /** Completed plays. */
+  /** Best completed plays, capped per size and difficulty by the controller. */
   results: Result[];
   /** Codes started on this device. */
   played: string[];
