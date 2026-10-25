@@ -4,15 +4,17 @@
       <stop offset="0" stop-color="#fffdf4"/><stop offset="1" stop-color="#f7e3a6"/>
     </linearGradient>
   </defs>
-  <path d="M74 8 66 40" stroke="#2d2a3a" stroke-width="8" stroke-linecap="round"/>
-  <path d="M74 8 66 40" stroke="#e4407b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M72 6 66 40" stroke="#2d2a3a" stroke-width="8" stroke-linecap="round"/>
+  <path d="M72 6 66 40" stroke="#e4407b" stroke-width="4" stroke-linecap="round"/>
   <g stroke="#2d2a3a" stroke-width="4" stroke-linejoin="round">
-    <path d="M38 30h52c0 14-4 34-8 52-2 8-6 12-12 13v13h-12V95c-6-1-10-5-12-13-4-18-8-38-8-52Z" fill="#eaf6f6"/>
-    <path d="M44 38h40c-1 12-4 28-7 42-2 6-5 9-13 9s-11-3-13-9c-3-14-6-30-7-42Z" fill="url(#colada)" stroke="none"/>
-    <path d="M42 116c0-5 10-8 22-8s22 3 22 8-10 5-22 5-22 0-22-5Z" fill="#eaf6f6"/>
+    <path d="M36 32v76c0 5 12 10 28 10s28-5 28-10V32Z" fill="#eaf6f6"/>
+    <path d="M42 42v60c0 4 10 7 22 7s22-3 22-7V42Z" fill="url(#colada)" stroke="none"/>
+    <path d="M42 42c0 4 10 6 22 6s22-2 22-6" fill="none" stroke="#e8cf86" stroke-width="2.5"/>
+    <ellipse cx="64" cy="32" rx="28" ry="7" fill="#f4fbfb"/>
   </g>
-  <path d="M48 44c1 10 3 22 5 30" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.8"/>
-  <g transform="translate(42 40) rotate(-24) scale(0.85)">
+  <path d="M48 52v44" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <path d="M38 108c0 5 11 9 26 9s26-4 26-9" fill="none" stroke="#b9d3d3" stroke-width="3"/>
+  <g transform="translate(42 32) rotate(-24) scale(0.85)">
     <path d="M0-20V14" stroke="#2d2a3a" stroke-width="3" stroke-linecap="round"/>
     <path d="M-24-18a24 14 0 0 1 48 0q-6-4-12 0q-6-4-12 0q-6-4-12 0q-6-4-12 0Z" fill="#18a7b5" stroke="#2d2a3a" stroke-width="3" stroke-linejoin="round"/>
     <path d="M0-32-8-18M0-32 8-18" stroke="#2d2a3a" stroke-width="2"/>
@@ -22,6 +24,6 @@
     <path d="M-12 1a12 12 0 0 0 24 0Z" fill="#fff0a0"/>
     <path d="M-6-2-10-18M0-2v-18M6-2l4-16" stroke="#3cae4a" stroke-width="5" stroke-linecap="round"/>
   </g>
-  <circle cx="60" cy="34" r="7" fill="#e5322d" stroke="#2d2a3a" stroke-width="3"/>
-  <path d="M60 27c2-6 6-8 10-8" stroke="#2d2a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="62" cy="26" r="7" fill="#e5322d" stroke="#2d2a3a" stroke-width="3"/>
+  <path d="M62 19c2-6 6-8 10-8" stroke="#2d2a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
 </svg>
