@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.1
+- Make Puerto Vallarta's color patches easier to tell apart, with fewer look-alike pinks and oranges.
+
 ## 0.10.0
 - See what's new before refreshing to an updated game, including releases you skipped.
 - Browse the full release history from the main screen, even offline.

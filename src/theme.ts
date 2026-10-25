@@ -79,8 +79,9 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
   },
   vallarta: {
     name: 'vallarta',
-    // Marigold, rosa mexicano, turquoise, lime, cobalt, sun yellow, lilac, coral, jade, terracotta.
-    palette: [0xF5A623, 0xE4407B, 0x22B5BF, 0xA4D04A, 0x4A6FD6, 0xF7DA5B, 0xA77BE0, 0xF59A8C, 0x2E9E6E, 0xC5562F],
+    // Marigold, rosa mexicano, turquoise, lime, cobalt, sun yellow, lilac, mole brown, jade, rosa pastel.
+    // Spread in hue and lightness so neighboring patches stay easy to tell apart. No red: it would hide mistake marks.
+    palette: [0xF7941D, 0xE8489A, 0x20B2C0, 0x7CC63E, 0x3A5BD0, 0xFBE36A, 0xB98FEE, 0x9A5B34, 0x0F6B4E, 0xF9C6D8],
     icons: {
       stump: calaveraUrl, acorn: margaritaUrl, silver: pinaColadaUrl,
       woodpecker: parrotUrl, owl: tecoloteUrl, squirrel: geckoUrl,
