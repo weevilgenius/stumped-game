@@ -264,7 +264,15 @@ class PuzzleScene extends Phaser.Scene {
 
     this.makeTextures();
     if (tall >= wide) {
-      this.drawFlags(bar, this.boardY - 2 * pad);
+      this.drawFlags({ x: 0, y: bar, w: width, h: this.boardY - 2 * pad - bar });
+    } else if (this.theme.flags.length > 0) {
+      // Use the side panel's spare height without taking any space from the board.
+      const flagsHeight = Math.min(80 * u, controls.h - below);
+      if (flagsHeight >= 48 * u) {
+        this.drawFlags({ x: controls.x, y: controls.y, w: controls.w, h: flagsHeight - pad });
+        controls.y += flagsHeight;
+        controls.h -= flagsHeight;
+      }
     }
     this.drawBoard();
     this.drawStatus(status);
@@ -354,25 +362,24 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   /**
-   * Strings papel picado across the empty space above the board, if the theme has flags and there is room.
-   * @param top the top of the space
-   * @param bottom the bottom of the space
+   * Strings papel picado across the available space, if the theme has flags and there is room.
+   * @param r the space above the board or in the side panel
    */
-  private drawFlags(top: number, bottom: number): void {
+  private drawFlags(r: Rect): void {
     const { flags, background } = this.theme;
     const { u } = this;
-    const flagH = Math.min(bottom - top - 12 * u, 52 * u);
+    const flagH = Math.min(r.h - 12 * u, (r.h - 4 * u) / 1.3, 52 * u);
     if (flags.length === 0 || flagH < 28 * u) {
       return;
     }
-    const { width } = this.scale;
+    const width = r.w;
     const flagW = flagH * 0.82;
     const count = Math.max(3, Math.floor(width / (flagW * 1.25)));
     const step = width / count;
     const sag = flagH * 0.3;
-    const y0 = top + 4 * u;
+    const y0 = 4 * u;
     const ropeY = (x: number): number => y0 + sag * 4 * (x / width) * (1 - x / width);
-    const g = this.add.graphics().setDepth(-1);
+    const g = this.add.graphics().setPosition(r.x, r.y).setDepth(-1);
     g.lineStyle(2 * u, this.theme.cream, 0.8);
     g.beginPath();
     for (let x = 0; x <= width; x += width / 32) {
