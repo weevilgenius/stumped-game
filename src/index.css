@@ -209,8 +209,14 @@ input[type='checkbox'] {
   font-size: 15px;
 }
 
-#updateNotice > span {
+#updateNotice > span:first-child {
   flex: 1 1 200px;
+}
+
+#updateNotice .update-actions {
+  display: flex;
+  flex: none;
+  gap: 12px;
 }
 
 #updateNotice .text-button {
