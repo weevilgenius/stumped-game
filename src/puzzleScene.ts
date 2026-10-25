@@ -266,8 +266,9 @@ class PuzzleScene extends Phaser.Scene {
     if (tall >= wide) {
       this.drawFlags({ x: 0, y: bar, w: width, h: this.boardY - 2 * pad - bar });
     } else if (this.theme.flags.length > 0) {
-      // Use the side panel's spare height without taking any space from the board.
-      const flagsHeight = Math.min(80 * u, controls.h - below);
+      // Two 52px button rows with 10px gaps need 124px. The stacked layout's
+      // larger allowance hides the flags on phones with browser chrome visible.
+      const flagsHeight = Math.min(80 * u, controls.h - 124 * u);
       if (flagsHeight >= 48 * u) {
         this.drawFlags({ x: controls.x, y: controls.y, w: controls.w, h: flagsHeight - pad });
         controls.y += flagsHeight;
