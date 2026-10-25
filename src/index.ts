@@ -8,6 +8,7 @@ import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
 import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
+import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
 
 /* ========================================================= *\
  *  Main screen and DOM glue. App state lives in the         *
@@ -394,6 +395,50 @@ const openHelp = (): void => {
 
 helpDialog.onclose = (): void => controller.setHidden(document.hidden);
 $('helpButton').onclick = openHelp;
+
+/* ========================================================= *\
+ *  Release history                                          *
+\* ========================================================= */
+
+const changelogDialog = $<HTMLDialogElement>('changelog');
+let changelogRequest = 0;
+
+const openChangelog = async (updatesOnly: boolean): Promise<void> => {
+  const request = ++changelogRequest;
+  const body = $('changelogBody');
+  $('changelogTitle').textContent = updatesOnly ? "What's new" : 'History';
+  body.textContent = 'Loading release notes…';
+  body.setAttribute('aria-busy', 'true');
+  changelogDialog.showModal();
+  body.scrollTop = 0;
+  try {
+    // The active service worker serves its build's changelog, even while this
+    // page still runs the previous build. Fetch anew on every opening.
+    const response = await fetch('./CHANGELOG.md', { cache: 'no-cache' });
+    if (!response.ok) {
+      throw new Error('Release notes unavailable');
+    }
+    const releases = parseChangelog(await response.text());
+    if (!releases.length) {
+      throw new Error('Missing release notes');
+    }
+    if (request !== changelogRequest) {
+      return;
+    }
+    renderChangelog(body, updatesOnly ? releasesAfter(releases, $('appVersion').dataset.version!) : releases);
+  } catch {
+    if (request === changelogRequest) {
+      body.textContent = 'Release notes could not be loaded. Please close this window and try again.';
+    }
+  } finally {
+    if (request === changelogRequest) {
+      body.setAttribute('aria-busy', 'false');
+    }
+  }
+};
+
+$('historyButton').onclick = (): void => void openChangelog(false);
+$('whatsNew').onclick = (): void => void openChangelog(true);
 
 /* ========================================================= *\
  *  Startup                                                  *

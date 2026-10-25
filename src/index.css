@@ -197,6 +197,7 @@ input[type='checkbox'] {
 
 #updateNotice {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -206,6 +207,10 @@ input[type='checkbox'] {
   background: var(--green);
   color: var(--on-green);
   font-size: 15px;
+}
+
+#updateNotice > span {
+  flex: 1 1 200px;
 }
 
 #updateNotice .text-button {
@@ -471,6 +476,58 @@ h1 {
   font-size: 11px;
   letter-spacing: 0.03em;
   color: var(--muted);
+}
+
+#menu footer .text-button {
+  margin-block: -12px;
+  font-size: 12px;
+}
+
+/* ---------- Release notes ---------- */
+
+#changelog {
+  width: min(94vw, 560px);
+}
+
+#changelog form {
+  max-height: calc(90dvh - 50px);
+}
+
+#changelogBody {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  line-height: 1.5;
+}
+
+#changelogBody:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+#changelogBody section + section {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+#changelogBody h3 {
+  margin: 0 0 8px;
+  font: normal 23px var(--serif);
+}
+
+#changelogBody h4,
+#changelogBody p,
+#changelogBody ul {
+  margin: 8px 0;
+}
+
+#changelogBody ul {
+  padding-left: 22px;
+}
+
+#changelogBody li + li {
+  margin-top: 6px;
 }
 
 /* Large screens: art beside the welcome. */

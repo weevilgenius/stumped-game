@@ -22,7 +22,14 @@ export default defineConfig(async ({ command }) => {
   plugins.push({
     name: 'app-build-info',
     transformIndexHtml(html) {
-      return html.replace('%APP_VERSION%', version).replace('%APP_COMMIT%', commit);
+      return html.replaceAll('%APP_VERSION%', version).replace('%APP_COMMIT%', commit);
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'CHANGELOG.md',
+        source: readFileSync(new URL('./CHANGELOG.md', import.meta.url), 'utf8'),
+      });
     },
   });
 

@@ -48,6 +48,7 @@
       </header>
       <p id="updateNotice" role="status" hidden>
         <span>A new version of Stumped is ready.</span>
+        <button id="whatsNew" type="button" class="text-button">What's new</button>
         <button id="refresh" type="button" class="text-button">Refresh</button>
       </p>
       <div class="home">
@@ -93,11 +94,19 @@
           </form>
         </div>
       </div>
-      <footer><span>v%APP_VERSION% (%APP_COMMIT%)</span><span>Grown on your device</span></footer>
+      <footer><span id="appVersion" data-version="%APP_VERSION%">v%APP_VERSION% (%APP_COMMIT%)</span><button id="historyButton" type="button" class="text-button">History</button><span>Grown on your device</span></footer>
     </main>
 
     <!-- Puzzle screen: the Phaser canvas. -->
     <div id="game" hidden></div>
+
+    <dialog id="changelog" aria-labelledby="changelogTitle">
+      <form method="dialog">
+        <h2 id="changelogTitle">History</h2>
+        <div id="changelogBody" role="region" aria-labelledby="changelogTitle" tabindex="0" aria-busy="false"></div>
+        <button autofocus>Close</button>
+      </form>
+    </dialog>
 
     <dialog id="settings">
       <form method="dialog">

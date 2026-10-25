@@ -30,6 +30,9 @@ test('the installed app plays a seed code and another puzzle with no connection'
 
   await context.setOffline(true);
   await page.reload();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await expect(page.locator('#changelogBody h3').last()).toHaveText('0.1.0');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.goto(`./?code=${SEED}`);
   await expect(page.locator('#game canvas')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('stumped-main.save'))).toContain(SEED);
@@ -130,7 +133,17 @@ test('an update keeps the running build, offers a refresh, and leaves comparison
   ]);
   await expect(page.locator('#updateNotice')).toBeVisible();
 
+  // The new worker's changelog is available before the old page refreshes.
+  await page.evaluate(async (current) => {
+    const cache = await caches.open(current);
+    await cache.put('./CHANGELOG.md', new Response('## 0.12.0\n- Latest improvement\n## 0.11.0\n- Skipped release\n## 0.10.0\n- Already running'));
+  }, `stumped-main-${next}`);
+
   await context.setOffline(true);
+  await page.getByRole('button', { name: "What's new", exact: true }).click();
+  await expect(page.locator('#changelogBody h3')).toHaveText(['0.12.0', '0.11.0']);
+  await expect(page.locator('#changelogBody')).not.toContainText('Already running');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   expect(await page.evaluate(async () => (await fetch('./assets/old-only.js')).text())).toBe('old build');
   expect(await page.evaluate(async () => (await (await fetch('./')).text()).includes('id="menu"'))).toBe(true);
   await page.getByRole('button', { name: 'Refresh' }).click();
