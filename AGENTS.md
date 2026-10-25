@@ -237,12 +237,16 @@ When you open a pull request, note the agent that produced the changes in the PR
 - Prefer a form that matches the commit attribution identity when practical.
 - Do not open pull requests unless explicitly asked.
 
-## Versioning
+## Versioning and changelog
 
 Update the package version whenever you complete a new feature or bug fix. Follow
 semantic versioning but with a focus on user experience (i.e. a major update reflects
 major UI or gameplay changes, a patch update is a minor tweak or bug fix, etc). It
 is only necessary to bump the version once per pull request.
+
+This project has a CHANGELOG.md file. Update it as appropriate, keeping it concise
+and user-oriented, with short descriptions of new features or bug fixes, omitting
+dependency or build tooling updates.
 
 ## Important Notes
 
