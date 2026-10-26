@@ -536,8 +536,9 @@ h1 {
   margin-top: 6px;
 }
 
-/* Large screens: art beside the welcome. */
-@media (min-width: 761px) and (min-height: 601px) {
+/* Large landscape screens: art beside the welcome. Tablets in portrait stack them
+   like phones, since a column that narrow would crop the logo out of the art. */
+@media (min-width: 761px) and (min-height: 601px) and (min-aspect-ratio: 5/4) {
   #menu {
     padding-inline: max(48px, env(safe-area-inset-right)) max(48px, env(safe-area-inset-left));
   }
@@ -579,6 +580,14 @@ h1 {
 
   .caption {
     display: flex;
+  }
+}
+
+/* Tablets in portrait: the stacked art keeps close to the woodland art's shape, so the logo stays in view. */
+@media (min-width: 600px) and (min-height: 601px) and (max-aspect-ratio: 5/4) {
+  .art {
+    height: clamp(220px, (100vw - 48px) / 1.9, 45dvh);
+    border-radius: 140px 140px 12px 12px;
   }
 }
 
