@@ -1,7 +1,17 @@
 import type { Settings } from './controller';
 import { type LegacyChoices, SIZE_RANGES, upgradeChoices } from './settings';
 import { decodeSeedCode, encodeSeedCode, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, type Step, TIERS } from './engine';
-import { type Game, type Hint, HINTS, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
+import { type Game, type Hint, HINTS, isClean, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
+
+/** Lifetime totals, independent of the retained best times. */
+export interface GameStats {
+  /** Games started, including retries. */
+  gamesPlayed: number;
+  /** First-play wins without hints or lost acorns. */
+  perfectSolves: number;
+  /** Most recently recorded win, even if its time was not retained. */
+  recordedWinId: string | null;
+}
 
 /** One atomic save. Its version is independent of the puzzle generator version. */
 export interface Save {
@@ -13,6 +23,8 @@ export interface Save {
   game: Game | null;
   /** Best completed plays, capped per size and difficulty by the controller. */
   results: Result[];
+  /** Lifetime totals. Absent in older saves. */
+  stats?: GameStats;
   /** Codes started on this device. */
   played: string[];
   /** Whether the puzzle screen was left open. */
@@ -190,10 +202,33 @@ const validSave = (value: unknown): value is Save => {
     || !unique(value.results.map((result) => result.id)) || (value.game !== null && !validGame(value.game))) {
     return false;
   }
+  if (value.stats !== undefined && (!object(value.stats)
+    || !integer(value.stats.gamesPlayed, 0, Number.MAX_SAFE_INTEGER)
+    || !integer(value.stats.perfectSolves, 0, value.stats.gamesPlayed)
+    || (value.stats.recordedWinId !== null && !id(value.stats.recordedWinId)))) {
+    return false;
+  }
   const game = value.game;
   const recorded = game && value.results.find((result) => result.id === game.id);
   return !recorded || (game.status === 'won' && matchesResult(recorded, game));
 };
+
+/** Reconstructs the minimum known totals from history when upgrading an older save. */
+export function initialStats(save: Save): GameStats {
+  const resultCodes = new Set(save.results.map((result) => result.code));
+  const otherCodes = new Set(save.played.filter((played) => !resultCodes.has(played)));
+  const recorded = save.game?.status === 'won' && save.results.some((result) => result.id === save.game?.id);
+  let gamesPlayed = save.results.length + otherCodes.size;
+  if (save.game && !save.results.some((result) => result.id === save.game?.id)
+    && !otherCodes.has(save.game.puzzle.code)) {
+    gamesPlayed++;
+  }
+  return {
+    gamesPlayed,
+    perfectSolves: save.results.filter(isClean).length,
+    recordedWinId: recorded ? save.game!.id : null,
+  };
+}
 
 /** Turns the single-choice size and difficulty that earlier versions saved into the matching toggles. */
 const upgrade = (save: Save): Save => {

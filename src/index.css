@@ -814,6 +814,23 @@ fieldset label + label {
   height: min(760px, 80dvh);
 }
 
+.times-stats {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+}
+
+.times-stats dt {
+  font-size: 0.85rem;
+}
+
+.times-stats dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
 #timesContext,
 #timesHelp {
   margin: 0;

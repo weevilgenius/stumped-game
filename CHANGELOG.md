@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.5
+- See total games played and perfect solves on the Best times screen, even after older times leave the leaderboard.
+
 ## 0.10.4
 - Keep the logo art whole on tablets held upright, with the game controls below it.
 

@@ -329,6 +329,8 @@ const timesViewport = $('timesViewport');
 
 const renderTimes = (): void => {
   const { game, results } = controller;
+  $('gamesPlayed').textContent = controller.stats.gamesPlayed.toLocaleString();
+  $('perfectSolves').textContent = controller.stats.perfectSolves.toLocaleString();
   const current = game?.status === 'playing';
   const solve = results.find((result) => result.id === game?.id) ?? results.at(-1);
   const shown = current ? game.puzzle : solve;

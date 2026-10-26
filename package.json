@@ -1,6 +1,6 @@
 {
   "name": "stumped-game",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "description": "Stump family Sudoku game",
   "main": "index.js",
   "scripts": {

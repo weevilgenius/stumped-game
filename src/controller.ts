@@ -1,8 +1,8 @@
 import {
   decodeSeedCode, encodeSeedCode, type GeneratorSettings, type Puzzle, randomSettings,
 } from './engine';
-import { type Game, newGame, type Result, resultOf, topResults } from './game';
-import { LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
+import { type Game, isClean, newGame, type Result, resultOf, topResults } from './game';
+import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
 import type { Choices } from './settings';
 
@@ -52,6 +52,8 @@ export interface Controller {
   readonly game: Game | null;
   /** The best 15 completed plays for each size and difficulty. */
   readonly results: readonly Result[];
+  /** Lifetime games played and perfect solves, including plays outside the best times. */
+  readonly stats: Readonly<GameStats>;
   /** The screen that is up. */
   readonly screen: Screen;
   /** True while a puzzle is being generated. */
@@ -147,10 +149,10 @@ export function createController(deps: ControllerDeps): Controller {
 
   let { settings, game } = data;
   const { played } = data;
+  const stats = data.stats ?? initialStats(data);
+  needsSave ||= data.stats === undefined;
   let results = topResults(data.results);
   needsSave ||= results.length !== data.results.length;
-  // A completed play stays recorded even if its result falls outside the best 15.
-  let recordedId = game?.status === 'won' && data.results.some((result) => result.id === game?.id) ? game.id : null;
   let screen: Screen = 'menu';
   /** The start being generated; a result arriving after it changes is stale. Null when idle. */
   let starting: AbortController | null = null;
@@ -187,16 +189,18 @@ export function createController(deps: ControllerDeps): Controller {
   /** Records a finished play and writes all player data together. */
   const persist = (): void => {
     syncClock();
-    if (game?.status === 'won' && recordedId !== game.id) {
-      results = topResults([...results, resultOf(game, deps.date())]);
-      recordedId = game.id;
+    if (game?.status === 'won' && stats.recordedWinId !== game.id) {
+      const result = resultOf(game, deps.date());
+      results = topResults([...results, result]);
+      stats.perfectSolves += Number(isClean(result));
+      stats.recordedWinId = game.id;
     }
     if (!writable) {
       return;
     }
     const before = storageError;
     try {
-      deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, played, open: data.open }));
+      deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, stats, played, open: data.open }));
       storageError = null;
     } catch {
       storageError = 'Progress could not be saved. Device storage may be full or unavailable; keep this page open.';
@@ -206,7 +210,7 @@ export function createController(deps: ControllerDeps): Controller {
     }
   };
 
-  if (needsSave || (game?.status === 'won' && recordedId !== game.id)) {
+  if (needsSave || (game?.status === 'won' && stats.recordedWinId !== game.id)) {
     persist();
   }
 
@@ -276,6 +280,7 @@ export function createController(deps: ControllerDeps): Controller {
   const play = (puzzle: Puzzle): void => {
     fold();
     game = newGame(puzzle, played.includes(puzzle.code), deps.createId());
+    stats.gamesPlayed++;
     if (!game.repeat) {
       played.push(puzzle.code);
     }
@@ -341,6 +346,9 @@ export function createController(deps: ControllerDeps): Controller {
     },
     get results() {
       return results;
+    },
+    get stats() {
+      return stats;
     },
     get recoveryNotice() {
       return recoveryNotice;

@@ -21,6 +21,8 @@ test('all bands stay aligned and the latest solve opens in view', async ({ page 
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Best times', exact: true }).click();
+  await expect(page.locator('#gamesPlayed')).toHaveText('64');
+  await expect(page.locator('#perfectSolves')).toHaveText('52');
   const focus = page.locator('#times .times-focus');
   await expect(focus).toContainText('5:30');
   await expect(focus).toContainText('Latest solve');
@@ -60,6 +62,8 @@ test('an empty history explains where completed games will appear', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'Best times', exact: true }).click();
   await expect(page.locator('#timesContext')).toContainText('No times yet');
+  await expect(page.locator('#gamesPlayed')).toHaveText('0');
+  await expect(page.locator('#perfectSolves')).toHaveText('0');
   await expect(page.locator('.times-headings')).toContainText('easy');
   await expect(page.locator('.times-focus')).toHaveCount(0);
 });

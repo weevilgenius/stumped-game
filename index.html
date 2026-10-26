@@ -170,6 +170,10 @@
     <dialog id="times" aria-labelledby="timesTitle">
       <form method="dialog">
         <h2 id="timesTitle">Best times</h2>
+        <dl class="times-stats" aria-label="Lifetime statistics">
+          <div><dt>Games played</dt><dd id="gamesPlayed">0</dd></div>
+          <div><dt>Perfect solves</dt><dd id="perfectSolves">0</dd></div>
+        </dl>
         <p id="timesContext"></p>
         <div id="timesViewport" role="region" aria-label="Results by size and difficulty" aria-describedby="timesHelp" tabindex="0">
           <div id="timesList"></div>
