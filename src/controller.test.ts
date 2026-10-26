@@ -432,6 +432,8 @@ describe('persistence and recovery', () => {
     expect(saved(store).results).toEqual(controller.results);
     expect(saved(store).played).toEqual([CODE]);
     expect(setup(store).controller.results).toEqual(controller.results);
+    expect(controller.stats).toMatchObject({ gamesPlayed: 20, perfectSolves: 20 });
+    expect(setup(store).controller.stats).toEqual(controller.stats);
   });
 
   it.each([10, 100])('retains only qualifying new wins with completion time %i', (time) => {
@@ -442,9 +444,11 @@ describe('persistence and recovery', () => {
     }));
     store.set('save', JSON.stringify(data));
     const { controller, fake } = setup(store);
+    const before = { ...controller.stats };
     controller.resume();
     fake.time = time;
     solve(controller);
+    expect(controller.stats).toMatchObject({ gamesPlayed: before.gamesPlayed, perfectSolves: before.perfectSolves + 1 });
     expect(controller.results).toHaveLength(15);
     expect(controller.results.some((result) => result.id === game(controller).id)).toBe(time === 10);
     const retained = [...controller.results];
@@ -455,7 +459,39 @@ describe('persistence and recovery', () => {
     relaunched.changed();
     expect(relaunched.results).toEqual(retained);
     expect(saved(store).results).toEqual(retained);
+    expect(relaunched.stats).toEqual(controller.stats);
   });
+
+  it('counts new plays and retries, but not resumes, reloads, or cancelled retries', async () => {
+    const { controller, fake } = setup();
+    expect(controller.stats).toMatchObject({ gamesPlayed: 0, perfectSolves: 0 });
+    controller.boot(null);
+    expect(controller.stats.gamesPlayed).toBe(0);
+    await controller.newPuzzle();
+    expect(controller.stats.gamesPlayed).toBe(1);
+    controller.resume();
+    controller.showMenu();
+    const { controller: restored, fake: restoredFake } = setup(fake.store);
+    expect(restored.stats.gamesPlayed).toBe(1);
+    restored.resume();
+    expect(restored.stats.gamesPlayed).toBe(1);
+    restored.retry();
+    expect(restored.stats.gamesPlayed).toBe(2);
+    restoredFake.answer = false;
+    restored.retry();
+    expect(restored.stats.gamesPlayed).toBe(2);
+    expect(setup(fake.store).controller.stats).toEqual(restored.stats);
+  });
+
+  it.each([{ hints: ['squirrel'] as const }, { acornsLost: 1, acorns: 2 }, { repeat: true }])(
+    'does not count an imperfect win as perfect: %j', (overrides) => {
+      const store = savedStore(false);
+      const { controller } = setup(store);
+      Object.assign(game(controller), overrides);
+      solve(controller);
+      expect(controller.stats).toMatchObject({ gamesPlayed: 1, perfectSolves: 0 });
+    },
+  );
 
   it('retains the play ID across reloads and gives retries new IDs', () => {
     const { fake, controller } = setup(savedStore(false));

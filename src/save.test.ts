@@ -23,6 +23,11 @@ const won = (): Save => {
 };
 
 describe('save round trips', () => {
+  it('preserves lifetime totals beyond the retained best times', () => {
+    const save = fresh();
+    save.stats = { gamesPlayed: 1234, perfectSolves: 456, recordedWinId: 'older-win' };
+    expect(read(save)).toEqual(save);
+  });
   it('restores toggled sizes and difficulties', () => {
     const save = fresh();
     save.settings = { ...save.settings, sizes: [7, 8, 10], tiers: ['easy', 'hard'] };
@@ -118,6 +123,16 @@ describe('save round trips', () => {
 });
 
 describe('invalid saves', () => {
+  it.each([
+    null,
+    { gamesPlayed: -1, perfectSolves: 0, recordedWinId: null },
+    { gamesPlayed: 1.5, perfectSolves: 0, recordedWinId: null },
+    { gamesPlayed: 1, perfectSolves: 2, recordedWinId: null },
+    { gamesPlayed: 1, perfectSolves: -1, recordedWinId: null },
+    { gamesPlayed: 1, perfectSolves: 0, recordedWinId: '' },
+  ])('rejects malformed lifetime totals: %j', (stats) => {
+    expect(read({ ...fresh(), stats })).toBeNull();
+  });
   it.each(['{', 'null', '[]', '{}', '{"version":2}'])('rejects malformed or unsupported input: %s', (raw) => {
     expect(parseSave(raw)).toBeNull();
   });
