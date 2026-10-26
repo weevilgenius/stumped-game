@@ -24,11 +24,31 @@ let lastX = -Infinity;
 
 /** Creates the audio context on first use, or resumes it after the browser suspended it. */
 const unlock = (): void => {
-  if (muted || typeof AudioContext === 'undefined') {
+  if (muted) {
     return;
   }
-  if (!context) {
-    context = new AudioContext();
+  if (!context || context.state === 'closed') {
+    const AudioContextClass = globalThis.AudioContext
+      ?? (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) {
+      return;
+    }
+    // iOS otherwise treats Web Audio as ambient audio and silences it with the
+    // Ring/Silent switch, even when the game's sound setting is enabled.
+    try {
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) {
+        session.type = 'playback';
+      }
+    } catch {
+      // The experimental Audio Session API may be unavailable or restricted.
+    }
+    try {
+      context = new AudioContextClass();
+    } catch {
+      // Audio availability must never prevent a move; retry on the next gesture.
+      return;
+    }
     master = context.createGain();
     master.gain.value = MASTER_GAIN;
     master.connect(context.destination);
@@ -40,7 +60,7 @@ const unlock = (): void => {
 
 if (typeof document !== 'undefined') {
   // Safari only unlocks audio from some gesture events, so listen for each of them.
-  for (const type of ['pointerdown', 'touchend', 'keydown']) {
+  for (const type of ['pointerdown', 'touchend', 'keydown', 'click']) {
     document.addEventListener(type, unlock, { capture: true, passive: true });
   }
 }
@@ -50,7 +70,11 @@ if (typeof document !== 'undefined') {
  * @param value true to silence every sound
  */
 export function setMuted(value: boolean): void {
+  const wasMuted = muted;
   muted = value;
+  if (wasMuted && !value) {
+    unlock();
+  }
 }
 
 /* ------------------------------------------------------- *\
