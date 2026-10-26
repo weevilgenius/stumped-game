@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.3
+- Fix silent sound effects on iPhones that support playback audio sessions, including when the Ring/Silent switch is on.
+
 ## 0.10.2
 - Keep only your best 15 times for each puzzle size and difficulty.
 
