@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.4
+- Keep the logo art whole on tablets held upright, with the game controls below it.
+
 ## 0.10.3
 - Fix silent sound effects on iPhones that support playback audio sessions, including when the Ring/Silent switch is on.
 
