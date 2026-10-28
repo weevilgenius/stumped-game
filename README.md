@@ -83,11 +83,7 @@ main game keep their own copies, and this one does not answer their pages.
 
 ## Release notes
 
-Keep player-facing changes in `CHANGELOG.md`, newest release first, with headings
-like `## 0.9.0`. Use paragraphs, `###` subheadings, and `-` bullets; inline Markdown
-and HTML are displayed as plain text. Omit dependency and development-tool changes.
-The build deploys this file and caches it for offline History. What's new shows
-every release newer than the version running in the page.
+See [CHANGELOG.md](CHANGELOG.md)
 
 ## Agent bake-off
 
