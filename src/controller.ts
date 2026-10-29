@@ -5,6 +5,7 @@ import { type Game, isClean, newGame, type Result, resultOf, topResults } from '
 import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
 import type { Choices } from './settings';
+import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
@@ -42,6 +43,8 @@ export interface ControllerDeps {
   readonly random: () => number;
   /** Asks the player a yes or no question. */
   readonly confirm: (question: string) => boolean;
+  /** Name of the theme being played, recorded with each solve. */
+  readonly theme?: () => string;
 }
 
 /** The application state and the actions that change it. */
@@ -54,6 +57,8 @@ export interface Controller {
   readonly results: readonly Result[];
   /** Lifetime games played and perfect solves, including plays outside the best times. */
   readonly stats: Readonly<GameStats>;
+  /** How each recent win was solved, oldest first. */
+  readonly solves: readonly Solve[];
   /** The screen that is up. */
   readonly screen: Screen;
   /** True while a puzzle is being generated. */
@@ -147,6 +152,38 @@ export function createController(deps: ControllerDeps): Controller {
     }
   }
 
+  /* ------------------------------------------------------- *\
+   *  Solve log, kept apart from the save                    *
+  \* ------------------------------------------------------- */
+
+  let solves: Solve[] = [];
+  /** False if the saved log could not be read, so it is never overwritten. */
+  let solvesWritable = writable;
+  try {
+    const raw = deps.storage.getItem('solves');
+    const parsed = raw === null ? [] : parseSolves(raw);
+    solves = parsed ?? [];
+    solvesWritable &&= parsed !== null;
+  } catch {
+    solvesWritable = false;
+  }
+
+  /** Adds a win to the solve log. Losing it to a failed write leaves play unaffected. */
+  const logSolve = (won: Game): void => {
+    const solve = solveOf(won, deps.date(), deps.theme?.() ?? 'woods');
+    if (!solve || solves.some((other) => other.id === solve.id)) {
+      return;
+    }
+    solves = [...solves, solve].slice(-MAX_SOLVES);
+    if (solvesWritable) {
+      try {
+        deps.storage.setItem('solves', JSON.stringify(solves));
+      } catch {
+        // Kept in memory for export until the page is closed.
+      }
+    }
+  };
+
   let { settings, game } = data;
   const { played } = data;
   const stats = data.stats ?? initialStats(data);
@@ -194,6 +231,7 @@ export function createController(deps: ControllerDeps): Controller {
       results = topResults([...results, result]);
       stats.perfectSolves += Number(isClean(result));
       stats.recordedWinId = game.id;
+      logSolve(game);
     }
     if (!writable) {
       return;
@@ -349,6 +387,9 @@ export function createController(deps: ControllerDeps): Controller {
     },
     get stats() {
       return stats;
+    },
+    get solves() {
+      return solves;
     },
     get recoveryNotice() {
       return recoveryNotice;

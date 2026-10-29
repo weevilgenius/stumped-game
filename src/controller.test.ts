@@ -507,7 +507,8 @@ describe('persistence and recovery', () => {
     const { fake, controller } = setup(savedStore(false));
     fake.writes.length = 0;
     solve(controller);
-    expect(fake.writes).toEqual(SOLUTION.map(() => 'save'));
+    // The solve log is written just before the save that records the win.
+    expect(fake.writes).toEqual([...SOLUTION.slice(1).map(() => 'save'), 'solves', 'save']);
     const data = saved(fake.store);
     expect(data.game?.status).toBe('won');
     expect(data.results.map((result) => result.id)).toEqual([game(controller).id]);
@@ -641,5 +642,45 @@ describe('persistence and recovery', () => {
     expect(controller.results).toHaveLength(1);
     expect(controller.results[0].id).toBe(game(controller).id);
     expect(setup(store).controller.results).toHaveLength(1);
+  });
+});
+
+describe('solve log', () => {
+  it('records each win once, with its stumps in the order found, under its own key', () => {
+    const { fake, controller } = setup(savedStore(false));
+    controller.retry();
+    const id = game(controller).id;
+    for (const cell of [...SOLUTION].reverse()) {
+      fake.time += 2000;
+      controller.tick();
+      doubleTap(game(controller), cell, beginStroke(game(controller), cell) !== null);
+      controller.changed();
+    }
+    controller.changed();
+    expect(controller.solves).toHaveLength(1);
+    const [logged] = controller.solves;
+    expect(logged).toMatchObject({ id, size: 5, tier: 'easy', theme: 'woods', time: 10000, hints: [] });
+    expect(logged.stumps.map(({ row, col }) => [row, col])).toEqual([[4, 2], [3, 4], [2, 0], [1, 3], [0, 1]]);
+    expect(logged.stumps.map((stump) => stump.time)).toEqual([2000, 4000, 6000, 8000, 10000]);
+    expect(logged.stumps.every((stump) => stump.by === 'player')).toBe(true);
+    expect(JSON.parse(fake.store.get('solves')!)).toEqual(controller.solves);
+    expect(setup(fake.store).controller.solves).toEqual(controller.solves);
+  });
+
+  it('skips a win from a game started before stump order was kept', () => {
+    const { controller } = setup(savedStore(false, { found: undefined }));
+    solve(controller);
+    expect(game(controller).status).toBe('won');
+    expect(controller.solves).toEqual([]);
+  });
+
+  it('never overwrites a solve log it cannot read', () => {
+    const store = savedStore(false);
+    store.set('solves', 'not json');
+    const { fake, controller } = setup(store);
+    controller.retry();
+    solve(controller);
+    expect(controller.solves).toHaveLength(1);
+    expect(fake.store.get('solves')).toBe('not json');
   });
 });

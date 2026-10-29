@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.0
+- Keep a record of how each puzzle was solved: size, difficulty, time, and the order, color, and patch size of each stump found. Copy it from Settings to paste into a spreadsheet.
+
 ## 0.10.5
 - See total games played and perfect solves on the Best times screen, even after older times leave the leaderboard.
 
