@@ -28,6 +28,22 @@ export type Hint = 'woodpecker' | 'owl' | 'squirrel';
 /** All hints, in button order. */
 export const HINTS: readonly Hint[] = ['woodpecker', 'owl', 'squirrel'];
 
+/** How a stump was found: by the player's reveal, given at the start, or by a hint. */
+export type FoundBy = 'player' | 'given' | 'woodpecker' | 'owl';
+
+/** Every way a stump can be found. */
+export const FOUND_BY: readonly FoundBy[] = ['player', 'given', 'woodpecker', 'owl'];
+
+/** One stump found during play. */
+export interface Found {
+  /** The stump's square. */
+  cell: number;
+  /** Play time when it was found, in milliseconds. */
+  time: number;
+  /** How it was found. */
+  by: FoundBy;
+}
+
 /** One undo step: `[cell, mark before]` for each square a tap or stroke changed. */
 export type UndoStep = [number, number][];
 
@@ -59,6 +75,11 @@ export interface Game {
   repeat: boolean;
   /** The explain hint's explanation while it is open, so a relaunch reopens it instead of losing the hint. */
   explaining: Explanation | null;
+  /**
+   * Stumps in the order found. Missing in games started before it was kept,
+   * and incomplete if an older version of the game revealed stumps since.
+   */
+  found?: Found[];
 }
 
 /**
@@ -76,7 +97,7 @@ export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.ran
   return {
     id, puzzle, marks, hypo: null, undo: [], hypoUndo: [],
     acorns: puzzle.silver ? 1 : 3, acornsLost: 0, hints: [], elapsed: 0, status: 'playing', repeat,
-    explaining: null,
+    explaining: null, found: puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })),
   };
 }
 
@@ -197,10 +218,11 @@ export interface RevealResult {
   readonly conflict?: Conflict;
 }
 
-const reveal = (game: Game, cell: number): RevealResult => {
+const reveal = (game: Game, cell: number, by: FoundBy): RevealResult => {
   settle(game, [cell]);
   if (game.puzzle.solution.includes(cell)) {
     game.marks[cell] = MARK_STUMP;
+    game.found?.push({ cell, time: game.elapsed, by });
     if (stumps(game).length === game.puzzle.size) {
       game.status = 'won';
     }
@@ -239,7 +261,7 @@ export function doubleTap(game: Game, cell: number, firstTapChanged: boolean): R
     }
     return null;
   }
-  return game.marks[cell] === MARK_NONE || game.marks[cell] === MARK_X ? reveal(game, cell) : null;
+  return game.marks[cell] === MARK_NONE || game.marks[cell] === MARK_X ? reveal(game, cell, 'player') : null;
 }
 
 /* ========================================================= *\
@@ -329,7 +351,7 @@ export function woodpecker(game: Game): number {
     .filter((stump) => marks[stump] !== MARK_STUMP)
     .reduce((best, stump) => (open[puzzle.regions[stump]] < open[puzzle.regions[best]] ? stump : best));
   game.hints.push('woodpecker');
-  reveal(game, cell);
+  reveal(game, cell, 'woodpecker');
   return cell;
 }
 
@@ -399,7 +421,7 @@ export function applyExplanation(game: Game): void {
     game.marks[explanation.cell] = MARK_NONE;
     settle(game, [explanation.cell]);
   } else if (explanation.step.type === 'forced') {
-    reveal(game, explanation.step.place);
+    reveal(game, explanation.step.place, 'owl');
   } else {
     for (const cell of explanation.step.eliminated) {
       game.marks[cell] = MARK_X;

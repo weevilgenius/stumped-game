@@ -734,3 +734,22 @@ test('the Puerto Vallarta theme is saved on its own and dresses the puzzle', asy
   const status = page.locator('.accessible-puzzle [role="status"]');
   await expect(status).toContainText(/skull/i);
 });
+
+test('copies how each puzzle was solved from Settings', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openPuzzle(page);
+  await solve(page);
+  expect((await model(page)).status).toBe('won');
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Copy solve data' }).click();
+  await expect(page.locator('#copySolvesStatus')).toHaveText('Copied 1 solve.');
+  const rows = (await page.evaluate(() => navigator.clipboard.readText())).split('\n');
+  expect(rows).toHaveLength(SOLUTION.length + 1);
+  expect(rows[0]).toContain('order,row,col,color,patch_size');
+  // The stumps were found in solution order: one per row, from the top.
+  expect(rows.slice(1).map((row) => row.split(',')[12])).toEqual(SOLUTION.map((_, row) => String(row + 1)));
+  expect(rows[1]).toMatch(/^[^,]+,[^,]+,8,medium,/);
+  // The dialog stays open after copying.
+  await expect(page.locator('#settings')).toBeVisible();
+});

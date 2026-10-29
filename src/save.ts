@@ -1,7 +1,7 @@
 import type { Settings } from './controller';
 import { type LegacyChoices, SIZE_RANGES, upgradeChoices } from './settings';
 import { decodeSeedCode, encodeSeedCode, isValidSolution, MAX_SIZE, MIN_SIZE, type Puzzle, type Step, TIERS } from './engine';
-import { type Game, type Hint, HINTS, isClean, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
+import { FOUND_BY, type Game, type Hint, HINTS, isClean, MARK_NONE, MARK_RED, MARK_STUMP, MARK_X, type Result, resultOf } from './game';
 
 /** Lifetime totals, independent of the retained best times. */
 export interface GameStats {
@@ -126,6 +126,12 @@ const validStep = (value: unknown, size: number, depth = 0): value is Step => {
   }
 };
 
+/** Stumps in the order found: absent in older games, otherwise distinct revealed stumps. */
+const validFound = (value: unknown, normal: readonly number[]): boolean => value === undefined
+  || (Array.isArray(value) && unique(value.map((found: unknown) => (object(found) ? found.cell : found)))
+    && value.every((found: unknown) => object(found) && integer(found.cell, 0, normal.length - 1)
+      && normal[found.cell] === MARK_STUMP && duration(found.time) && FOUND_BY.some((by) => by === found.by)));
+
 const validGame = (value: unknown): value is Game => {
   if (!object(value) || !id(value.id) || !validPuzzle(value.puzzle)) {
     return false;
@@ -147,7 +153,7 @@ const validGame = (value: unknown): value is Game => {
   || !(value.status === 'won' ? solved && value.acorns > 0
     : value.status === 'lost' ? value.acorns === 0 && !solved
       : value.status === 'playing' && value.acorns > 0 && !solved)
-    || !validHistory(value.undo, normal, normal, MARK_X)) {
+    || !validHistory(value.undo, normal, normal, MARK_X) || !validFound(value.found, normal)) {
     return false;
   }
   if (value.hypo === null) {
