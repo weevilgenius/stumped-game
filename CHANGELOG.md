@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.1
+- Fix Refresh sometimes leaving the game on the previous version when two updates came out close together.
+
 ## 0.11.0
 - Keep a record of how each puzzle was solved: size, difficulty, time, and the order, color, and patch size of each stump found. Copy it from Settings to paste into a spreadsheet.
 

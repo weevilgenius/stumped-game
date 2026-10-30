@@ -137,8 +137,11 @@ ${cachedUrl.toString()}
 ${isBuiltAsset.toString()}
 ${previousBuild.toString()}
 
+// Reload skips the HTTP cache, which may still hold the previous build's unhashed files, such as index.html.
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE)
+    .then((cache) => cache.addAll(FILES.map((file) => new Request(file, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 // Taking over at once means an open page is still running the previous build, which can
