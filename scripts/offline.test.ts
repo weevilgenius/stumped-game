@@ -109,8 +109,10 @@ describe('generated service worker', () => {
     opened: string[];
     deleted: string[];
     matched: string[];
+    added: { url: string; cache?: string }[];
   } => {
     const opened: string[] = [];
+    const added: { url: string; cache?: string }[] = [];
     const deleted: string[] = [];
     const matched: string[] = [];
     const listeners = new Map<string, (event: Record<string, unknown>) => void>();
@@ -118,6 +120,10 @@ describe('generated service worker', () => {
       URL,
       Response,
       Promise,
+      // Node's Request needs an absolute URL; the browser resolves these against sw.js.
+      Request: class {
+        constructor(readonly url: string, readonly init: { cache?: string }) {}
+      },
       self: {
         registration: { scope: SCOPE },
         skipWaiting: (): Promise<void> => Promise.resolve(),
@@ -130,7 +136,10 @@ describe('generated service worker', () => {
         open: (name: string): Promise<object> => {
           opened.push(name);
           return Promise.resolve({
-            addAll: (): Promise<void> => Promise.resolve(),
+            addAll: (requests: { url: string; init: { cache?: string } }[]): Promise<void> => {
+              added.push(...requests.map(({ url, init }) => ({ url, cache: init.cache })));
+              return Promise.resolve();
+            },
             match: (target: URL | { url: string }): Promise<Response> => {
               matched.push(target instanceof URL ? target.href : target.url);
               return Promise.resolve(new Response('cached'));
@@ -150,6 +159,7 @@ describe('generated service worker', () => {
       opened,
       deleted,
       matched,
+      added,
       fire: (type, event) => new Promise((resolve, reject) => {
         const listener = listeners.get(type);
         if (!listener) {
@@ -182,6 +192,12 @@ describe('generated service worker', () => {
     await worker.fire('activate', {});
     expect(worker.opened).toEqual(['stumped-main-abc123abc123']);
     expect(worker.deleted).toEqual(['stumped-main-old']);
+  });
+
+  it('precaches every file past the HTTP cache, so an update never stores the previous build', async () => {
+    const worker = load();
+    await worker.fire('install', {});
+    expect(worker.added).toEqual(FILES.map((url) => ({ url, cache: 'reload' })));
   });
 
   it('answers the shell and app assets, and does not answer comparison pages', async () => {
