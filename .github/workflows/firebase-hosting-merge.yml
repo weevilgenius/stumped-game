@@ -10,6 +10,9 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'scripts/**'
       - 'package.json'
       - 'CHANGELOG.md'
 jobs:

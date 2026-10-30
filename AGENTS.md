@@ -24,7 +24,8 @@ changes:
 ## Hosting
 
 The game is hosted on Firebase Hosting at https://stumpedgame.app. Pushes to
-`main` that touch `src/`, `public/`, or `package.json` deploy the `dist` build
+`main` that touch `src/`, `public/`, `index.html`, `vite.config.ts`, `scripts/`,
+`package.json`, or `CHANGELOG.md` deploy the `dist` build
 (`.github/workflows/firebase-hosting-merge.yml`; commits starting with `deps:`
 are skipped), and pull requests run lint and unit tests, then get a Firebase preview channel.
 
