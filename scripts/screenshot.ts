@@ -41,6 +41,7 @@ import { dirname, resolve } from 'node:path';
 import process from 'node:process';
 import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
+import { chromiumPath } from './chromium.ts';
 
 /** Dev server port. Set PORT when 5173 belongs to another project. */
 const PORT = Number(process.env.PORT ?? 5173);
@@ -135,7 +136,7 @@ if (!reuseExisting) {
 
 const targetUrl = new URL(values.path, targetBaseUrl).toString();
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: chromiumPath() });
 try {
   const context = await browser.newContext({
     colorScheme: theme,

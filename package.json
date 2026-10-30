@@ -4,7 +4,6 @@
   "description": "Stump family Sudoku game",
   "main": "index.js",
   "scripts": {
-    "postinstall": "playwright install chromium",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "lint": "eslint .",
     "dev": "vite",
