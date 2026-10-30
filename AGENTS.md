@@ -26,7 +26,7 @@ changes:
 The game is hosted on Firebase Hosting at https://stumpedgame.app. Pushes to
 `main` that touch `src/`, `public/`, or `package.json` deploy the `dist` build
 (`.github/workflows/firebase-hosting-merge.yml`; commits starting with `deps:`
-are skipped), and pull requests get a Firebase preview channel.
+are skipped), and pull requests run lint and unit tests, then get a Firebase preview channel.
 
 The `gh-pages` branch no longer hosts the main game. It holds only the frozen
 agent bake-off builds linked from the README
