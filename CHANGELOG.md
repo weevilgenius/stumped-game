@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.2
+- Fix best times and stats disappearing when Stumped was open in two tabs or windows at once. A copy left behind now stops saving and catches up when you return to it.
+
 ## 0.11.1
 - Fix Refresh sometimes leaving the game on the previous version when two updates came out close together.
 

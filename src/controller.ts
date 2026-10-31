@@ -92,6 +92,8 @@ export interface Controller {
   readonly tick: () => number;
   /** Pauses play time while the page is hidden. */
   readonly setHidden: (hidden: boolean) => void;
+  /** Stops saving for good, because another tab or window saved newer progress that this one would overwrite. */
+  readonly savedElsewhere: () => void;
   /**
    * @param listener called after the screen, game, or busy state changes
    * @returns a function that removes the listener
@@ -452,6 +454,12 @@ export function createController(deps: ControllerDeps): Controller {
       if (value) {
         persist();
       }
+    },
+    savedElsewhere: () => {
+      writable = false;
+      solvesWritable = false;
+      storageError = 'Stumped was saved in another tab or window, so this one has stopped saving. Reload to keep playing here.';
+      emit();
     },
     subscribe: (listener) => {
       listeners.add(listener);

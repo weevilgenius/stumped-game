@@ -540,6 +540,20 @@ describe('persistence and recovery', () => {
     expect(setup(fake.store).controller.results).toHaveLength(1);
   });
 
+  it('stops saving once another tab saves, so a win there is never overwritten', () => {
+    const store = savedStore(false);
+    const outdated = setup(store).controller;
+    const current = setup(store).controller;
+    solve(current);
+    expect(saved(store).results).toHaveLength(1);
+    outdated.savedElsewhere();
+    expect(outdated.storageError).toContain('another tab');
+    outdated.retry();
+    outdated.setHidden(true);
+    expect(saved(store).results).toHaveLength(1);
+    expect(saved(store).game?.status).toBe('won');
+  });
+
   it('notifies subscribers when a storage error appears and clears', () => {
     const { fake, controller } = setup(savedStore(false));
     const listener = vi.fn();
