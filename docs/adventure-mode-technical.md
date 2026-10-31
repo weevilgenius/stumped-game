@@ -1162,6 +1162,7 @@ The engine should avoid hardcoding decisions that are still under consideration.
 | Hint reveals | Decided: a Woodpecker or Owl reveal is a turn with a collection, like a player reveal ([implementation plan](adventure-mode-plan.md), phase 1) |
 | Lost puzzle | Decided for the first version: running out of acorns ends the run. Adventure puzzles cannot be retried or abandoned ([implementation plan](adventure-mode-plan.md), phase 1) |
 | Silver acorns | Never chosen at random; only for a deliberate adventure reason, such as a challenge or curse |
+| Freebies | Off (`freebies: 0`) unless the adventure adds one for a plot reason |
 | Permanent progression | Characters, history, and variety rather than escalating power |
 | Trace-driven balance | Observed collection sequences as baseline |
 | Wrong turns | Exact events once recorded (section 11.5); synthetic otherwise |
