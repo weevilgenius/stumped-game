@@ -28,6 +28,9 @@ jobs:
           # Optional but recommended for CI:
           require-lockfile: true
       - run: pnpm run build
+        env:
+          # Keep the order of each stump found and the solve log (see README).
+          VITE_COLLECT_SOLVE_DATA: 'true'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

@@ -233,10 +233,17 @@ $('share').onclick = (): void => {
     navigator.share({ title: 'Stumped', text: `Stumped puzzle ${code}`, url }).catch(() => undefined);
   } else {
     const button = $('share');
-    void navigator.clipboard.writeText(url).then(() => {
-      button.textContent = 'Link copied';
+    const flash = (text: string): void => {
+      button.textContent = text;
       setTimeout(() => button.textContent = 'Share', 1500);
-    });
+    };
+    // The clipboard is missing outside secure pages, and the browser may refuse it.
+    const clipboard = navigator.clipboard as Clipboard | undefined;
+    if (!clipboard) {
+      flash('Could not copy');
+      return;
+    }
+    clipboard.writeText(url).then(() => flash('Link copied'), () => flash('Could not copy'));
   }
 };
 
