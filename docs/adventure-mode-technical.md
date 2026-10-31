@@ -1155,13 +1155,13 @@ The engine should avoid hardcoding decisions that are still under consideration.
 | Charge persistence | Configurable per ability |
 | Healing and economy | Limited by abilities and encounter context |
 | Encounter duration | Independent of round length |
-| Difficulty | Fixes size and tier (and so the colors available), possibly size mix |
+| Difficulty | Fixes size and tier (and so the colors available). First version: 9×9 medium |
 | Color identity | Palette index; hue comes from the theme |
 | Color assignment | Generator's random order; the adventure may reorder it per puzzle to tune difficulty |
 | What if? mode | Allowed; it reveals nothing, so it creates no turns |
-| Hint reveals | Undecided: a turn with a collection like a player reveal, a collection without a turn, or no collection. Hints may also be disabled in adventures |
-| Lost puzzle | Undecided. Stumped stops a puzzle when the acorns run out. The round ends as failed; retrying the same puzzle would offer the same collections again, so the adventure should start a new puzzle instead, or Stumped gains an adventure-only "keep going" rule |
-| Silver acorns | Off unless chosen as part of the adventure difficulty |
+| Hint reveals | Decided: a Woodpecker or Owl reveal is a turn with a collection, like a player reveal ([implementation plan](adventure-mode-plan.md), phase 1) |
+| Lost puzzle | Decided for the first version: running out of acorns ends the run. Adventure puzzles cannot be retried or abandoned ([implementation plan](adventure-mode-plan.md), phase 1) |
+| Silver acorns | Never chosen at random; only for a deliberate adventure reason, such as a challenge or curse |
 | Permanent progression | Characters, history, and variety rather than escalating power |
 | Trace-driven balance | Observed collection sequences as baseline |
 | Wrong turns | Exact events once recorded (section 11.5); synthetic otherwise |
