@@ -37,6 +37,7 @@ Use four ordered slots, readiness adjustable during puzzles, and reordering betw
 - **Adventure death:** When the character dies, the current puzzle ends with the run and the player goes straight to the run summary. (This replaces the concept's "the puzzle always continues to completion" for adventure puzzles.)
 - **Stats:** Adventure puzzle solves are kept out of the main solve stats and times for now.
 - **Difficulty:** The first version uses 9×9 boards, starting with medium tier. Size and tier remain engine parameters.
+- **Equipment:** As recommended below: ordered slots, each pulse goes to the first eligible readied item, readiness toggles freely during puzzles without using a turn, and reordering happens between puzzles. The number of slots, and whether all are generic or some are restricted to certain kinds of items, is left to tuning (start with four generic slots).
 
 ### Completion criteria
 
