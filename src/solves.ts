@@ -1,5 +1,6 @@
 import { colOf, rowOf, type Tier, TIERS } from './engine';
 import { FOUND_BY, type FoundBy, type Game, type Hint, HINTS } from './game';
+import { duration, object } from './save';
 
 /* ========================================================= *\
  *  Solve log: how each won puzzle was solved, kept on the   *
@@ -84,10 +85,7 @@ export function solveOf(game: Game, date: number, theme: string): Solve | null {
   };
 }
 
-const object = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null && !Array.isArray(value));
 const count = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
-const duration = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 const validStump = (value: unknown): value is SolveStump => object(value)
   && count(value.row) && count(value.col) && count(value.color) && count(value.patch) && duration(value.time)
