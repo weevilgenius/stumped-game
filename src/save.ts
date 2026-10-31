@@ -39,11 +39,18 @@ export function newSave(): Save {
   return { version: 1, settings: { timer: true, silver: false }, game: null, results: [], played: [], open: false };
 }
 
-const object = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null && !Array.isArray(value));
+/** @returns whether a parsed JSON value is an object, not null or an array */
+export function object(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** @returns whether a value is a finite, non-negative number, such as milliseconds */
+export function duration(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 const integer = (value: unknown, min: number, max: number): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max);
-const duration = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const id = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 const tier = (value: unknown): boolean => TIERS.some((t) => t === value);
 const cells = (value: unknown, max: number): value is number[] => (
