@@ -17,7 +17,7 @@ import { solvesCsv } from './solves';
  *  Phaser scene in puzzleScene.ts.                          *
 \* ========================================================= */
 
-/** Prefix for main's localStorage keys; the bake-off apps on the same origin use their own. */
+/** Prefix for main's localStorage keys, from when the bake-off apps shared its origin. Kept so saves still load. */
 const STORAGE_PREFIX = 'stumped-main.';
 
 /* ========================================================= *\

@@ -40,8 +40,7 @@ Pages origin. Keep them unchanged so existing saves and caches stay valid.
 
 ## Source Layout
 
-Main is built from the Fable bake-off implementation (step 1 of the
-consolidation plan in `docs/summary.md`).
+Main is built from the Fable bake-off implementation.
 
 - `src/engine/` - pure puzzle generator, solver, and seed codes (see its README)
 - `src/game.ts` - plain-JSON game model: marks, undo, hints, explanations

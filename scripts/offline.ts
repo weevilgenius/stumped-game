@@ -29,8 +29,8 @@ interface PublicFile {
 
 /**
  * Path this service worker may answer, or null when the request is outside the app.
- * Main's worker scope contains the comparison apps, so only precached URLs are served;
- * everything else must fall through to the network.
+ * Only precached URLs are served; everything else falls through to the network. This dates
+ * from the GitHub Pages origin, where the bake-off builds sat under the same scope.
  * @param scopeHref service worker scope, with a trailing slash
  * @param requestUrl absolute request URL
  * @param files precached paths, `./` for the shell
@@ -53,7 +53,7 @@ export function cachedUrl(scopeHref: string, requestUrl: string, files: readonly
  * for names the current build no longer has.
  * @param scopeHref service worker scope, with a trailing slash
  * @param requestUrl absolute request URL
- * @returns true for `assets/` under the scope; false for the comparison apps and other origins
+ * @returns true for `assets/` under the scope; false for other paths and origins
  */
 export function isBuiltAsset(scopeHref: string, requestUrl: string): boolean {
   const scope = new URL(scopeHref);
