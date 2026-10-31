@@ -32,6 +32,7 @@ Use four ordered slots, readiness adjustable during puzzles, and reordering betw
 ### Decisions
 
 - **Hints:** A stump revealed by Woodpecker or Owl is a normal turn with a collection, exactly like a player reveal. The player doesn't choose the region, so the pulse color can help or hurt. Squirrel and an Owl explanation without a reveal reveal nothing and produce no turn.
+- **Puzzle loss:** For the first version, losing a puzzle (running out of acorns) ends the adventure run. Adventure puzzles never get silver acorn mode by random selection; it is enabled only for a deliberate adventure reason.
 
 ### Completion criteria
 
@@ -202,3 +203,4 @@ Final theme, map generation, permanent progression, and exact win rates can wait
 Ideas raised during planning, not yet part of any phase.
 
 - **Hint-based equipment and effects:** A weapon with a special attack that consumes one of the puzzle's hints, or a curse that disables hints.
+- **Silver acorn encounters:** Enable silver acorn mode (one acorn) for specific adventure reasons, such as a challenge room, a curse, or a special boss fight.
