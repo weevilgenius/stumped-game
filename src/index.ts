@@ -473,7 +473,24 @@ $('whatsNew').onclick = (): void => void openChangelog(true);
 
 controller.subscribe(render);
 controller.setHidden(document.hidden);
-document.addEventListener('visibilitychange', () => controller.setHidden(document.hidden || helpDialog.open));
+
+/** Set once another tab or window saves, after which this copy is out of date. */
+let outdated = false;
+addEventListener('storage', (event) => {
+  if (event.key === `${STORAGE_PREFIX}save`) {
+    outdated = true;
+    controller.savedElsewhere();
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  // Coming back to an outdated copy loads the newer save. One left open alongside the other keeps its notice instead,
+  // since reloading it would save again and make the other copy reload in turn.
+  if (outdated && !document.hidden) {
+    location.reload();
+    return;
+  }
+  controller.setHidden(document.hidden || helpDialog.open);
+});
 render();
 
 // A link with a seed code starts that puzzle. The code is dropped from the URL so a reload does not restart it.
