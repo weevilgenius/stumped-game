@@ -29,6 +29,10 @@ Write down the rules needed for the first prototype, distinguishing firm contrac
 
 Use four ordered slots, readiness adjustable during puzzles, and reordering between puzzles. Givens produce no turns; ordinary one-square reveals do. Retain generated color assignments. Keep numerical values provisional.
 
+### Decisions
+
+- **Hints:** A stump revealed by Woodpecker or Owl is a normal turn with a collection, exactly like a player reveal. The player doesn't choose the region, so the pulse color can help or hurt. Squirrel and an Owl explanation without a reveal reveal nothing and produce no turn.
+
 ### Completion criteria
 
 A short rules table covers every player action and round-ending condition. Theme, campaign structure, and the full equipment catalog can remain open.
@@ -192,3 +196,9 @@ Apply versioning and changelog updates as required by `AGENTS.md`.
 The most consequential decisions to make first are hint behavior, puzzle-loss behavior, retry/abandonment rules, and the initial difficulty.
 
 Final theme, map generation, permanent progression, and exact win rates can wait for evidence from the sandbox. Timing and persistence contracts need explicit decisions before their implementation phases complete; equipment values and encounter numbers should continue to evolve through simulation and playtesting.
+
+## Ideas for later
+
+Ideas raised during planning, not yet part of any phase.
+
+- **Hint-based equipment and effects:** A weapon with a special attack that consumes one of the puzzle's hints, or a curse that disables hints.
