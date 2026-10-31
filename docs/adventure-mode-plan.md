@@ -38,6 +38,26 @@ Use four ordered slots, readiness adjustable during puzzles, and reordering betw
 - **Stats:** Adventure puzzle solves are kept out of the main solve stats and times for now.
 - **Difficulty:** The first version uses 9×9 boards, starting with medium tier. Size and tier remain engine parameters.
 - **Equipment:** As recommended below: ordered slots, each pulse goes to the first eligible readied item, readiness toggles freely during puzzles without using a turn, and reordering happens between puzzles. The number of slots, and whether all are generic or some are restricted to certain kinds of items, is left to tuning (start with four generic slots).
+- **Timing:** Each turn resolves in a fixed order: the player's pulse first, then enemy actions and timed effects (such as poison) that are due, then all cooldowns, countdowns, and timed effects advance by one. The player's pulse resolving first is the "Millennium Falcon effect": a last-moment block, attack, or heal can land in the same turn an attack goes off. Block absorbs the next attack, then any remainder is lost, and it expires at round end. Cooldowns count turns and reset between rounds. Charges persist within a round and expire at its end unless an item says otherwise. Unfinished enemy countdowns carry into the next round unchanged. All numbers remain provisional.
+
+### Rules table
+
+| Event | Turn? | Collection? | Notes |
+|---|---|---|---|
+| Correct reveal | Yes | Yes, region color and size | Pulse resolves before enemy actions due that turn |
+| Wrong reveal | Yes | No | Costs an acorn |
+| Woodpecker or Owl reveal | Yes | Yes | Same as a correct reveal; region not chosen by the player |
+| Owl explanation without a reveal, Squirrel | No | No | |
+| Given stump at puzzle start | No | No | |
+| X marks, What if? mode | No | No | |
+| Readiness toggle | No | No | Free during a puzzle |
+| Equipment reordering | No | No | Between rounds only |
+| Leave for home screen | No | No | Adventure and puzzle resume later |
+| Puzzle solved | Round ends: completed | | Round-end resets apply; encounter may continue |
+| Acorns run out | Run ends | | |
+| Character dies | Run ends | | Puzzle ends with it; straight to run summary |
+| New puzzle or retry | Not available | | Only abandoning the whole run ends an adventure puzzle early |
+
 
 ### Completion criteria
 
