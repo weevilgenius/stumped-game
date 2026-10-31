@@ -21,6 +21,9 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run test
       - run: pnpm run build
+        env:
+          # Keep the order of each stump found and the solve log (see README).
+          VITE_COLLECT_SOLVE_DATA: 'true'
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

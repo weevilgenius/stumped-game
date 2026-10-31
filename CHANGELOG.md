@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.3
+- Show "Could not copy" when Share can't copy the puzzle link, instead of doing nothing.
+- Turn the solve record back on, with Copy solve data in Settings.
+
 ## 0.11.2
 - Fix best times and stats disappearing when Stumped is open in two tabs or windows at once.
 
