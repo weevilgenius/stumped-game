@@ -159,13 +159,15 @@ export function createController(deps: ControllerDeps): Controller {
   let solves: Solve[] = [];
   /** False if the saved log could not be read, so it is never overwritten. */
   let solvesWritable = writable;
-  try {
-    const raw = deps.storage.getItem('solves');
-    const parsed = raw === null ? [] : parseSolves(raw);
-    solves = parsed ?? [];
-    solvesWritable &&= parsed !== null;
-  } catch {
-    solvesWritable = false;
+  if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+    try {
+      const raw = deps.storage.getItem('solves');
+      const parsed = raw === null ? [] : parseSolves(raw);
+      solves = parsed ?? [];
+      solvesWritable &&= parsed !== null;
+    } catch {
+      solvesWritable = false;
+    }
   }
 
   /** Adds a win to the solve log. Losing it to a failed write leaves play unaffected. */
@@ -231,7 +233,9 @@ export function createController(deps: ControllerDeps): Controller {
       results = topResults([...results, result]);
       stats.perfectSolves += Number(isClean(result));
       stats.recordedWinId = game.id;
-      logSolve(game);
+      if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+        logSolve(game);
+      }
     }
     if (!writable) {
       return;

@@ -21,6 +21,9 @@ const tap = (game: ReturnType<typeof newGame>, cell: number): void => {
 };
 
 describe('solve log', () => {
+  beforeEach(() => vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true'));
+  afterEach(() => vi.unstubAllEnvs());
+
   it('keeps the order, color, patch size, time, and source of every stump', () => {
     const game = newGame(PUZZLE, false, 'play');
     expect(game.found).toEqual([{ cell: 19, time: 0, by: 'given' }]);

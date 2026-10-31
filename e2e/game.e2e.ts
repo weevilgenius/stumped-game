@@ -736,6 +736,7 @@ test('the Puerto Vallarta theme is saved on its own and dresses the puzzle', asy
 });
 
 test('copies how each puzzle was solved from Settings', async ({ page, context }) => {
+  test.skip(process.env.VITE_COLLECT_SOLVE_DATA !== 'true', 'collection is disabled in this build');
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await openPuzzle(page);
   await solve(page);
@@ -752,4 +753,16 @@ test('copies how each puzzle was solved from Settings', async ({ page, context }
   expect(rows[1]).toMatch(/^[^,]+,[^,]+,8,medium,/);
   // The dialog stays open after copying.
   await expect(page.locator('#settings')).toBeVisible();
+});
+
+test('disabled collection hides solve export and keeps wins out of the solve log', async ({ page }) => {
+  test.skip(process.env.VITE_COLLECT_SOLVE_DATA === 'true', 'collection is enabled in this build');
+  await openPuzzle(page);
+  await solve(page);
+  expect((await model(page)).status).toBe('won');
+  expect((await model(page)).found).toBeUndefined();
+  expect(await page.evaluate(() => localStorage.getItem('stumped-main.solves'))).toBeNull();
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByRole('button', { name: 'Copy solve data' })).toBeHidden();
 });
