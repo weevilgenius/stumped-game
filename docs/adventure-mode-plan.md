@@ -36,6 +36,7 @@ Use four ordered slots, readiness adjustable during puzzles, and reordering betw
 - **Abandonment and retries:** An adventure puzzle cannot be abandoned or retried; it ends only when solved, lost, or when the whole run is abandoned. The home screen has an Adventure Mode entry the player can exit and resume at any time, which neither ends the run nor quits the current puzzle. Regular puzzles are started, restarted, and resumed from the home screen independently of the adventure. There is one adventure slot. (This also answers phase 5's question: ordinary play and an adventure each keep their own unfinished puzzle.)
 - **Adventure death:** When the character dies, the current puzzle ends with the run and the player goes straight to the run summary. (This replaces the concept's "the puzzle always continues to completion" for adventure puzzles.)
 - **Stats:** Adventure puzzle solves are kept out of the main solve stats and times for now.
+- **Difficulty:** The first version uses 9×9 boards, starting with medium tier. Size and tier remain engine parameters.
 
 ### Completion criteria
 
@@ -208,3 +209,4 @@ Ideas raised during planning, not yet part of any phase.
 - **Hint-based equipment and effects:** A weapon with a special attack that consumes one of the puzzle's hints, or a curse that disables hints.
 - **Silver acorn encounters:** Enable silver acorn mode (one acorn) for specific adventure reasons, such as a challenge room, a curse, or a special boss fight.
 - **Multiple adventure slots:** Keep more than one adventure run in progress at once.
+- **Varying puzzle sizes:** Offer a range of board sizes, perhaps driven by particular enemies or power-ups.
