@@ -507,8 +507,7 @@ describe('persistence and recovery', () => {
     const { fake, controller } = setup(savedStore(false));
     fake.writes.length = 0;
     solve(controller);
-    // The solve log is written just before the save that records the win.
-    expect(fake.writes).toEqual([...SOLUTION.slice(1).map(() => 'save'), 'solves', 'save']);
+    expect(fake.writes).toEqual(SOLUTION.map(() => 'save'));
     const data = saved(fake.store);
     expect(data.game?.status).toBe('won');
     expect(data.results.map((result) => result.id)).toEqual([game(controller).id]);
@@ -646,6 +645,9 @@ describe('persistence and recovery', () => {
 });
 
 describe('solve log', () => {
+  beforeEach(() => vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true'));
+  afterEach(() => vi.unstubAllEnvs());
+
   it('records each win once, with its stumps in the order found, under its own key', () => {
     const { fake, controller } = setup(savedStore(false));
     controller.retry();
@@ -682,5 +684,38 @@ describe('solve log', () => {
     solve(controller);
     expect(controller.solves).toHaveLength(1);
     expect(fake.store.get('solves')).toBe('not json');
+  });
+});
+
+describe('disabled solve collection', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([undefined, 'false', '1', 'TRUE', ''])('does not read or write solve data with flag %s', (flag) => {
+    vi.stubEnv('VITE_COLLECT_SOLVE_DATA', flag);
+    const store = savedStore(false);
+    store.set('solves', 'existing log');
+    const read = vi.spyOn(store, 'get');
+    const { fake, controller } = setup(store);
+    expect(read).not.toHaveBeenCalledWith('solves');
+    controller.retry();
+    expect(game(controller).found).toBeUndefined();
+    solve(controller);
+    expect(game(controller).status).toBe('won');
+    expect(controller.results).toHaveLength(1);
+    expect(controller.solves).toEqual([]);
+    expect(fake.writes).not.toContain('solves');
+    expect(store.get('solves')).toBe('existing log');
+    expect(saved(store).game?.found).toBeUndefined();
+  });
+
+  it('does not append discovery data to a game resumed from an enabled build', () => {
+    vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true');
+    const store = savedStore(false);
+    const before = saved(store).game?.found;
+    vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'false');
+    const { fake, controller } = setup(store);
+    solve(controller);
+    expect(game(controller).found).toEqual(before);
+    expect(fake.writes).not.toContain('solves');
   });
 });

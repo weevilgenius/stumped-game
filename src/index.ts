@@ -323,23 +323,26 @@ settingsForm.onchange = (event): void => {
 };
 
 /** Copies the solve log as CSV, for pasting into a spreadsheet or a message. */
-$('copySolves').onclick = (): void => {
-  const status = $('copySolvesStatus');
-  const { solves } = controller;
-  const count = solves.length;
-  const failed = (): void => {
-    status.textContent = 'Could not copy.';
+if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+  $('solveData').hidden = false;
+  $('copySolves').onclick = (): void => {
+    const status = $('copySolvesStatus');
+    const { solves } = controller;
+    const count = solves.length;
+    const failed = (): void => {
+      status.textContent = 'Could not copy.';
+    };
+    // The clipboard is missing outside secure pages.
+    const clipboard = navigator.clipboard as Clipboard | undefined;
+    if (!clipboard) {
+      failed();
+      return;
+    }
+    clipboard.writeText(solvesCsv(solves)).then(() => {
+      status.textContent = `Copied ${count} ${count === 1 ? 'solve' : 'solves'}.`;
+    }, failed);
   };
-  // The clipboard is missing outside secure pages.
-  const clipboard = navigator.clipboard as Clipboard | undefined;
-  if (!clipboard) {
-    failed();
-    return;
-  }
-  clipboard.writeText(solvesCsv(solves)).then(() => {
-    status.textContent = `Copied ${count} ${count === 1 ? 'solve' : 'solves'}.`;
-  }, failed);
-};
+}
 
 /* ========================================================= *\
  *  Best times                                               *

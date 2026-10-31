@@ -97,7 +97,9 @@ export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.ran
   return {
     id, puzzle, marks, hypo: null, undo: [], hypoUndo: [],
     acorns: puzzle.silver ? 1 : 3, acornsLost: 0, hints: [], elapsed: 0, status: 'playing', repeat,
-    explaining: null, found: puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })),
+    explaining: null,
+    found: import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true'
+      ? puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })) : undefined,
   };
 }
 
@@ -222,7 +224,9 @@ const reveal = (game: Game, cell: number, by: FoundBy): RevealResult => {
   settle(game, [cell]);
   if (game.puzzle.solution.includes(cell)) {
     game.marks[cell] = MARK_STUMP;
-    game.found?.push({ cell, time: game.elapsed, by });
+    if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+      game.found?.push({ cell, time: game.elapsed, by });
+    }
     if (stumps(game).length === game.puzzle.size) {
       game.status = 'won';
     }

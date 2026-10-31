@@ -70,6 +70,20 @@ pnpm install
 pnpm run dev
 ```
 
+Detailed puzzle-solving data collection is disabled by default. To enable the
+per-stump history, local solve log, and **Copy solve data** button in Settings,
+set `VITE_COLLECT_SOLVE_DATA=true` when building:
+
+```sh
+VITE_COLLECT_SOLVE_DATA=true pnpm run build
+```
+
+The same variable works with `pnpm run dev` and Vite's `.env` files. Only the
+literal value `true` enables collection; unset, `false`, and other values disable
+it. Changing the value requires a new build (or restarting the dev server).
+Disabled builds leave existing solve logs untouched. Normal progress, best times,
+and lifetime stats are saved regardless of this flag.
+
 ## Offline
 
 On the published site, the first visit saves a copy of the game in the
