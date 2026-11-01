@@ -8,6 +8,7 @@ class FakeAudioContext {
   sampleRate = 8000;
   destination = {};
   resume = (): Promise<void> => Promise.resolve();
+  close = (): Promise<void> => Promise.resolve();
   private node = (): Record<string, unknown> => {
     const param = { value: 0, setValueAtTime: () => undefined, exponentialRampToValueAtTime: () => undefined };
     const node: Record<string, unknown> = {
