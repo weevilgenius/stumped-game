@@ -721,7 +721,8 @@ Raw recordings are CSV exports from the game, kept unchanged with their original
 
 ```text
 tests/
-  sample-games.csv    initial 100 solves
+  sample-games.csv    initial 100 solves (tablet, Vallarta theme)
+  barry-phone.csv     20 more by the same player on a phone (Woods theme): 18 9×9 medium, 2 7×7 medium
 ```
 
 Later recordings go alongside it as additional files, named for their source (for example, per player). The importer converts them into a normalized representation. Future recordings can be added without changing the engine API.

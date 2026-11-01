@@ -20,8 +20,8 @@ changes:
 - Run tests: `pnpm run test`
 - Check all three: `pnpm run check`
 - Build project: `pnpm run build`
-- Solve trace report for adventure mode: `pnpm traces [files...]` (default
-  `tests/sample-games.csv`; writes replay rounds to `reports/`, gitignored)
+- Solve trace report for adventure mode: `pnpm traces [files...]` (default every
+  `tests/*.csv` recording; writes replay rounds to `reports/`, gitignored)
 
 ## Hosting
 
