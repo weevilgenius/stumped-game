@@ -96,6 +96,8 @@ export interface Game {
    * solve data, and incomplete if an older version lost acorns since.
    */
   misses?: Miss[];
+  /** Play time each time What if? mode was turned on, kept with `found`. Missing in older games. */
+  whatIfs?: number[];
   /** Keeps `found` and `misses` even when solve data is not collected. Set for adventure puzzles, which play them as turns. */
   record?: true;
 }
@@ -304,6 +306,9 @@ export function doubleTap(game: Game, cell: number, firstTapChanged: boolean): R
  * @param game the game
  */
 export function enterHypothesis(game: Game): void {
+  if ((logging() || game.record) && game.found) {
+    (game.whatIfs ??= []).push(game.elapsed);
+  }
   game.hypo = game.marks.map(() => MARK_NONE);
   game.hypoUndo = [];
 }

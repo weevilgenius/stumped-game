@@ -44,27 +44,28 @@ describe('sync', () => {
   it('plays each reveal once, ends the round on a win, and the log replays the run exactly', () => {
     const save = newAdventure();
     const game = newGame(PUZZLE, false, 'play', true);
-    beginRound(save, game);
+    beginRound(save, game, 1);
     tap(game, open(game)[0]);
-    sync(save);
-    sync(save);
+    sync(save, 2);
+    sync(save, 3);
     expect(save.state.round?.turn).toBe(1);
-    command(save, { type: 'set-ready', slot: 0, ready: false });
+    command(save, { type: 'set-ready', slot: 0, ready: false }, 4);
     for (const cell of open(game)) {
       tap(game, cell);
     }
-    sync(save);
+    sync(save, 5);
     expect(game.status).toBe('won');
     expect(save.played).toBe(PUZZLE.size - PUZZLE.givens.length);
     expect(['between', 'ended']).toContain(save.state.phase);
     const replayed = save.log.reduce((state: AdventureState, next) => step(state, next).state, save.start);
     expect(replayed).toEqual(save.state);
     expect(save.log.filter((logged) => logged.type === 'turn')).toHaveLength(save.played);
+    expect([save.times?.length, save.times?.slice(0, 4)]).toEqual([save.log.length, [1, 1, 2, 4]]);
   });
 
   it('does not log rejected commands', () => {
     const save = newAdventure();
-    expect(command(save, { type: 'set-ready', slot: 9, ready: false })[0].type).toBe('command-rejected');
+    expect(command(save, { type: 'set-ready', slot: 9, ready: false }, 1)[0].type).toBe('command-rejected');
     expect(save.log).toEqual([]);
   });
 });

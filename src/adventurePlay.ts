@@ -22,6 +22,8 @@ export interface AdventureSave {
   start: AdventureState;
   /** Every accepted command since the run began, in order, turns included. */
   log: AdventureCommand[];
+  /** When each command in `log` was applied, as epoch milliseconds; 0 where unknown. Missing in older saves. */
+  times?: number[];
   /** The run now. */
   state: AdventureState;
   /** The adventure's puzzle: in progress, or the last one played. Null before the first. */
@@ -38,20 +40,23 @@ export interface AdventureSave {
  */
 export function newAdventure(): AdventureSave {
   const state = startRun(WANDERER);
-  return { version: ADVENTURE_VERSION, start: state, log: [], state, game: null, played: 0, open: false };
+  return { version: ADVENTURE_VERSION, start: state, log: [], times: [], state, game: null, played: 0, open: false };
 }
 
 /**
  * Applies a command, logging it if the engine accepts it.
  * @param save the adventure, updated in place
  * @param command the command
+ * @param at when, as epoch milliseconds
  * @returns the engine's events
  */
-export function command(save: AdventureSave, command: AdventureCommand): readonly AdventureEvent[] {
+export function command(save: AdventureSave, command: AdventureCommand, at: number): readonly AdventureEvent[] {
   const { state, events } = step(save.state, command);
   if (state !== save.state) {
     save.state = state;
+    save.times ??= save.log.map(() => 0);
     save.log.push(command);
+    save.times.push(at);
   }
   return events;
 }
@@ -100,9 +105,10 @@ export function turnsOf(game: Game): AdventureCommand[] {
  * then ends the round once the puzzle is won or lost. Safe to call any time;
  * it does nothing when there is nothing new.
  * @param save the adventure, updated in place
+ * @param at when, as epoch milliseconds
  * @returns the engine's events
  */
-export function sync(save: AdventureSave): AdventureEvent[] {
+export function sync(save: AdventureSave, at: number): AdventureEvent[] {
   const { game, state } = save;
   if (!game || state.round?.manifest.id !== game.id) {
     return [];
@@ -112,11 +118,11 @@ export function sync(save: AdventureSave): AdventureEvent[] {
     if (save.state.phase !== 'round') {
       break;
     }
-    events.push(...command(save, turn));
+    events.push(...command(save, turn, at));
     save.played++;
   }
   if (save.state.phase === 'round' && game.status !== 'playing') {
-    events.push(...command(save, { type: 'end-round', outcome: game.status === 'won' ? 'completed' : 'failed' }));
+    events.push(...command(save, { type: 'end-round', outcome: game.status === 'won' ? 'completed' : 'failed' }, at));
   }
   return events;
 }
@@ -125,11 +131,12 @@ export function sync(save: AdventureSave): AdventureEvent[] {
  * Starts a round on a new puzzle, with a fresh wolf if the last encounter is over.
  * @param save the adventure, between rounds; updated in place
  * @param game the new puzzle, which must keep `found` and `misses`
+ * @param at when, as epoch milliseconds
  * @returns the engine's events
  */
-export function beginRound(save: AdventureSave, game: Game): AdventureEvent[] {
-  const events = save.state.encounter ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF })];
-  events.push(...command(save, { type: 'begin-round', round: manifestOf(game) }));
+export function beginRound(save: AdventureSave, game: Game, at: number): AdventureEvent[] {
+  const events = save.state.encounter ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF }, at)];
+  events.push(...command(save, { type: 'begin-round', round: manifestOf(game) }, at));
   save.game = game;
   save.played = 0;
   return events;

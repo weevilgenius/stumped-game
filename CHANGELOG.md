@@ -2,6 +2,7 @@
 
 ## 0.14.0
 - Adventure mode playtest, turned on with Show adventure mode in Settings: a strip above the board shows your health, the enemy's next attack, and your equipment. Tap an item to ready or unready it.
+- Adventure playtest data: Copy adventure data in Settings copies the current and last ten runs with timestamped command logs. The solve record now marks adventure solves and notes when What if? was used.
 
 ## 0.13.0
 - Lay the groundwork for adventure mode: an adventure keeps its own puzzle and saves alongside regular play, and resumes exactly where it left off. Playable only in development builds for now.

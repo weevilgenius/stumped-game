@@ -246,6 +246,8 @@ Test on the repository's preferred desktop, phone, and tablet devices. Keep anim
 
 The puzzle scene draws the strip when it is given an adventure (`AdventureView` in `src/puzzleScene.ts`): above the board in the stacked layout, or in the side panel under the top bar, in place of the theme's flags. It is redrawn whole from the run after each change, and the controller's engine events, passed in through `showAdventureEvents()`, add brief chip flashes, fizzles, and hit flashes; a redraw cuts off any still running. Death locks the board under a Defeated banner. Settings has a Show adventure mode switch (saved as optional `adventure`), and the main screen's Adventure section doubles as the between-round summary: health, supplies, the encounter ahead, and Next puzzle.
 
+For analysis, each logged command has a timestamp (`times`, beside `log`), a replaced or dropped run is kept under `adventureRuns` (last ten), and Settings has Copy adventure data (current and earlier runs as JSON). Adventure wins go into the solve log flagged `adventure`, and every solve records when What if? mode was turned on (`whatIfs`; CSV columns `mode` and `what_if_seconds`).
+
 ### Completion criteria
 
 Someone can play several puzzles without developer explanation, understand the consequences, and make useful tactical adjustments. Keyboard/accessibility behavior, responsive layout, and rapid input have been verified.
@@ -306,6 +308,5 @@ Ideas raised during planning, not yet part of any phase.
 - **Silver acorn encounters:** Enable silver acorn mode (one acorn) for specific adventure reasons, such as a challenge room, a curse, or a special boss fight.
 - **Multiple adventure slots:** Keep more than one adventure run in progress at once.
 - **Varying puzzle sizes:** Offer a range of board sizes, perhaps driven by particular enemies or power-ups.
-- **What if? in solve traces:** Record What if? use in the solve log, to see how much players plan reveals with it.
 - **Run statistics on defeat:** A death screen showing statistics about the run, perhaps compared with recent runs.
 - **Ordered-color objectives:** A challenge that needs colors in a set order, like a charge weapon, rewarding strategic reveal order.
