@@ -72,15 +72,20 @@ export interface Solve {
   readonly stumps: readonly SolveStump[];
   /** Every wrong reveal, in order. Missing if they were not all recorded. */
   readonly misses?: readonly SolveMiss[];
+  /** Play time each time What if? mode was turned on. Missing in solves from before it was kept. */
+  readonly whatIfs?: readonly number[];
+  /** Played in an adventure. */
+  readonly adventure?: true;
 }
 
 /**
  * @param game a won game
  * @param date completion time as epoch milliseconds
  * @param theme the theme it was played in
+ * @param adventure true if played in an adventure
  * @returns the solve, or null if the game did not keep the order of every stump
  */
-export function solveOf(game: Game, date: number, theme: string): Solve | null {
+export function solveOf(game: Game, date: number, theme: string, adventure = false): Solve | null {
   const { puzzle } = game;
   const found = game.found ?? [];
   if (found.length !== puzzle.size) {
@@ -102,6 +107,8 @@ export function solveOf(game: Game, date: number, theme: string): Solve | null {
     repeat: game.repeat, theme, time: game.elapsed, hints: [...game.hints], acornsLost: game.acornsLost,
     stumps: found.map(({ cell, time, by }) => ({ ...square(cell), time, by })),
     ...(misses && { misses }),
+    ...(game.whatIfs && { whatIfs: [...game.whatIfs] }),
+    ...(adventure && { adventure }),
   };
 }
 
@@ -122,7 +129,9 @@ const validSolve = (value: unknown): value is Solve => object(value)
   && duration(value.time) && count(value.acornsLost)
   && Array.isArray(value.hints) && value.hints.every((hint: unknown) => HINTS.some((h) => h === hint))
   && Array.isArray(value.stumps) && value.stumps.every(validStump)
-  && (value.misses === undefined || (Array.isArray(value.misses) && value.misses.every(validMiss)));
+  && (value.misses === undefined || (Array.isArray(value.misses) && value.misses.every(validMiss)))
+  && (value.whatIfs === undefined || (Array.isArray(value.whatIfs) && value.whatIfs.every(duration)))
+  && (value.adventure === undefined || value.adventure === true);
 
 /**
  * @param raw the saved solve log
@@ -139,12 +148,13 @@ export function parseSolves(raw: string): Solve[] | null {
 
 /**
  * CSV columns: one row per stump or wrong reveal, in the order they happened,
- * with its solve's details repeated. `wrong` was added after the first
- * recordings, so older exports lack it.
+ * with its solve's details repeated. `wrong`, then `mode` and `what_if_seconds`,
+ * were added after the first recordings, so older exports lack them.
  */
 const COLUMNS = [
   'solve', 'date', 'size', 'difficulty', 'silver', 'repeat', 'theme', 'hints', 'acorns_lost', 'total_seconds', 'code',
   'order', 'row', 'col', 'color', 'patch_size', 'found_seconds', 'found_by', 'wrong',
+  'mode', 'what_if_seconds',
 ] as const;
 
 /** A solve's stumps and wrong reveals in the order they happened. Misses are always the player's. */
@@ -168,7 +178,7 @@ export function solvesCsv(solves: readonly Solve[]): string {
     solve.id, new Date(solve.date).toISOString(), solve.size, solve.tier, solve.silver, solve.repeat, solve.theme,
     solve.hints.join(' '), solve.acornsLost, seconds(solve.time), solve.code,
     index + 1, stump.row + 1, stump.col + 1, stump.color + 1, stump.patch, seconds(stump.time), stump.by,
-    stump.wrong,
+    stump.wrong, solve.adventure ? 'adventure' : 'normal', (solve.whatIfs ?? []).map(seconds).join(' '),
   ].join(',')));
   return [COLUMNS.join(','), ...rows].join('\n');
 }

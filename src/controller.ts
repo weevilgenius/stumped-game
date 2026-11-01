@@ -9,6 +9,9 @@ import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 import type { AdventureEvent, AdventureState } from './adventure/engine';
 import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, sync } from './adventurePlay';
 
+/** Most earlier adventure runs kept for export. The oldest are dropped first. */
+const MAX_RUNS = 10;
+
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
  *  navigation, play time, and completion recording. The     *
@@ -108,6 +111,8 @@ export interface Controller {
   readonly startAdventure: () => Promise<void>;
   /** Returns to the adventure's puzzle, or starts its next one. Ignored once the run has ended. */
   readonly playAdventure: () => Promise<void>;
+  /** The current run and earlier ones, with their command logs, as JSON for analysis. */
+  readonly adventureData: () => string;
   /** Readies or unreadies an equipment slot. */
   readonly setReady: (slot: number, ready: boolean) => void;
   /** Gives up the adventure run, after confirming. */
@@ -197,8 +202,8 @@ export function createController(deps: ControllerDeps): Controller {
   }
 
   /** Adds a win to the solve log. Losing it to a failed write leaves play unaffected. */
-  const logSolve = (won: Game): void => {
-    const solve = solveOf(won, deps.date(), deps.theme?.() ?? 'woods');
+  const logSolve = (won: Game, inAdventure = false): void => {
+    const solve = solveOf(won, deps.date(), deps.theme?.() ?? 'woods', inAdventure);
     if (!solve || solves.some((other) => other.id === solve.id)) {
       return;
     }
@@ -236,6 +241,31 @@ export function createController(deps: ControllerDeps): Controller {
       storageError = 'Progress cannot be saved. Device storage may be full or unavailable; keep this page open.';
     }
   }
+
+  /** Earlier runs, oldest first, kept on the device for export. */
+  let pastRuns: unknown[] = [];
+  /** False if the saved runs could not be read, so they are never overwritten. */
+  let runsWritable = writable;
+  try {
+    const raw = deps.storage.getItem('adventureRuns');
+    const parsed: unknown = raw === null ? [] : JSON.parse(raw);
+    pastRuns = Array.isArray(parsed) ? parsed : [];
+    runsWritable &&= Array.isArray(parsed);
+  } catch {
+    runsWritable = false;
+  }
+
+  /** Keeps a run that is being replaced or dropped. Losing it to a failed write leaves play unaffected. */
+  const archive = (run: AdventureSave): void => {
+    pastRuns = [...pastRuns, run].slice(-MAX_RUNS);
+    if (writable && runsWritable) {
+      try {
+        deps.storage.setItem('adventureRuns', JSON.stringify(pastRuns));
+      } catch {
+        // Kept in memory for export until the page is closed.
+      }
+    }
+  };
 
   let { settings, game } = data;
   const { played } = data;
@@ -291,6 +321,10 @@ export function createController(deps: ControllerDeps): Controller {
       if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
         logSolve(game);
       }
+    }
+    // Adventure wins stay out of best times and stats, but the solve log keeps them, flagged.
+    if (adventure?.game?.status === 'won' && import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+      logSolve(adventure.game, true);
     }
     if (!writable) {
       return;
@@ -457,7 +491,7 @@ export function createController(deps: ControllerDeps): Controller {
   /** Plays new reveals as turns. A run that ends mid-puzzle locks the puzzle; the puzzle screen shows why, then leaves. */
   const catchUp = (): void => {
     if (adventure) {
-      report(sync(adventure));
+      report(sync(adventure, deps.date()));
     }
   };
 
@@ -495,7 +529,7 @@ export function createController(deps: ControllerDeps): Controller {
         return;
       }
       fold();
-      report(beginRound(adventure, newGame(result, false, deps.createId(), true)));
+      report(beginRound(adventure, newGame(result, false, deps.createId(), true), deps.date()));
       show('adventure');
       void prepareAdventure();
     });
@@ -579,15 +613,19 @@ export function createController(deps: ControllerDeps): Controller {
       if (adventure && adventure.state.phase !== 'ended' && !deps.confirm('Abandon the adventure under way and start a new one?')) {
         return;
       }
+      if (adventure) {
+        archive(adventure);
+      }
       adventure = newAdventure();
       adventureSaved = true;
       persist();
       await playAdventure();
     },
     playAdventure,
+    adventureData: () => JSON.stringify({ current: adventure, past: pastRuns }),
     setReady: (slot, ready) => {
       if (adventure) {
-        report(command(adventure, { type: 'set-ready', slot, ready }));
+        report(command(adventure, { type: 'set-ready', slot, ready }, deps.date()));
         persist();
         emit();
       }
@@ -598,9 +636,10 @@ export function createController(deps: ControllerDeps): Controller {
       }
       catchUp();
       if (adventure.state.phase === 'round') {
-        report(command(adventure, { type: 'end-round', outcome: 'abandoned' }));
+        report(command(adventure, { type: 'end-round', outcome: 'abandoned' }, deps.date()));
       } else {
         // shortcut: between rounds the engine has no way to end a run, so it is dropped; phase 7 adds run endings.
+        archive(adventure);
         adventure = null;
       }
       show('menu');

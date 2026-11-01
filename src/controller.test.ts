@@ -2,7 +2,7 @@ import { type Controller, type ControllerDeps, createController } from './contro
 import { decodeSeedCode, encodeSeedCode, generate, type Puzzle } from './engine';
 import { parseBoard } from './engine/testBoards';
 import { applyExplanation, beginStroke, doubleTap, explain, type Game, newGame, resultOf } from './game';
-import { parseAdventure } from './adventurePlay';
+import { type AdventureSave, parseAdventure } from './adventurePlay';
 import { newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
 
@@ -867,6 +867,26 @@ describe('adventure', () => {
       dying.changed();
     }
     expect([dying.adventure!.state.outcome, dying.screen, adventureGame(dying).status]).toEqual(['death', 'adventure', 'playing']);
+  });
+
+  it('keeps replaced runs and timestamps for export, and logs adventure wins flagged', async () => {
+    vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true');
+    const { fake, controller } = setup();
+    await controller.startAdventure();
+    const first = adventureGame(controller);
+    for (const cell of unrevealed(first)) {
+      tap(first, cell);
+      controller.changed();
+    }
+    expect(controller.solves.at(-1)).toMatchObject({ id: first.id, adventure: true });
+    const saved = savedAdventure(fake.store);
+    expect(saved.times).toHaveLength(saved.log.length);
+    controller.showMenu();
+    await controller.startAdventure();
+    const data = JSON.parse(controller.adventureData()) as { current: AdventureSave; past: AdventureSave[] };
+    expect([data.past.length, data.past[0].game?.id, data.current.game?.id === first.id]).toEqual([1, first.id, false]);
+    expect(JSON.parse(fake.store.get('adventureRuns')!)).toHaveLength(1);
+    vi.unstubAllEnvs();
   });
 
   it('gives up a run in progress after confirming', async () => {

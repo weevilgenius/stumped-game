@@ -326,6 +326,8 @@ $('settingsButton').onclick = (): void => {
   (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
   (settingsForm.elements.namedItem('sound') as HTMLInputElement).checked = !controller.settings.muted;
   $('copySolvesStatus').textContent = '';
+  $('copyAdventureStatus').textContent = '';
+  $('adventureData').hidden = !controller.settings.adventure;
   for (const name of TOGGLES) {
     const chosen: readonly string[] = controller.settings[name]?.map(String) ?? [''];
     for (const toggle of toggles(name)) {
@@ -370,6 +372,15 @@ settingsForm.onchange = (event): void => {
   });
   setMuted(!data.has('sound'));
   renderMenu();
+};
+
+/** Copies the adventure runs as JSON, for pasting into a message. */
+$('copyAdventure').onclick = (): void => {
+  const status = $('copyAdventureStatus');
+  // The clipboard is missing outside secure pages.
+  const clipboard = navigator.clipboard as Clipboard | undefined;
+  void (clipboard?.writeText(controller.adventureData()) ?? Promise.reject(new Error('no clipboard')))
+    .then(() => (status.textContent = 'Copied.'), () => (status.textContent = 'Could not copy.'));
 };
 
 /** Copies the solve log as CSV, for pasting into a spreadsheet or a message. */
