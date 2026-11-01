@@ -3,7 +3,7 @@ import type { CharacterDef, EncounterDef } from '../engine';
 import { shuffleTurns, streamSeed } from './ordering';
 import { simulate, type OrderPolicy, type ReadinessPolicy, type SimulationRound, type TrialMetrics } from './simulation';
 
-/** Four experimental loadouts, not loot definitions or proposed final balance. */
+/** Five experimental loadouts, not loot definitions or proposed final balance. */
 export const LOADOUTS: readonly CharacterDef[] = [
   WANDERER,
   { id: 'coverage', health: 20, loadout: [
@@ -18,6 +18,11 @@ export const LOADOUTS: readonly CharacterDef[] = [
     { ...DAGGER, id: 'sling', colors: [0, 1, 2, 3, 4, 5, 6, 7, 8], cooldown: 2,
       bands: [{ min: 1, value: 4 }, { min: 8, value: 5 }, { min: 15, value: 6 }] },
     { ...SHIELD, colors: [2, 3, 4] }, { ...HERBS, colors: [4, 5] },
+  ] },
+  { id: 'hunter', health: 20, loadout: [
+    { ...DAGGER, id: 'sling', colors: [0, 1, 2, 3, 4, 5, 6, 7, 8], cooldown: 2,
+      bands: [{ min: 1, value: 2 }, { min: 4, value: 3 }, { min: 8, value: 4 }, { min: 15, value: 5 }] },
+    DAGGER, SHIELD, HERBS,
   ] },
 ];
 

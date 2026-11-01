@@ -28,7 +28,7 @@ One trial starts a fresh character and one encounter. An unfinished encounter ca
 
 Solver and tactical orders are modeled even when their source is a recording. The oracle is always separate. Random shuffles are counterfactuals, not feasible player strategies. Fixed-order readiness can observe the pulse being considered, but cannot change which pulse comes next. Modeled hint reveals become player reveals, since the solver is making the choice; exact replay retains hint sources.
 
-The four experimental loadouts are the existing Wanderer, a broader coverage set, a deliberately overlapping set (herbs/shield/dagger share colors), and a specialist charge weapon with an any-color cooldown weapon. The ordinary wolf, a faster wolf, a slower harder-hitting brute, and the rockfall objective test different pressures. These variants live in the simulation harness; they do not expand the game's equipment catalog.
+The five experimental loadouts are the existing Wanderer, a broader coverage set, a deliberately overlapping set (herbs/shield/dagger share colors), a specialist charge weapon with an any-color cooldown weapon, and the Hunter. The Hunter has 20 health and prioritizes an any-color sling (two-turn cooldown; damage 2/3/4/5 across the usual size bands), followed by the dagger, shield, and herbs. This tests readiness choices when a flexible attack competes with every other item. The ordinary wolf, a faster wolf, a slower harder-hitting brute, and the rockfall objective test different pressures. These variants live in the simulation harness; they do not expand the game's equipment catalog.
 
 ## What the metrics mean
 
@@ -40,7 +40,7 @@ Energy is counted in region squares. Discarded energy is split into uncovered co
 
 ## Initial evidence, before tuning
 
-Default seed 4 produces 18,976 trials: 43 exact 9×9 recordings (26 medium) and 12 generated medium boards. One 9×9 phone recording has an unlocated mistake and is excluded from exact replay. No equipment or enemy values were tuned to obtain these results.
+Default seed 4 produces 23,720 trials across the five loadouts: 43 exact 9×9 recordings (26 medium) and 12 generated medium boards. One 9×9 phone recording has an unlocated mistake and is excluded from exact replay. No equipment or enemy values were tuned to obtain these results.
 
 For the 26 medium recorded openings against the ordinary wolf, pooling the two datasets with equal weight per play:
 
@@ -50,8 +50,11 @@ For the 26 medium recorded openings against the ordinary wolf, pooling the two d
 | Broader coverage | 11.08 | 11.08 | 26/26 | 26/26 |
 | Overlapping colors | 35.42 | 23.00 | 22/26, four unresolved | 26/26 |
 | Specialist | 12.23 | 13.35 | 25/26 | 25/26 |
+| Hunter | 19.27 | 16.19 | 21/26, five deaths | 26/26 |
 
 This supports loadout-dependent management benefits: overlapping equipment improves substantially, while balanced equipment needs little tending. The specialist also demonstrates the limits of the simple greedy readiness heuristic: it sometimes takes more damage than passive play, despite ending with more health on average. Damage alone is not the survival criterion.
+
+The Hunter also benefits from readiness management: reactive play avoids all five passive deaths in these observed medium openings. Adding it leaves the original four loadouts' 18,976 trial results unchanged.
 
 With the specialist on those same 26 medium openings, reactive solver order loses one character; choosing among solver-reachable stumps wins all 26 and reduces mean incoming damage from 12.65 to 12.04. The oracle reduces it further to 9.00. Tactical ordering is not universally better: with the Wanderer its mean damage is 14.73 versus 14.65 in solver order. On the twelve generated medium boards, Wanderer tactical ordering reduces damage slightly (14.58 to 14.42), while the overlapping loadout's tactical heuristic performs worse than solver order. Report these mixed results, rather than assuming tactical labels imply optimal decisions.
 
