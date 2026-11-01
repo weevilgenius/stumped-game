@@ -568,37 +568,38 @@ Historical world state may carry forward independently of run-specific resources
 
 The resource economy should be modeled using observed Stumped play rather than assuming that colors or pulse strengths arrive in random order.
 
-The initial dataset is `tests/sample-games.csv`: 100 won puzzles played by an experienced player, exported from the game's solve log. It spans sizes 5×5 through 10×10 and all three tiers.
+The dataset is `tests/sample-games.csv`: 141 won puzzles played by one experienced player on one tablet. It spans sizes 5×5 through 10×10 and all three tiers. The first 100 are one evening (2026-10-29, all Vallarta). The same device's later export was deduplicated and merged on 2026-11-01: those 100 plays match exactly, and the exporter's `wrong` column is filled in. The merge adds 41 wins: one 5×5 hard puzzle on 2026-10-31, then 40 games of 9×9 on 2026-11-01 (34 medium, 6 hard; 26 Woods and 14 Vallarta). `tests/barry-phone.csv` stays a separate file from the phone.
 
 How it was recorded:
 
-- A build with `VITE_COLLECT_SOLVE_DATA=true` keeps the order of every stump found (`game.found`) and adds each win to the solve log (`src/solves.ts`). `solvesCsv()` writes one row per stump.
+- A build with `VITE_COLLECT_SOLVE_DATA=true` keeps the order of every stump found (`game.found`) and adds each win to the solve log (`src/solves.ts`). `solvesCsv()` writes one row per stump, and since 0.11.5 one row per recorded wrong reveal.
 - Only wins are logged. Lost or abandoned puzzles are absent.
 - Times are play time, which pauses while the page is hidden, in tenths of a second.
-- All 100 were played in the Vallarta theme, with no hints and no repeats. 12 were silver acorn puzzles, 2 lost an acorn, and 4 boards had a one-square region.
-- The sample has 777 stumps: 5 given and 772 found by the player.
+- None of the 141 used a hint or replayed a puzzle. 13 were silver acorn puzzles, 5 lost an acorn, and 4 boards had a one-square region. 115 were Vallarta and 26 were Woods.
+- The sample has 1142 stumps: 5 given and 1137 found by the player.
+- Three of the five acorn losses record the wrong square. All three are new 9×9 medium games, each with one mistake. The other two predate mistake logging.
 
 | Size | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---:|---:|---:|---:|---:|---:|
-| Games | 8 | 17 | 19 | 16 | 26 | 14 |
+| Games | 9 | 17 | 19 | 16 | 66 | 14 |
 
-Every seed code in the sample still rebuilds its exact board with the current generator (version 2): same stump squares, palette indexes, and region sizes for all 100. The simulator can therefore use the full boards, not just the recorded collections.
+Every seed code in the sample still rebuilds its exact board with the current generator (version 2): same stump squares, palette indexes, and region sizes for all 141. The simulator can therefore use the full boards, not just the recorded collections.
 
 ### 10.1 Main findings
 
 The player's hypothesis was that small regions tend to be collected early, while larger regions become accessible later.
 
-The data supports this, particularly on easy and medium puzzles.
+The data supports this, particularly on easy puzzles and on medium 9×9 puzzles. The original evening (100 games) measured a median first collection of 3.5, a median last of 8, 67% of openings at 4 or fewer, 70% with the last collection larger than the first, and 64% with the largest region among the last three. The merged sample moves only slightly, because the new games are almost all 9×9 and finish on larger regions:
 
 | Measurement | Observed result |
 |---|---:|
-| Games analyzed | 100 |
-| Player collections | 772 |
-| Median first collection | 3.5 units |
-| Median last collection | 8 units |
-| First collections of 4 units or fewer | 67% |
-| Games where last collection exceeds first | 70% |
-| Games with largest region among last three collections (ties count) | 64% |
+| Games analyzed | 141 |
+| Player collections | 1137 |
+| Median first collection | 3 units |
+| Median last collection | 9 units |
+| First collections of 4 units or fewer | 68% |
+| Games where last collection exceeds first | 74% |
+| Games with largest region among last three collections (ties count) | 66% |
 | Largest observed region | 65 units |
 
 These are descriptive measurements from one player's sample, not universal probabilities.
@@ -608,10 +609,10 @@ These are descriptive measurements from one player's sample, not universal proba
 | Difficulty | Games | Median first collection | Median last collection |
 |---|---:|---:|---:|
 | Easy | 30 | 2 | 10 |
-| Medium | 36 | 3.5 | 8 |
-| Hard | 34 | 4 | 6 |
+| Medium | 70 | 3 | 11 |
+| Hard | 41 | 4 | 7 |
 
-The early-small/late-large effect is strongest on easy puzzles.
+Easy is unchanged, because the new export adds no easy games. The early-small/late-large effect is strongest on easy puzzles and on medium 9×9 (section 10.3).
 
 Hard puzzles exhibit greater variability, including instances where substantial reasoning occurs before the player makes any collections.
 
@@ -622,10 +623,27 @@ Larger boards show a particularly pronounced concentration of energy in later co
 | Size | Energy in first three collections | Energy in last three collections |
 |---|---:|---:|
 | 8×8 | 22% | 50% |
-| 9×9 | 18% | 52% |
+| 9×9 | 19% | 51% |
 | 10×10 | 20% | 42% |
 
-These figures exclude prefilled collections. On boards of 7×7 and smaller the first and last three overlap or nearly cover the board, so the comparison says little there.
+These figures exclude prefilled collections. On boards of 7×7 and smaller the first and last three overlap or nearly cover the board, so the comparison says little there. The 8×8 and 10×10 rows are unchanged, because no new games of those sizes were added. The earlier 26 games of 9×9 measured 18% and 52%.
+
+On the 66 tablet games of 9×9, the median pulse at each collection (givens excluded) is 3, 4, 4, 6, 6.5, 7, 8, 9, 14.
+
+| 9×9 group | Games | Median first | Median last | Last exceeds first | Largest in last three | First three energy | Last three energy |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| All tablet | 66 | 3 | 14 | 83% | 77% | 19% | 51% |
+| Easy | 7 | 2 | 22 | 100% | 86% | 14% | 57% |
+| Medium | 43 | 3 | 14 | 91% | 77% | 20% | 50% |
+| Hard | 16 | 4 | 9.5 | 56% | 75% | 20% | 50% |
+| New medium only | 34 | 3 | 14.5 | 88% | 71% | 21% | 48% |
+| Phone medium (separate file) | 18 | 4 | 10.5 | 67% | 44% | 24% | 39% |
+
+The 34 new medium games agree with the original 9 medium games (median first 3, median last 12, every one of those nine ending larger than it started). Ordinary medium openings stay small: across the 43 tablet games the minimum is 2, the median is 3, the 75th percentile is 5, and the maximum is 14. The median curve rises overall and dips at the fifth collection (8, then 6, then 7), so a middle collection is often smaller than the one before it. The last collection is the large one.
+
+Hard 9×9 stays the uneven group. Last exceeds first in 56% of the 16 games. The six new hard games finish on a very large region (median last collection 24.5) after several small ones, which is enough to move a median at that sample size. Their median play time is about 93 seconds, against about 50 seconds for the new medium games. One lasted 326 seconds.
+
+The phone's 18 medium games are the outlier from this same player. The largest region falls among the last three collections in 44% of them, and the last three collections hold 39% of the energy. Median play time is about 61 seconds, so the flatter order is a slower session than the new tablet medium games. Inside that tablet session, Woods (23 medium games) and Vallarta (11) both put about 21% of energy in the first three collections and about half in the last three. Theme does not account for the phone difference.
 
 The same board's colors and region sizes would produce different tactical opportunities if collected in another order.
 
@@ -654,15 +672,15 @@ The presenter should support interruptible, compressed, or queued animations wit
 
 ### 10.6 Limitations
 
-The initial sample represents one experienced player, over one evening, in one theme. Other family members may have different collection patterns.
+The sample is still one experienced player. It now covers three days and two themes on the tablet, plus a phone file whose medium 9×9 games do not share the tablet's late-energy concentration. Other family members may have different collection patterns.
 
 The trace records when a stump was revealed, not when its location was first deduced. It therefore cannot directly measure deliberate withholding of known stumps. Because the boards can be rebuilt, the solver can estimate which stumps were deducible at each point, but not which ones the player had actually found.
 
-Wrong reveals are not individually recorded. The `acorns_lost` count identifies the 2 affected games but not when their wrong turns happened.
+Wrong reveals are located in 3 of the 5 games that lost an acorn. Each of those three lost one acorn, at recorded orders 2, 5, and 7, all on 9×9 medium boards from 2026-11-01. The new session's mistake rate among wins is 3 of 41. The other two losses predate mistake logging, so their wrong turns have no position. 139 of the 141 tablet games are exact replays.
 
 X marks are not recorded, so the player's board state between reveals is unknown.
 
-The first dataset is suitable for analyzing collection order and strength, but cannot exactly reconstruct every tactical turn in games containing wrong reveals.
+The dataset is suitable for analyzing collection order and strength. It can reconstruct tactical turns for the 139 exact replays, including the three located mistakes, and cannot do so for the two older losses.
 
 ### 10.7 Implications for game balance
 
@@ -721,7 +739,7 @@ Raw recordings are CSV exports from the game, kept unchanged with their original
 
 ```text
 tests/
-  sample-games.csv    initial 100 solves (tablet, Vallarta theme)
+  sample-games.csv    141 tablet solves: the original evening plus 41 later wins, 40 of them 9×9
   barry-phone.csv     20 more by the same player on a phone (Woods theme): 18 9×9 medium, 2 7×7 medium
 ```
 
@@ -800,7 +818,7 @@ The importer should group rows by solve identifier and validate:
 - Collection order is 1 to N with no gaps.
 - Collection timestamps are nondecreasing.
 - Puzzle metadata agrees across rows sharing an identifier.
-- The seed code decodes and rebuilds a board whose stump squares, colors, and region sizes match the rows. All 100 sample codes do today. If `GENERATOR_VERSION` is bumped, old codes keep working only while the old generator is kept (see `src/engine/README.md`), and this check is what notices.
+- The seed code decodes and rebuilds a board whose stump squares, colors, and region sizes match the rows. All 141 sample codes do today. If `GENERATOR_VERSION` is bumped, old codes keep working only while the old generator is kept (see `src/engine/README.md`), and this check is what notices.
 - Invalid or incomplete recordings are reported rather than silently repaired.
 
 For a baseline simulation, only `found_by=player` entries generate collection turns. Given stumps appear in the round manifest but do not generate turns. Hint reveals follow the rule chosen in section 16; the sample has none.
@@ -813,7 +831,7 @@ Recordings made before version 0.11.5 do not locate wrong reveals within the tur
 - Include all recordings in descriptive collection-order statistics.
 - Model wrong turns synthetically when testing loss sensitivity.
 
-Since 0.11.5, `reveal()` in `src/game.ts` records each wrong reveal in `game.misses`, with its square, play time, and the number of stumps found before it. It is kept beside `game.found` rather than in it, because older versions of the game reject a save whose found list holds a square that is not a stump. `solveOf()` copies the misses into the solve only when there is one for every acorn lost, and `solvesCsv()` writes them as rows in turn order with a `wrong` column. The importer reads exports with and without that column; a play is an exact replay when its wrong rows account for every acorn lost.
+Since 0.11.5, `reveal()` in `src/game.ts` records each wrong reveal in `game.misses`, with its square, play time, and the number of stumps found before it. It is kept beside `game.found` rather than in it, because older versions of the game reject a save whose found list holds a square that is not a stump. `solveOf()` copies the misses into the solve only when there is one for every acorn lost, and `solvesCsv()` writes them as rows in turn order with a `wrong` column. The importer reads exports with and without that column; a play is an exact replay when its wrong rows account for every acorn lost. In the merged tablet file that is 139 games: 136 with no loss, and 3 whose single mistake was logged. The two older losses stay in the statistics and out of exact replay.
 
 ### 11.6 Simulated player policies
 

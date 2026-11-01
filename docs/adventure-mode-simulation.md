@@ -38,31 +38,31 @@ Raw metrics include effective outgoing damage, net incoming damage (including ov
 
 Energy is counted in region squares. Discarded energy is split into uncovered colors, cooldowns, and other context/readiness restrictions. Energy accepted into an unfinished charge is consumed but separately counted as abandoned at a round boundary or death. Full-health healing is routed but restores zero health. Thus a low discard percentage alone does not establish useful equipment. Supplies totals also depend on how many puzzles an encounter lasts; compare combat fraction, resolution time, and resource income together.
 
-## Initial evidence, before tuning
+## Evidence from the extended sample, before tuning
 
-Default seed 4 produces 23,720 trials across the five loadouts: 43 exact 9×9 recordings (26 medium) and 12 generated medium boards. One 9×9 phone recording has an unlocated mistake and is excluded from exact replay. No equipment or enemy values were tuned to obtain these results.
+`pnpm simulate` with seed 4, after the tablet sample grew to 141 wins, produces 41,320 trials across the five loadouts: 83 exact 9×9 recordings (60 medium) and 12 generated medium boards. One 9×9 phone recording still has an unlocated mistake and is excluded from exact replay. No equipment or enemy values were tuned to obtain these results. An earlier run on 43 exact recordings (26 medium) produced 23,720 trials; the comparisons below replace that write-up. The twelve generated boards are unchanged, because they depend on the seed rather than the recordings.
 
-For the 26 medium recorded openings against the ordinary wolf, pooling the two datasets with equal weight per play:
+For the 60 medium recorded openings against the ordinary wolf, pooling the two datasets with equal weight per play:
 
 | Loadout | Passive mean damage taken | Reactive mean damage taken | Passive encounter successes | Reactive encounter successes |
 |---|---:|---:|---:|---:|
-| Wanderer | 13.85 | 13.85 | 26/26 | 26/26 |
-| Broader coverage | 11.08 | 11.08 | 26/26 | 26/26 |
-| Overlapping colors | 35.42 | 23.00 | 22/26, four unresolved | 26/26 |
-| Specialist | 12.23 | 13.35 | 25/26 | 25/26 |
-| Hunter | 19.27 | 16.19 | 21/26, five deaths | 26/26 |
+| Wanderer | 13.62 | 13.62 | 60/60 | 60/60 |
+| Broader coverage | 10.98 | 10.98 | 60/60 | 60/60 |
+| Overlapping colors | 34.93 | 22.00 | 54/60, one death and five unresolved | 60/60 |
+| Specialist | 11.88 | 13.37 | 59/60 | 59/60 |
+| Hunter | 18.25 | 15.68 | 51/60, nine deaths | 59/60, one death |
 
-This supports loadout-dependent management benefits: overlapping equipment improves substantially, while balanced equipment needs little tending. The specialist also demonstrates the limits of the simple greedy readiness heuristic: it sometimes takes more damage than passive play, despite ending with more health on average. Damage alone is not the survival criterion.
+This supports loadout-dependent management benefits: overlapping equipment improves substantially, while balanced equipment needs little tending. The specialist also demonstrates the limits of the simple greedy readiness heuristic: it takes more damage than passive play and does not save the one death, despite ending with more health on average. Damage alone is not the survival criterion.
 
-The Hunter also benefits from readiness management: reactive play avoids all five passive deaths in these observed medium openings. Adding it leaves the original four loadouts' 18,976 trial results unchanged.
+The Hunter still benefits from readiness management. Reactive play avoids eight of the nine passive deaths in these observed medium openings. One tablet opening still kills the Hunter under reactive play, so management is a large advantage here and not a guarantee.
 
-With the specialist on those same 26 medium openings, reactive solver order loses one character; choosing among solver-reachable stumps wins all 26 and reduces mean incoming damage from 12.65 to 12.04. The oracle reduces it further to 9.00. Tactical ordering is not universally better: with the Wanderer its mean damage is 14.73 versus 14.65 in solver order. On the twelve generated medium boards, Wanderer tactical ordering reduces damage slightly (14.58 to 14.42), while the overlapping loadout's tactical heuristic performs worse than solver order. Report these mixed results, rather than assuming tactical labels imply optimal decisions.
+With the specialist on those same 60 medium openings, reactive solver order loses one character (a phone recording); choosing among solver-reachable stumps wins all 60 and reduces mean incoming damage from 12.88 to 12.50. The oracle reduces it further to 8.15. Tactical ordering is not universally better. On the Wanderer it is a small improvement (14.00 to 13.97) and it avoids the one solver death, but broader coverage takes slightly more damage under tactical order while also avoiding a solver death. On the twelve generated medium boards, Wanderer tactical ordering reduces damage slightly (14.58 to 14.42), while the overlapping loadout's tactical heuristic performs worse than solver order (22.00 to 23.58). Report these mixed results, rather than assuming tactical labels imply optimal decisions.
 
-Starting equipment survives the ordinary wolf in all 26 observed medium trials and all twelve generated solver/tactical trials, with no unresolved fights. This is a plausible opening, but cannot distinguish a true 95% survival rate from an overly forgiving enemy. More players and later progression are needed before claiming the target is calibrated.
+Starting equipment survives the ordinary wolf in all 60 observed medium trials and all twelve generated solver/tactical trials, with no unresolved fights. This is a plausible opening, but cannot distinguish a true 95% survival rate from an overly forgiving enemy. More players and later progression are needed before claiming the target is calibrated. The larger pool did not create a Wanderer loss on observed order.
 
 As a mistake sensitivity check, `pnpm simulate tests/barry-phone.csv --shuffles 1 --generated 0 --wrong 2 --out reports/phase4-wrong` includes all eighteen medium phone recordings with two seeded wrong turns per puzzle. Three of the eighteen observed-order, reactive Wanderer/wolf trials die. This is modeled stress evidence, not the ordinary zero-mistake opening target. Repeating this command produces byte-identical JSON.
 
-Broader coverage reduces discarded energy in observed/reactive medium trials from 10.2% for the Wanderer to 1.3%, with average supplies increasing from 4.62 to 9.50 per trial. However, the current starter already covers eight of nine colors. It does not yet demonstrate the intended substantial early waste, and a broader loadout can dominate a weak one as expected for better loot. These are progression/content questions to revisit when choosing starting equipment and actual loot, rather than evidence to alter pulse routing now.
+Broader coverage reduces discarded energy in observed/reactive medium trials from 10.0% for the Wanderer to 1.6%, with average supplies increasing from 5.03 to 10.32 per trial. However, the current starter already covers eight of nine colors. It does not yet demonstrate the intended substantial early waste, and a broader loadout can dominate a weak one as expected for better loot. These are progression/content questions to revisit when choosing starting equipment and actual loot, rather than evidence to alter pulse routing now.
 
 The strategic premise is supported for readiness with overlapping equipment, and more modestly for solver-constrained ordering. There is no evidence here that ordinary survival requires oracle ordering. Keep the existing mechanics for integration/playtesting, retain the faster enemies as stress cases, and revisit starting coverage and greedy-policy limitations before declaring balance complete. Bounded experiments cannot establish campaign economy safety or the relative value of actual loot draws.
 
