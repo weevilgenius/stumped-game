@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
+import type { AdventureEvent, AdventureState, ItemDef, SlotState } from './adventure/engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
   explainPages, extendStroke, flaggedStumps, formatTime, type Game, type Hint, HINTS, HYPO_STUMP,
@@ -45,6 +46,14 @@ const STROKE_SOUNDS: Record<NonNullable<StrokeMode>, Sound> = { place: 'x', eras
 const MAX_PIXEL_RATIO = 3;
 /** Size vector icons are drawn at before they are scaled down to fit a square. */
 const VECTOR_ICON_PX = 512;
+/** Height of the adventure strip, in CSS pixels. */
+const STRIP_PX = 88;
+/** Character and enemy health bar colors. */
+const HEALTH_COLOR = 0x5cb85c;
+const ENEMY_COLOR = 0xd9534f;
+const OBJECTIVE_COLOR = 0xe0b84a;
+/** Smallest damage of the medium and big hit tiers. Shortcut: fixed for the sandbox wolf; tune with real enemies. */
+const HIT_TIERS = [4, 7];
 
 /* ========================================================= *\
  *  Scene                                                    *
@@ -68,6 +77,16 @@ export interface PuzzleOptions {
   readonly onHelp: () => void;
   /** Colors and art to draw with. */
   readonly theme: Theme;
+  /** The adventure this puzzle belongs to, shown in a strip above the board. Absent in ordinary play. */
+  readonly adventure?: AdventureView;
+}
+
+/** What the puzzle screen needs from an adventure. */
+export interface AdventureView {
+  /** The run now, read whenever the strip is drawn. */
+  readonly state: () => Readonly<AdventureState>;
+  /** Readies or unreadies an equipment slot. */
+  readonly setReady: (slot: number, ready: boolean) => void;
 }
 
 interface Rect {
@@ -137,6 +156,8 @@ class PuzzleScene extends Phaser.Scene {
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
   private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
   private inputState = '';
+  /** Where the adventure strip goes, and what is drawn there now. */
+  private strip: { r: Rect; parts: Phaser.GameObjects.GameObject[] } | null = null;
 
   constructor() {
     super('puzzle');
@@ -235,6 +256,7 @@ class PuzzleScene extends Phaser.Scene {
     this.stroke = null;
     this.countText = undefined;
     this.timerText = undefined;
+    this.strip = null;
 
     this.cameras.main.setBackgroundColor(this.theme.background);
     const { width, height, zoom } = this.scale;
@@ -244,9 +266,10 @@ class PuzzleScene extends Phaser.Scene {
     const bar = 52 * u;
     const below = 176 * u;
     const beside = 300 * u;
+    const strip = this.options.adventure ? STRIP_PX * u : 0;
 
     // Controls go under the board or beside it, whichever leaves the board larger.
-    const tall = Math.min(width - 2 * pad, height - bar - below - pad);
+    const tall = Math.min(width - 2 * pad, height - bar - strip - below - pad);
     const wide = Math.min(height - 2 * pad, width - beside - 3 * pad);
     const cell = this.cellSize = Math.max(8, Math.floor(Math.max(tall, wide) / n));
     const board = cell * n;
@@ -254,8 +277,11 @@ class PuzzleScene extends Phaser.Scene {
     let controls: Rect;
     if (tall >= wide) {
       this.boardX = Math.round((width - board) / 2);
-      this.boardY = Math.round(bar + (height - bar - board - below) / 2);
+      this.boardY = Math.round(bar + strip + (height - bar - strip - board - below) / 2);
       status = { x: pad, y: 0, w: width - 2 * pad, h: bar };
+      if (strip) {
+        this.strip = { r: { x: pad, y: this.boardY - strip, w: width - 2 * pad, h: strip - pad }, parts: [] };
+      }
       controls = { x: pad, y: this.boardY + board + 2 * pad, w: width - 2 * pad, h: below - 2 * pad };
     } else {
       const side = Math.min(width - board - 3 * pad, 420 * u);
@@ -263,10 +289,18 @@ class PuzzleScene extends Phaser.Scene {
       this.boardY = Math.round((height - board) / 2);
       status = { x: this.boardX + board + pad, y: pad, w: side, h: bar };
       controls = { x: status.x, y: bar + 3 * pad, w: side, h: height - bar - 4 * pad };
+      if (strip) {
+        this.strip = { r: { x: controls.x, y: controls.y, w: side, h: strip - pad }, parts: [] };
+        controls.y += strip;
+        controls.h -= strip;
+      }
     }
 
     this.makeTextures();
-    if (tall >= wide) {
+    if (this.strip) {
+      // The adventure strip takes the flags' place.
+      this.drawStrip();
+    } else if (tall >= wide) {
       this.drawFlags({ x: 0, y: bar, w: width, h: this.boardY - 2 * pad - bar });
     } else if (this.theme.flags.length > 0) {
       // Two 52px button rows with 10px gaps need 124px. The stacked layout's
@@ -683,7 +717,8 @@ class PuzzleScene extends Phaser.Scene {
       ? `Explanation ${explanation.index + 1} of ${explanation.pages.length}. ${explanation.pages[explanation.index].text}`
       : this.model.status === 'won' ? `Solved! ${timeAward(resultOf(this.model), this.options.results) ?? ''}`.trim()
         : this.model.status === 'lost' ? 'Stumped.'
-          : this.blocked() ? 'Wrong reveal. Wait for feedback to finish.' : '';
+          : this.ended ? 'Defeated.'
+            : this.blocked() ? 'Wrong reveal. Wait for feedback to finish.' : '';
     this.accessible?.render(
       [this.boardX / this.u, this.boardY / this.u, this.cellSize * this.model.puzzle.size / this.u],
       [...this.controls.values()].map(({ view, dim }) => ({
@@ -928,11 +963,218 @@ class PuzzleScene extends Phaser.Scene {
     this.time.delayedCall(END_MS, () => this.leave());
   }
 
+  /* ------------------------------------------------------- *\
+   *  Adventure strip: the character and equipment on the    *
+   *  left, the encounter on the right. Placeholder art; it  *
+   *  is redrawn whole from the run after every change.      *
+  \* ------------------------------------------------------- */
+
+  /**
+   * Redraws the strip from the run, then plays brief effects for what just happened.
+   * Redrawing cuts off any effect still running, so rapid reveals never queue.
+   * @param events what just happened, in order
+   */
+  private drawStrip(events: readonly AdventureEvent[] = []): void {
+    const strip = this.strip;
+    const view = this.options.adventure;
+    if (!strip || !view) {
+      return;
+    }
+    this.tweens.killTweensOf(strip.parts);
+    strip.parts.forEach((part) => part.destroy());
+    strip.parts = [];
+    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot'))) {
+      this.controls.delete(name);
+    }
+    const state = view.state();
+    const { r } = strip;
+    const { u } = this;
+    const add = <T extends Phaser.GameObjects.GameObject>(part: T): T => {
+      strip.parts.push(part);
+      return part;
+    };
+    const left = r.w * 0.62;
+    const barH = 12 * u;
+    const top = r.y + 4 * u;
+
+    // The character: health, block, and one chip per equipment slot.
+    const block = state.block > 0 ? 34 * u : 0;
+    const health = this.healthBar(add, r.x, top, left - block, barH, state.health / state.maxHealth, HEALTH_COLOR,
+      `${state.health}/${state.maxHealth}`);
+    if (block) {
+      const g = add(this.add.graphics());
+      this.glyph(g, 'block', r.x + left - block / 2 - 6 * u, top + barH / 2, barH * 1.2, this.theme.cream);
+      add(this.add.text(r.x + left, top + barH / 2, `${state.block}`, this.textStyle(12)).setOrigin(1, 0.5));
+    }
+    const chipY = top + barH + 6 * u;
+    const chipH = r.y + r.h - chipY;
+    const gap = 6 * u;
+    const count = state.slots.length;
+    const chipW = Math.min((left - gap * (count - 1)) / count, chipH * 1.3);
+    const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i, r.x + i * (chipW + gap), chipY, chipW, chipH));
+
+    // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
+    const ex = r.x + left + 12 * u;
+    const ew = r.x + r.w - ex;
+    const encounter = state.encounter;
+    let enemy: Phaser.GameObjects.Rectangle | undefined;
+    if (encounter) {
+      const won = encounter.phase === 'scavenge';
+      const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
+      enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
+      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13)).setOrigin(0, 0));
+      if (won) {
+        enemy.setAlpha(0.5);
+        add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
+      } else {
+        const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
+        this.healthBar(add, ex + 6 * u, top + 20 * u, ew - 12 * u, barH, fill,
+          encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
+        const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
+        const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
+        const pips = '\u25cf'.repeat(tier) + '\u25cb'.repeat(3 - tier);
+        add(this.add.text(ex + 6 * u, top + 38 * u, `${encounter.type === 'enemy' ? 'Hits' : 'Falls'} in ${encounter.countdown}`,
+          { ...this.textStyle(13), fontStyle: 'normal' }));
+        add(this.add.text(ex + 6 * u, top + 56 * u, pips, { ...this.textStyle(13), color: cssColor(ENEMY_COLOR) }));
+      }
+    }
+
+    // Effects, on top of the fresh drawing.
+    let color = 0;
+    for (const event of events) {
+      if (event.type === 'collected') {
+        color = event.color;
+      } else if (event.type === 'pulse-routed' || event.type === 'ability-charged' || event.type === 'ability-activated') {
+        this.flash(add, chips[event.slot], 0xffffff);
+      } else if (event.type === 'pulse-discarded') {
+        // The pulse fizzles at the character's side.
+        const size = 18 * u;
+        const fizzle = add(this.add.rectangle(r.x + size, chipY + chipH / 2, size, size, this.theme.palette[color])
+          .setRounded(4 * u).setDepth(4));
+        this.tweens.add({ targets: fizzle, alpha: 0, scale: 0.3, y: `-=${chipH / 2}`, duration: 500, ease: 'Quad.easeIn' });
+      } else if (event.type === 'damage-applied') {
+        const target = event.target === 'character' ? health : enemy;
+        if (target) {
+          this.flash(add, target, event.target === 'character' ? ENEMY_COLOR : 0xffffff);
+        }
+      } else if (event.type === 'run-ended' && event.outcome === 'death') {
+        this.defeat();
+      }
+    }
+  }
+
+  /** Draws a bar filled by `fraction`, with an optional label. Returns its background, for flashes. */
+  private healthBar(
+    add: <T extends Phaser.GameObjects.GameObject>(part: T) => T,
+    x: number, y: number, w: number, h: number, fraction: number, color: number, label: string,
+  ): Phaser.GameObjects.Rectangle {
+    const { u } = this;
+    const back = add(this.add.rectangle(x + w / 2, y + h / 2, w, h, this.theme.woodDark).setRounded(h / 2));
+    const filled = Phaser.Math.Clamp(fraction, 0, 1) * w;
+    if (filled > 0) {
+      add(this.add.rectangle(x + filled / 2, y + h / 2, Math.max(filled, h), h, color).setRounded(h / 2));
+    }
+    if (label) {
+      add(this.add.text(x + w - 4 * u, y + h / 2, label, this.textStyle(10)).setOrigin(1, 0.5));
+    }
+    return back;
+  }
+
+  /** Draws one equipment chip: its effect, its colors, and its cooldown. Tapping it toggles readiness. */
+  private chip(
+    add: <T extends Phaser.GameObjects.GameObject>(part: T) => T,
+    state: Readonly<AdventureState>, slot: SlotState, index: number, x: number, y: number, w: number, h: number,
+  ): Phaser.GameObjects.Rectangle {
+    const { u } = this;
+    const { item } = slot;
+    const back = add(this.add.rectangle(x + w / 2, y + h / 2, w, h, this.theme.wood).setRounded(8 * u));
+    const g = add(this.add.graphics());
+    this.glyph(g, item.effect, x + w / 2, y + h * 0.32, h * 0.38, this.theme.cream);
+    // Color swatches; a charge item's are hollow until it takes that color this round.
+    const size = Math.min(12 * u, (w - 8 * u) / item.colors.length - 3 * u);
+    const sx = x + (w - item.colors.length * (size + 3 * u) + 3 * u) / 2;
+    item.colors.forEach((color, i) => {
+      const cx = sx + i * (size + 3 * u);
+      const cy = y + h * 0.72;
+      if (!item.charge || slot.charged.includes(color)) {
+        g.fillStyle(this.theme.palette[color]).fillRoundedRect(cx, cy, size, size, 2 * u);
+      } else {
+        g.lineStyle(2 * u, this.theme.palette[color]).strokeRect(cx + u, cy + u, size - 2 * u, size - 2 * u);
+      }
+    });
+    const parts: Phaser.GameObjects.GameObject[] = [back, g];
+    const wait = slot.readyAt - (state.round?.turn ?? 0);
+    if (wait > 0) {
+      parts.push(add(this.add.text(x + w - 4 * u, y + 3 * u, `${wait}`, this.textStyle(13)).setOrigin(1, 0)));
+    }
+    if (!slot.ready) {
+      parts.forEach((part) => (part as unknown as Phaser.GameObjects.Components.AlphaSingle).setAlpha(0.35));
+    }
+    const name = `slot${index}`;
+    const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
+    this.controls.set(name, {
+      view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
+      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+    });
+    back.setInteractive().on('pointerdown', () => this.activateControl(name));
+    return back;
+  }
+
+  /** Placeholder art for an item's effect, centered on (x, y). */
+  private glyph(g: Phaser.GameObjects.Graphics, effect: ItemDef['effect'], x: number, y: number, size: number, color: number): void {
+    const s = size / 2;
+    g.fillStyle(color).lineStyle(Math.max(2, size * 0.14), color);
+    if (effect === 'attack') {
+      g.lineBetween(x - s * 0.7, y + s * 0.7, x + s * 0.8, y - s * 0.8).lineBetween(x - s * 0.7, y, x, y + s * 0.7);
+    } else if (effect === 'block') {
+      g.fillPoints([
+        new Phaser.Math.Vector2(x - s * 0.8, y - s * 0.8), new Phaser.Math.Vector2(x + s * 0.8, y - s * 0.8),
+        new Phaser.Math.Vector2(x + s * 0.7, y + s * 0.1), new Phaser.Math.Vector2(x, y + s),
+        new Phaser.Math.Vector2(x - s * 0.7, y + s * 0.1),
+      ], true);
+    } else if (effect === 'heal') {
+      g.fillRect(x - s * 0.25, y - s * 0.8, s * 0.5, s * 1.6).fillRect(x - s * 0.8, y - s * 0.25, s * 1.6, s * 0.5);
+    } else {
+      g.fillCircle(x, y + s * 0.2, s * 0.7).fillRect(x - s * 0.3, y - s * 0.8, s * 0.6, s * 0.4);
+    }
+  }
+
+  /** Briefly flashes a color over a strip element. */
+  private flash(
+    add: <T extends Phaser.GameObjects.GameObject>(part: T) => T, target: Phaser.GameObjects.Rectangle, color: number,
+  ): void {
+    const over = add(this.add.rectangle(target.x, target.y, target.width, target.height, color, 0.7)
+      .setRounded(8 * this.u).setDepth(4));
+    this.tweens.add({ targets: over, alpha: 0, duration: 350, ease: 'Quad.easeIn' });
+  }
+
+  /**
+   * Shows what just happened in the adventure.
+   * @param events the engine's events, in order
+   */
+  adventureChanged(events: readonly AdventureEvent[]): void {
+    this.drawStrip(events);
+    this.syncAccessible();
+  }
+
+  /** The run ended mid-puzzle: the character died. The board locks under a banner, then returns to the main screen. */
+  private defeat(): void {
+    if (this.ended) {
+      return;
+    }
+    this.ended = true;
+    this.options.onChange();
+    this.playEffect('lose', 0.25);
+    this.drawBanner(true);
+    this.time.delayedCall(END_MS, () => this.leave());
+  }
+
   private drawBanner(animate: boolean): void {
     const { u, model } = this;
     const board = this.cellSize * model.puzzle.size;
     const won = model.status === 'won';
-    const title = won ? (isPerfectlyMarked(model) ? 'Perfectly Marked' : 'Solved!') : 'Stumped.';
+    const title = won ? (isPerfectlyMarked(model) ? 'Perfectly Marked' : 'Solved!')
+      : model.status === 'lost' ? 'Stumped.' : 'Defeated';
     const award = won ? timeAward(resultOf(model), this.options.results) : null;
     const height = award ? 176 : 104;
     const bannerW = Math.min(board * 0.94, 310 * u);
@@ -1012,4 +1254,15 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
       game.scale.resize(width, height);
     }
   }).observe(parent);
+}
+
+/**
+ * Passes adventure events to the puzzle screen, if it is showing an adventure.
+ * @param events the engine's events, in order
+ */
+export function showAdventureEvents(events: readonly AdventureEvent[]): void {
+  const scene = phaser?.scene.getScene('puzzle') as PuzzleScene | null | undefined;
+  if (scene?.sys.isActive()) {
+    scene.adventureChanged(events);
+  }
 }
