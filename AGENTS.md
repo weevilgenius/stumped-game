@@ -22,6 +22,8 @@ changes:
 - Build project: `pnpm run build`
 - Solve trace report for adventure mode: `pnpm traces [files...]` (default every
   `tests/*.csv` recording; writes replay rounds to `reports/`, gitignored)
+- Adventure strategy experiments: `pnpm simulate [files...]` (9×9 recordings plus
+  generated medium boards; reports and raw metrics in `reports/phase4/`, gitignored)
 
 ## Hosting
 

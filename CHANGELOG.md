@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.0
+- Add adventure strategy simulations to compare equipment, readiness, and reveal order before interactive playtesting.
+
 ## 0.11.5
 - The solve record now also keeps each wrong guess: where it was, its color, and when it happened.
 
