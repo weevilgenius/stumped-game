@@ -1,5 +1,8 @@
 import type { Tier } from './engine';
 
+/** How often new puzzles use a single acorn. */
+export type SilverMode = 'always' | 'sometimes' | 'never';
+
 /* ========================================================= *\
  *  Settings saved by earlier versions                       *
 \* ========================================================= */

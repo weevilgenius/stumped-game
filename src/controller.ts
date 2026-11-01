@@ -4,7 +4,7 @@ import {
 import { type Game, isClean, newGame, type Result, resultOf, topResults } from './game';
 import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseSave } from './save';
 import type { Generate } from './generator';
-import type { Choices } from './settings';
+import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 
 /* ========================================================= *\
@@ -18,8 +18,8 @@ import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'sizeMix' | 'shape' | 'freebies'>> {
   /** Show the timer during play. */
   timer: boolean;
-  /** Give every puzzle a single acorn. */
-  silver: boolean;
+  /** How often new puzzles use a single acorn. */
+  silver: SilverMode;
   /** Silence sound effects. Missing in saves from before there was sound. */
   muted?: boolean;
 }
@@ -277,12 +277,12 @@ export function createController(deps: ControllerDeps): Controller {
     if (prepared?.key !== key) {
       prepared?.abort.abort();
       const { sizes, tiers, ...rest } = fixed;
-      // With the setting off, about one puzzle in five is still silver, unless size and difficulty are both fixed.
-      const always = silver || (sizes?.length === 1 && tiers?.length === 1 ? false : undefined);
+      // Sometimes leaves the generator's one-in-five chance in control.
+      const singleAcorn = silver === 'sometimes' ? undefined : silver === 'always';
       const pick = <T>(choices: readonly T[] | undefined): T | undefined => (
         choices?.[Math.floor(deps.random() * choices.length)]);
       const request = {
-        settings: randomSettings(deps.random, { ...rest, size: pick(sizes), tier: pick(tiers), silver: always }),
+        settings: randomSettings(deps.random, { ...rest, size: pick(sizes), tier: pick(tiers), silver: singleAcorn }),
         seed: Math.floor(deps.random() * 2 ** 32),
       };
       const abort = new AbortController();

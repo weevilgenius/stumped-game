@@ -561,6 +561,7 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
   await settings.getByRole('checkbox', { name: '5×5' }).check();
   await settings.getByRole('checkbox', { name: 'Easy' }).check();
   await settings.getByLabel('Show timer').uncheck();
+  await settings.getByLabel('Silver acorn mode').selectOption('never');
   await page.getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'New puzzle' }).click();
   await puzzleReady(page);
@@ -578,6 +579,36 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
     (window as unknown as { stumped: Scene }).stumped.model.puzzle.code !== code), first.puzzle.code);
   expect((await model(page)).puzzle.size).toBe(5);
 });
+
+for (const silver of ['always', 'sometimes', 'never'] as const) {
+  test(`silver acorn mode ${silver} persists and controls new puzzles`, async ({ page }) => {
+    await page.addInitScript(() => {
+      const random = Math.random;
+      Math.random = () => 0;
+      document.addEventListener('DOMContentLoaded', () => { Math.random = random; }, { once: true });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const settings = page.locator('#settings');
+    const mode = settings.getByLabel('Silver acorn mode');
+    await expect(mode).toHaveValue('sometimes');
+    await expect(mode.locator('option')).toHaveText(['Always', 'Sometimes', 'Never']);
+    await settings.getByRole('checkbox', { name: '5×5' }).check();
+    await settings.getByRole('checkbox', { name: 'Easy' }).check();
+    await mode.selectOption(silver);
+    await settings.getByLabel('Show timer').uncheck();
+    await settings.getByRole('button', { name: 'Done' }).click();
+    await page.reload();
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await expect(mode).toHaveValue(silver);
+    await settings.getByRole('button', { name: 'Done' }).click();
+    await page.getByRole('button', { name: 'New puzzle' }).click();
+    await puzzleReady(page);
+    const game = await model(page);
+    expect(game.puzzle.silver).toBe(silver !== 'never');
+    expect(game.acorns).toBe(silver === 'never' ? 3 : 1);
+  });
+}
 
 test('toggled sizes and difficulties persist and control new puzzles', async ({ page }) => {
   await page.addInitScript(() => {

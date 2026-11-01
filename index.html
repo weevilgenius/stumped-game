@@ -136,7 +136,11 @@
           <label><input type="checkbox" name="tiers" value="medium" />Medium</label>
           <label><input type="checkbox" name="tiers" value="hard" />Hard</label>
         </fieldset>
-        <label><span><span data-silver="Title">Silver acorn</span> mode</span> <input type="checkbox" name="silver" /></label>
+        <label><span><span data-silver="Title">Silver acorn</span> mode</span> <select name="silver">
+          <option value="always">Always</option>
+          <option value="sometimes" selected>Sometimes</option>
+          <option value="never">Never</option>
+        </select></label>
         <label>Show timer <input type="checkbox" name="timer" /></label>
         <label>Sound effects <input type="checkbox" name="sound" /></label>
         <fieldset>

@@ -1,5 +1,6 @@
 import './index.css';
 import type { Tier } from './engine';
+import type { SilverMode } from './settings';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
 import { openPuzzle } from './puzzleScene';
@@ -126,7 +127,7 @@ const summary = (): string => {
     sizes ? either(sizes.map((size) => `${size}×${size}`)) : 'Any size',
     tiers ? `${either(tiers.map((tier, index) => (index ? tier : `${tier[0].toUpperCase()}${tier.slice(1)}`)))} difficulty`
       : 'Any difficulty',
-    silver ? theme.silverName : 'A fresh puzzle every time',
+    silver === 'always' ? theme.silverName : 'A fresh puzzle every time',
   ].join(' · ');
 };
 
@@ -265,7 +266,7 @@ $<HTMLFormElement>('codeForm').onsubmit = (event): void => {
 
 const settingsDialog = $<HTMLDialogElement>('settings');
 const settingsForm = settingsDialog.querySelector('form')!;
-const SELECTS = ['sizeMix', 'shape', 'freebies'] as const;
+const SELECTS = ['sizeMix', 'shape', 'freebies', 'silver'] as const;
 /** Groups of toggles where checking none means Any, which has the empty value. */
 const TOGGLES = ['sizes', 'tiers'] as const;
 
@@ -278,7 +279,7 @@ $('settingsButton').onclick = (): void => {
   for (const name of SELECTS) {
     (settingsForm.elements.namedItem(name) as HTMLSelectElement).value = String(controller.settings[name] ?? '');
   }
-  for (const name of ['timer', 'silver'] as const) {
+  for (const name of ['timer'] as const) {
     (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
   }
   (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
@@ -317,7 +318,7 @@ settingsForm.onchange = (event): void => {
   const level = (name: string): number | undefined => (data.get(name) ? Number(data.get(name)) : undefined);
   controller.updateSettings({
     timer: data.has('timer'),
-    silver: data.has('silver'),
+    silver: data.get('silver') as SilverMode,
     muted: !data.has('sound'),
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
