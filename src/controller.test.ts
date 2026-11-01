@@ -841,14 +841,16 @@ describe('adventure', () => {
     expect(controller.adventure!.state.round?.manifest.id).toBe(adventureGame(controller).id);
   });
 
-  it('ends the run when the puzzle is lost, and when the character dies, back to the main screen', async () => {
+  it('ends the run when the puzzle is lost, and when the character dies, leaving the puzzle screen to show it', async () => {
     const lost = setup().controller;
     await lost.startAdventure();
     for (let i = 0; i < 3; i++) {
       tap(adventureGame(lost), wrongCell(adventureGame(lost)));
       lost.changed();
     }
-    expect([lost.adventure!.state.outcome, lost.screen]).toEqual(['failed', 'menu']);
+    // The puzzle screen shows the loss, then leaves.
+    expect([lost.adventure!.state.outcome, lost.screen]).toEqual(['failed', 'adventure']);
+    lost.showMenu();
     await lost.playAdventure();
     expect(lost.screen).toBe('menu');
 
@@ -860,11 +862,11 @@ describe('adventure', () => {
     fake.store.set('adventure', JSON.stringify(stored));
     const dying = setup(fake.store).controller;
     dying.boot(null);
-    for (let i = 0; i < 3 && dying.screen === 'adventure'; i++) {
+    for (let i = 0; i < 3 && dying.adventure!.state.phase !== 'ended'; i++) {
       tap(adventureGame(dying), unrevealed(adventureGame(dying))[0]);
       dying.changed();
     }
-    expect([dying.adventure!.state.outcome, dying.screen, adventureGame(dying).status]).toEqual(['death', 'menu', 'playing']);
+    expect([dying.adventure!.state.outcome, dying.screen, adventureGame(dying).status]).toEqual(['death', 'adventure', 'playing']);
   });
 
   it('gives up a run in progress after confirming', async () => {

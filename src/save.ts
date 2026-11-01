@@ -76,6 +76,7 @@ const validSettings = (value: unknown): value is Settings => object(value)
   && typeof value.timer === 'boolean'
   && (typeof value.silver === 'boolean' || value.silver === 'always' || value.silver === 'sometimes' || value.silver === 'never')
   && (value.muted === undefined || typeof value.muted === 'boolean')
+  && (value.adventure === undefined || typeof value.adventure === 'boolean')
   && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE)
     || Object.keys(SIZE_RANGES).some((range) => range === value.size))
   && (value.tier === undefined || tier(value.tier))

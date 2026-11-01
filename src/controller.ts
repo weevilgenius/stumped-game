@@ -24,6 +24,8 @@ export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'size
   silver: SilverMode;
   /** Silence sound effects. Missing in saves from before there was sound. */
   muted?: boolean;
+  /** Show adventure mode on the main screen while it is being playtested. */
+  adventure?: boolean;
 }
 
 /** The screen that is up: the main screen, an ordinary puzzle, or the adventure's puzzle. */
@@ -452,14 +454,10 @@ export function createController(deps: ControllerDeps): Controller {
     }
   };
 
-  /** Plays new reveals as turns. A run that ends mid-puzzle ends the puzzle too, back to the main screen. */
+  /** Plays new reveals as turns. A run that ends mid-puzzle locks the puzzle; the puzzle screen shows why, then leaves. */
   const catchUp = (): void => {
-    if (!adventure) {
-      return;
-    }
-    report(sync(adventure));
-    if (screen === 'adventure' && adventure.state.phase === 'ended') {
-      show('menu');
+    if (adventure) {
+      report(sync(adventure));
     }
   };
 

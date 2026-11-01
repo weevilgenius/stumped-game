@@ -3,7 +3,7 @@ import type { Tier } from './engine';
 import type { SilverMode } from './settings';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { openPuzzle } from './puzzleScene';
+import { openPuzzle, showAdventureEvents } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
@@ -91,6 +91,7 @@ const controller = createController({
     if (import.meta.env.DEV) {
       console.debug('adventure', events);
     }
+    showAdventureEvents(events);
   },
 });
 if (import.meta.env.DEV) {
@@ -211,6 +212,10 @@ const render = (): void => {
         onExit: controller.showMenu,
         onHelp: openHelp,
         theme,
+        adventure: screen === 'adventure' ? {
+          state: () => controller.adventure!.state,
+          setReady: controller.setReady,
+        } : undefined,
       });
     }
   } else {
@@ -234,23 +239,30 @@ $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
 $('retry').onclick = controller.retry;
 
-/** Development entry point for adventure mode until it has screens of its own (phase 6). */
+/** How a run ended, for the main screen. */
+const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' } as const;
+
+/** Adventure mode while it is playtested: shown from Settings, and doubles as the between-round summary. */
 const renderAdventure = (): void => {
   const { adventure } = controller;
   const state = adventure?.state;
-  const enemy = state?.encounter?.type === 'enemy' ? `, wolf ${state.encounter.health}` : '';
+  $('adventure').hidden = !controller.settings.adventure;
+  const encounter = state?.encounter;
+  const name = encounter ? `${encounter.def.id[0].toUpperCase()}${encounter.def.id.slice(1)}` : '';
+  const ahead = !encounter ? 'A new foe awaits.'
+    : encounter.type === 'enemy' && encounter.health < encounter.def.health ? `The fight continues: ${name}, ${encounter.health}/${encounter.def.health} health.`
+      : `${name} ahead.`;
+  const outcome = state?.outcome;
   $('adventureInfo').textContent = !state ? 'No adventure yet.'
-    : state.phase === 'ended' ? `Run ended (${state.outcome}) after ${state.rounds} rounds.`
-      : `Health ${state.health}/${state.maxHealth}${enemy}, ${state.rounds} rounds done.`;
+    : outcome ? `${RUN_OUTCOMES[outcome]} after ${state.rounds} ${state.rounds === 1 ? 'puzzle' : 'puzzles'}.`
+      : `Health ${state.health}/${state.maxHealth} · Supplies ${state.resources.supplies ?? 0} · ${ahead}`;
   $('adventureContinue').hidden = !state || state.phase === 'ended';
+  $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
   $('adventureAbandon').hidden = !state || state.phase === 'ended';
 };
-if (import.meta.env.DEV) {
-  $('adventure').hidden = false;
-  $('adventureStart').onclick = (): void => void controller.startAdventure();
-  $('adventureContinue').onclick = (): void => void controller.playAdventure();
-  $('adventureAbandon').onclick = controller.abandonAdventure;
-}
+$('adventureStart').onclick = (): void => void controller.startAdventure();
+$('adventureContinue').onclick = (): void => void controller.playAdventure();
+$('adventureAbandon').onclick = controller.abandonAdventure;
 
 $('share').onclick = (): void => {
   if (!controller.game) {
@@ -308,8 +320,8 @@ $('settingsButton').onclick = (): void => {
   for (const name of SELECTS) {
     (settingsForm.elements.namedItem(name) as HTMLSelectElement).value = String(controller.settings[name] ?? '');
   }
-  for (const name of ['timer'] as const) {
-    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name];
+  for (const name of ['timer', 'adventure'] as const) {
+    (settingsForm.elements.namedItem(name) as HTMLInputElement).checked = controller.settings[name] ?? false;
   }
   (settingsForm.elements.namedItem('theme') as HTMLSelectElement).value = theme.name;
   (settingsForm.elements.namedItem('sound') as HTMLInputElement).checked = !controller.settings.muted;
@@ -349,6 +361,7 @@ settingsForm.onchange = (event): void => {
     timer: data.has('timer'),
     silver: data.get('silver') as SilverMode,
     muted: !data.has('sound'),
+    adventure: data.has('adventure') || undefined,
     sizes: chosen('sizes')?.map(Number),
     tiers: chosen('tiers') as Tier[] | undefined,
     sizeMix: level('sizeMix'),
@@ -356,7 +369,7 @@ settingsForm.onchange = (event): void => {
     freebies: level('freebies'),
   });
   setMuted(!data.has('sound'));
-  $('summary').textContent = summary();
+  renderMenu();
 };
 
 /** Copies the solve log as CSV, for pasting into a spreadsheet or a message. */

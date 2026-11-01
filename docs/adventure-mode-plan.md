@@ -232,6 +232,20 @@ Test on the repository's preferred desktop, phone, and tablet devices. Keep anim
 - How should terminal adventure outcomes appear while the puzzle continues?
 - Does the theme need to be selected now to make the presentation understandable?
 
+### Decisions
+
+- **Strip:** The strip's size is flexible, but the most constrained layout drives it: phone portrait, in the space between the top bar and the board, which makes it at least 3:1. The character and equipment chips sit on the left, the enemy or enemies on the right. The final version reads at a glance: ambient animation for the character and enemy, health bars and tiered animations instead of numbers, item pictures instead of names, and a revealed patch's squares swirling down into the readied item. For phase 6: health bars, a block badge, the enemy's health and a countdown to its next attack with the hit shown as a size tier, and one chip per slot in priority order with its color swatches. Tapping a chip toggles readiness, a cooldown shows as a turn count, and a charge item fills its recipe swatches as it takes them. Resources show only between rounds.
+- **Routing:** Players work out where a color goes from the readied chips in order. Nothing is dimmed apart from unreadied chips, and the puzzle board is never marked.
+- **Discards and wrong turns:** A discarded pulse fizzles as a swatch of its color on the character's side. A wrong reveal is simply a turn, so the enemy's countdown ticks as usual. An attack drops the health bar with a red flash, and block shrinks the shield badge. A more elaborate wastage animation, and perhaps a sound, can come with the final presentation.
+- **Rapid reveals:** The strip always shows the latest state at once. A new effect or sound cuts off the one running and replaces it; nothing queues, and nothing delays input. Special short animations for rapid play may come during polishing.
+- **Terminal outcomes:** A beaten enemy or met objective shows greyed with a check, and a supplies bag shows that the remaining patches scavenge; a failed objective shows a cross. Death locks the board under a Defeated banner instead of jumping to the main screen; running out of acorns shows the usual Stumped banner and also ends the run. Solving a puzzle with the enemy alive shows the usual win banner, and the between-round summary says the fight continues. The final version could have an elaborate death screen with statistics about the run, perhaps compared with recent runs, so even a defeat feels worth something.
+- **Theme:** Not yet. Phase 6 uses the current puzzle theme's colors with simple placeholders: a shape per effect and a plain enemy silhouette.
+- **What if?:** Fully available during the playtest, since tentative stumps are not reveals and spend no turns. Whether to limit it is decided in phase 7, once runs have real stakes. Recording What if? use in the solve trace would help that analysis.
+
+### Implementation
+
+The puzzle scene draws the strip when it is given an adventure (`AdventureView` in `src/puzzleScene.ts`): above the board in the stacked layout, or in the side panel under the top bar, in place of the theme's flags. It is redrawn whole from the run after each change, and the controller's engine events, passed in through `showAdventureEvents()`, add brief chip flashes, fizzles, and hit flashes; a redraw cuts off any still running. Death locks the board under a Defeated banner. Settings has a Show adventure mode switch (saved as optional `adventure`), and the main screen's Adventure section doubles as the between-round summary: health, supplies, the encounter ahead, and Next puzzle.
+
 ### Completion criteria
 
 Someone can play several puzzles without developer explanation, understand the consequences, and make useful tactical adjustments. Keyboard/accessibility behavior, responsive layout, and rapid input have been verified.
@@ -292,4 +306,6 @@ Ideas raised during planning, not yet part of any phase.
 - **Silver acorn encounters:** Enable silver acorn mode (one acorn) for specific adventure reasons, such as a challenge room, a curse, or a special boss fight.
 - **Multiple adventure slots:** Keep more than one adventure run in progress at once.
 - **Varying puzzle sizes:** Offer a range of board sizes, perhaps driven by particular enemies or power-ups.
+- **What if? in solve traces:** Record What if? use in the solve log, to see how much players plan reveals with it.
+- **Run statistics on defeat:** A death screen showing statistics about the run, perhaps compared with recent runs.
 - **Ordered-color objectives:** A challenge that needs colors in a set order, like a charge weapon, rewarding strategic reveal order.
