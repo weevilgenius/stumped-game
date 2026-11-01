@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.4
+- Choose Always, Sometimes, or Never for silver acorn mode. Sometimes is the default, including with a fixed size and difficulty.
+
 ## 0.11.3
 - Show "Could not copy" when Share can't copy the puzzle link, instead of doing nothing.
 - Turn the solve record back on, with Copy solve data in Settings.

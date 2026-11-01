@@ -36,7 +36,7 @@ export const LEGACY_KEYS = ['settings', 'game', 'results', 'played', 'open'] as 
 
 /** Creates the initial state for a device without a readable save. */
 export function newSave(): Save {
-  return { version: 1, settings: { timer: true, silver: false }, game: null, results: [], played: [], open: false };
+  return { version: 1, settings: { timer: true, silver: 'sometimes' }, game: null, results: [], played: [], open: false };
 }
 
 /** @returns whether a parsed JSON value is an object, not null or an array */
@@ -73,7 +73,8 @@ const choices = (value: unknown, valid: (choice: unknown) => boolean): boolean =
 
 /** Accepts current settings, and the single-choice size and tier that earlier versions saved. */
 const validSettings = (value: unknown): value is Settings => object(value)
-  && typeof value.timer === 'boolean' && typeof value.silver === 'boolean'
+  && typeof value.timer === 'boolean'
+  && (typeof value.silver === 'boolean' || value.silver === 'always' || value.silver === 'sometimes' || value.silver === 'never')
   && (value.muted === undefined || typeof value.muted === 'boolean')
   && (value.size === undefined || integer(value.size, MIN_SIZE, MAX_SIZE)
     || Object.keys(SIZE_RANGES).some((range) => range === value.size))
@@ -243,11 +244,17 @@ export function initialStats(save: Save): GameStats {
   };
 }
 
-/** Turns the single-choice size and difficulty that earlier versions saved into the matching toggles. */
+/** Upgrades earlier size, difficulty, and silver mode preferences. */
 const upgrade = (save: Save): Save => {
-  const { size, tier: legacyTier, ...settings } = save.settings as Settings & LegacyChoices;
-  return size === undefined && legacyTier === undefined ? save
-    : { ...save, settings: { ...settings, ...upgradeChoices({ size, tier: legacyTier }) } };
+  const { size, tier: legacyTier, silver, ...settings } = save.settings as Settings & LegacyChoices;
+  return {
+    ...save,
+    settings: {
+      ...settings,
+      silver: typeof silver === 'boolean' ? (silver ? 'always' : 'sometimes') : silver,
+      ...(size !== undefined || legacyTier !== undefined ? upgradeChoices({ size, tier: legacyTier }) : {}),
+    },
+  };
 };
 
 /** Parses compatible saves, returning null without exposing malformed data. */

@@ -6,7 +6,7 @@ const SETTINGS = { size: 5, tier: 'easy', silver: false, sizeMix: 1, shape: 1, f
 const PUZZLE = generate(SETTINGS, 4);
 const fresh = (): Save => ({ ...newSave(), game: newGame(structuredClone(PUZZLE), false, 'current'), played: [PUZZLE.code], open: true });
 const read = (value: unknown): Save | null => parseSave(JSON.stringify(value));
-const legacy = (value: Save): Record<typeof LEGACY_KEYS[number], string | null> => Object.fromEntries(
+const legacy = (value: Record<typeof LEGACY_KEYS[number], unknown>): Record<typeof LEGACY_KEYS[number], string | null> => Object.fromEntries(
   LEGACY_KEYS.map((key) => [key, JSON.stringify(value[key])]),
 ) as Record<typeof LEGACY_KEYS[number], string | null>;
 let nextId = 0;
@@ -35,6 +35,19 @@ describe('save round trips', () => {
     expect(migrateSave(legacy(save), createId)?.settings).toEqual(save.settings);
   });
 
+  it.each(['always', 'sometimes', 'never'] as const)('preserves silver mode %s', (silver) => {
+    const save = fresh();
+    save.settings.silver = silver;
+    expect(read(save)).toEqual(save);
+    expect(migrateSave(legacy(save), createId)?.settings).toEqual(save.settings);
+  });
+
+  it.each([[true, 'always'], [false, 'sometimes']] as const)('upgrades silver toggle %s to %s', (silver, expected) => {
+    const save = { ...fresh(), settings: { timer: false, silver } };
+    expect(read(save)?.settings).toEqual({ timer: false, silver: expected });
+    expect(migrateSave(legacy(save), createId)?.settings).toEqual({ timer: false, silver: expected });
+  });
+
   it('restores muted sound', () => {
     const save = fresh();
     save.settings = { ...save.settings, muted: true };
@@ -50,7 +63,7 @@ describe('save round trips', () => {
     [{}, {}],
   ])('turns the earlier choice %j into toggles %j', (earlier, toggles) => {
     const save = { ...fresh(), settings: { timer: true, silver: false, ...earlier } };
-    const expected = { timer: true, silver: false, ...toggles };
+    const expected = { timer: true, silver: 'sometimes', ...toggles };
     expect(read(save)?.settings).toEqual(expected);
     expect(migrateSave(legacy(save), createId)?.settings).toEqual(expected);
   });
@@ -59,7 +72,7 @@ describe('save round trips', () => {
     expect(read(newSave())).toEqual(newSave());
     const save = fresh();
     const { size, tier, sizeMix, shape, freebies } = SETTINGS;
-    save.settings = { sizes: [size], tiers: [tier], sizeMix, shape, freebies, timer: false, silver: true };
+    save.settings = { sizes: [size], tiers: [tier], sizeMix, shape, freebies, timer: false, silver: 'always' };
     beginStroke(save.game!, 0);
     expect(read(save)).toEqual(save);
   });
@@ -123,6 +136,9 @@ describe('save round trips', () => {
 });
 
 describe('invalid saves', () => {
+  it.each(['off', '', null, 0, [], ['always'], {}])('rejects invalid silver mode %j', (silver) => {
+    expect(read({ ...fresh(), settings: { timer: true, silver } })).toBeNull();
+  });
   it.each([
     null,
     { gamesPlayed: -1, perfectSolves: 0, recordedWinId: null },

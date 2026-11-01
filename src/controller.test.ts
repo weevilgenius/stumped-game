@@ -201,9 +201,9 @@ describe('replacing a game', () => {
   it('prepares a new puzzle when generator settings change, but not for the timer', () => {
     const { fake, controller } = setup();
     controller.boot(null);
-    controller.updateSettings({ timer: false, silver: false });
+    controller.updateSettings({ timer: false, silver: 'sometimes' });
     expect(fake.requests).toHaveLength(1);
-    controller.updateSettings({ timer: false, silver: false, sizes: [6] });
+    controller.updateSettings({ timer: false, silver: 'sometimes', sizes: [6] });
     expect(fake.requests).toHaveLength(2);
     expect(fake.requests[1].settings.size).toBe(6);
   });
@@ -218,7 +218,7 @@ describe('multiple choices', () => {
         const { fake, controller } = setup();
         fake.manual = true;
         fake.random = (index + offset) / sizes.length;
-        controller.updateSettings({ timer: true, silver: false, sizes, tiers: [...tiers] });
+        controller.updateSettings({ timer: true, silver: 'sometimes', sizes, tiers: [...tiers] });
         const request = fake.requests.at(-1)!.settings;
         expect(request.size).toBe(expected);
         expect(request.tier).toBe(tiers[Math.floor(fake.random * tiers.length)]);
@@ -228,17 +228,32 @@ describe('multiple choices', () => {
     }
   });
 
-  it('never deals silver by chance when one size and one difficulty are on', () => {
+  it.each([
+    ['always', 0, true], ['always', 0.999, true],
+    ['sometimes', 0.199, true], ['sometimes', 0.2, false],
+    ['never', 0, false], ['never', 0.999, false],
+  ] as const)('deals %s silver mode with random %s as silver=%s, even with fixed choices', (silver, random, expected) => {
     const { fake, controller } = setup();
     fake.manual = true;
-    fake.random = 0;
-    controller.updateSettings({ timer: true, silver: false, sizes: [5], tiers: ['easy'] });
-    expect(fake.requests.at(-1)!.settings).toMatchObject({ size: 5, tier: 'easy', silver: false });
+    fake.random = random;
+    controller.updateSettings({ timer: true, silver, sizes: [5], tiers: ['easy'] });
+    expect(fake.requests.at(-1)!.settings).toMatchObject({ size: 5, tier: 'easy', silver: expected });
+  });
+
+  it('replaces the prefetched puzzle when silver mode changes', () => {
+    const { fake, controller } = setup();
+    controller.boot(null);
+    for (const silver of ['always', 'never', 'sometimes'] as const) {
+      const before = fake.requests.length;
+      controller.updateSettings({ ...controller.settings, silver });
+      expect(fake.requests).toHaveLength(before + 1);
+      expect(saved(fake.store).settings.silver).toBe(silver);
+    }
   });
 
   it('chooses a new size for the next prefetched puzzle', async () => {
     const { fake, controller } = setup();
-    controller.updateSettings({ timer: true, silver: true, sizes: [5, 6, 7], tiers: ['easy'] });
+    controller.updateSettings({ timer: true, silver: 'always', sizes: [5, 6, 7], tiers: ['easy'] });
     fake.random = 0.999;
     await controller.newPuzzle();
     expect(game(controller).puzzle.size).toBe(6);
@@ -323,7 +338,7 @@ describe('generation failures and stale results', () => {
     fake.manual = true;
     controller.boot(null);
     const start = controller.newPuzzle();
-    controller.updateSettings({ timer: false, silver: false, sizes: [6] });
+    controller.updateSettings({ timer: false, silver: 'sometimes', sizes: [6] });
     expect(controller.busy).toBe(false);
     // The taken puzzle and the one prepared under the old settings are both stopped.
     expect(fake.signals.map((signal) => signal!.aborted)).toEqual([true, true, false]);
