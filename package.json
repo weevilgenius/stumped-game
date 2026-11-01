@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui",
     "screenshot": "node scripts/screenshot.ts",
     "traces": "node --import jiti/register scripts/traces.ts",
+    "simulate": "node --import jiti/register scripts/simulate.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
   },
   "packageManager": "pnpm@12.16.1",

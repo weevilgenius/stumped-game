@@ -153,6 +153,34 @@ Add solver-based ordering when testing deliberate reveal-order strategy; label o
 
 Set provisional acceptance ranges before tuning. Exact win-rate targets can wait for complete runs.
 
+### Decisions
+
+- **Readiness:** The benefit depends on the equipment. A well-balanced set (from lucky loot, say) needs little tending, while a specialist weapon or an unlucky draw that doubles or triples up on some colors needs active management to avoid wasting pulses. As a roguelike, active management is necessary to survive at normal difficulty, but luck rules all. Readiness can only matter when items compete for colors, so the sandbox adds an overlapping loadout beside the balanced one.
+- **Reveal order:** A small advantage (around 5 to 10 points of encounter wins over recorded order), larger only in exceptional circumstances such as a curse, a boss fight, or a really unfortunate set of loot. It is never required to survive normal difficulty. Oracle results are reported separately as an upper bound.
+- **Early failure:** Rare. The starting loadout loses its first encounter in under 5% of recordings. An unlucky opening should cost health that carries forward, not end the run.
+- **Unused energy:** Because the board is fixed at 9×9, waste skews high early: the starting loadout may waste roughly 25 to 40% of combat pulses, falling toward 10% as equipment is found. Choosing equipment wisely is part of the strategy, and the colors an item consumes probably matter more than its raw damage. Waste is counted by pulses, not squares, so large late regions don't swamp it.
+- **Revising mechanics:** Tune numbers when the choices are interesting but too strong or weak. Revisit rules when sensible equipment choices and active management consistently offer little control over outcomes. Occasional unwinnable draws remain acceptable.
+
+### Implementation
+
+`src/adventure/sim/simulate.ts` fights one sandbox encounter with a fresh character over up to three puzzles, sending every turn through `step()`. Reveal orders are `observed` (the recording, wrong turns included), `shuffled` (its pulses and wrong turns in a seeded random order), `solver` (the solver's next stump), `tactical` (the best stump the solver can deduce from the revealed ones), and `oracle` (the best remaining stump, deducible or not: an upper bound, reported separately). The deducibility model applies every solver deduction from the revealed stumps until one would place a stump, then offers every square left alone in its row, column, or region. Policies are `passive` (everything stays readied) and `reactive` (before each reveal, choose which competing item takes the pulse, or none). Choices use a one-turn lookahead on health, useful block, and what the encounter still needs, so `tactical` cannot yet plan a charge several turns ahead.
+
+The sandbox adds a sling (attack on any color, 2-turn cooldown) and a second loadout, the Hunter (sling, dagger, shield, herbs), where every item competes with the sling. The Wanderer stays the balanced starting loadout.
+
+`pnpm simulate [files...]` replays every exactly known 9×9 recording (43 today), each starting an encounter that continues into the next recordings, against the wolf and the rockfall for both loadouts, every policy, and every order. It prints wins, deaths, failed objectives, one-round wins, health lost, wasted combat pulses, and how often something useful happened before the first enemy attack, then the phase 4 targets.
+
+### First results
+
+With the phase 3 numbers unchanged:
+
+- **Readiness:** No benefit for the balanced Wanderer, as expected. For the overlapping Hunter, reactive play wins 84% of wolf fights against 67% passive (16 points), so active management matters when items compete.
+- **Reveal order:** Greedy tactical order changes Wanderer wolf wins by -2 points and Hunter wins by +12. The Hunter does 11 points better with shuffled order than with the recorded one, because recorded early pulses are small.
+- **Early failure:** The Wanderer never dies in its first wolf fight (target under 5%), but needs two puzzles 93% of the time. The wolf looks too weak for a meaningful opening threat.
+- **Unused energy:** The Wanderer wastes 13% of combat pulses against the wolf, below the 25 to 40% expected for a starting loadout; the Hunter wastes about 30%.
+- **Rockfall:** Too hard as tuned: recorded order completes it 12% (Wanderer) to 37% (Hunter, reactive) of the time, while the oracle reaches 49% and 98%. Its numbers (goal 12 in 6 turns, attack only) need tuning before it says much.
+
+No red flag calls for a rule change yet: choices move outcomes for the wolf. The next step is tuning the wolf and rockfall numbers toward the targets, then adding the remaining archetypes from experiment B.
+
 ### Completion criteria
 
 Reproducible reports show useful equipment tradeoffs, plausible opening survival, and a measurable strategic advantage without requiring oracle knowledge. Save any discovered exploit or engine bug as a regression scenario.

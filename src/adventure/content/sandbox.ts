@@ -28,8 +28,16 @@ export const HERBS: ItemDef = { id: 'herbs', effect: 'heal', colors: [7], bands:
 /** Scavenging on one color. Not in the starting loadout. */
 export const SATCHEL: ItemDef = { id: 'satchel', effect: 'forage', colors: [8], resource: 'supplies', bands: bands(1, 2, 3, 4) };
 
-/** The one sandbox character. */
+/** Flexible attack on any color, then a cooldown. */
+export const SLING: ItemDef = {
+  id: 'sling', effect: 'attack', colors: [0, 1, 2, 3, 4, 5, 6, 7, 8], cooldown: 2, bands: bands(2, 3, 4, 5),
+};
+
+/** Balanced starting character: each item has its own colors, so readiness rarely matters. */
 export const WANDERER: CharacterDef = { id: 'wanderer', health: 20, loadout: [DAGGER, SHIELD, STAFF, HERBS] };
+
+/** Overlapping loadout: the sling competes with every other item, so readiness decides where pulses go. */
+export const HUNTER: CharacterDef = { id: 'hunter', health: 20, loadout: [SLING, DAGGER, SHIELD, HERBS] };
 
 /** After a win, every color scavenges supplies for now. */
 const SCAVENGE_ALL = [{ colors: [0, 1, 2, 3, 4, 5, 6, 7, 8], resource: 'supplies', bands: bands(1, 1, 2, 3) }];
