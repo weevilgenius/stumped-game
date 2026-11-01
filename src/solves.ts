@@ -28,6 +28,22 @@ export interface SolveStump {
   readonly by: FoundBy;
 }
 
+/** One wrong reveal of a solve. */
+export interface SolveMiss {
+  /** Row, from 0 at the top. */
+  readonly row: number;
+  /** Column, from 0 at the left. */
+  readonly col: number;
+  /** Palette index of the square's color patch. */
+  readonly color: number;
+  /** Squares in that color patch. */
+  readonly patch: number;
+  /** Play time when it was revealed, in milliseconds. */
+  readonly time: number;
+  /** Stumps found before it. */
+  readonly after: number;
+}
+
 /** One won puzzle. */
 export interface Solve {
   /** Identifier of the play, the same as its best-times result. */
@@ -54,6 +70,8 @@ export interface Solve {
   readonly acornsLost: number;
   /** Every stump, in the order found. */
   readonly stumps: readonly SolveStump[];
+  /** Every wrong reveal, in order. Missing if they were not all recorded. */
+  readonly misses?: readonly SolveMiss[];
 }
 
 /**
@@ -68,20 +86,22 @@ export function solveOf(game: Game, date: number, theme: string): Solve | null {
   if (found.length !== puzzle.size) {
     return null;
   }
+  const square = (cell: number): Pick<SolveStump, 'row' | 'col' | 'color' | 'patch'> => {
+    const region = puzzle.regions[cell];
+    return {
+      row: rowOf(puzzle.size, cell),
+      col: colOf(puzzle.size, cell),
+      color: puzzle.colors[region],
+      patch: puzzle.regions.filter((r) => r === region).length,
+    };
+  };
+  const misses = game.misses?.length === game.acornsLost
+    ? game.misses.map(({ cell, time, after }) => ({ ...square(cell), time, after })) : undefined;
   return {
     id: game.id, date, code: puzzle.code, size: puzzle.size, tier: puzzle.tier, silver: puzzle.silver,
     repeat: game.repeat, theme, time: game.elapsed, hints: [...game.hints], acornsLost: game.acornsLost,
-    stumps: found.map(({ cell, time, by }) => {
-      const region = puzzle.regions[cell];
-      return {
-        row: rowOf(puzzle.size, cell),
-        col: colOf(puzzle.size, cell),
-        color: puzzle.colors[region],
-        patch: puzzle.regions.filter((r) => r === region).length,
-        time,
-        by,
-      };
-    }),
+    stumps: found.map(({ cell, time, by }) => ({ ...square(cell), time, by })),
+    ...(misses && { misses }),
   };
 }
 
@@ -91,13 +111,18 @@ const validStump = (value: unknown): value is SolveStump => object(value)
   && count(value.row) && count(value.col) && count(value.color) && count(value.patch) && duration(value.time)
   && FOUND_BY.some((by) => by === value.by);
 
+const validMiss = (value: unknown): value is SolveMiss => object(value)
+  && count(value.row) && count(value.col) && count(value.color) && count(value.patch) && duration(value.time)
+  && count(value.after);
+
 const validSolve = (value: unknown): value is Solve => object(value)
   && typeof value.id === 'string' && duration(value.date) && typeof value.code === 'string'
   && count(value.size) && TIERS.some((tier) => tier === value.tier)
   && typeof value.silver === 'boolean' && typeof value.repeat === 'boolean' && typeof value.theme === 'string'
   && duration(value.time) && count(value.acornsLost)
   && Array.isArray(value.hints) && value.hints.every((hint: unknown) => HINTS.some((h) => h === hint))
-  && Array.isArray(value.stumps) && value.stumps.every(validStump);
+  && Array.isArray(value.stumps) && value.stumps.every(validStump)
+  && (value.misses === undefined || (Array.isArray(value.misses) && value.misses.every(validMiss)));
 
 /**
  * @param raw the saved solve log
@@ -112,11 +137,24 @@ export function parseSolves(raw: string): Solve[] | null {
   }
 }
 
-/** CSV columns: one row per stump, with its solve's details repeated. */
+/**
+ * CSV columns: one row per stump or wrong reveal, in the order they happened,
+ * with its solve's details repeated. `wrong` was added after the first
+ * recordings, so older exports lack it.
+ */
 const COLUMNS = [
   'solve', 'date', 'size', 'difficulty', 'silver', 'repeat', 'theme', 'hints', 'acorns_lost', 'total_seconds', 'code',
-  'order', 'row', 'col', 'color', 'patch_size', 'found_seconds', 'found_by',
+  'order', 'row', 'col', 'color', 'patch_size', 'found_seconds', 'found_by', 'wrong',
 ] as const;
+
+/** A solve's stumps and wrong reveals in the order they happened. Misses are always the player's. */
+const turnsOf = (solve: Solve): (SolveStump & { readonly wrong: boolean })[] => {
+  const misses = solve.misses ?? [];
+  return solve.stumps.flatMap((stump, index) => [
+    ...misses.filter((miss) => miss.after === index).map((miss) => ({ ...miss, by: 'player' as const, wrong: true })),
+    { ...stump, wrong: false },
+  ]);
+};
 
 const seconds = (ms: number): string => (ms / 1000).toFixed(1);
 
@@ -126,10 +164,11 @@ const seconds = (ms: number): string => (ms / 1000).toFixed(1);
  * @returns CSV text with a header row
  */
 export function solvesCsv(solves: readonly Solve[]): string {
-  const rows = solves.flatMap((solve) => solve.stumps.map((stump, index) => [
+  const rows = solves.flatMap((solve) => turnsOf(solve).map((stump, index) => [
     solve.id, new Date(solve.date).toISOString(), solve.size, solve.tier, solve.silver, solve.repeat, solve.theme,
     solve.hints.join(' '), solve.acornsLost, seconds(solve.time), solve.code,
     index + 1, stump.row + 1, stump.col + 1, stump.color + 1, stump.patch, seconds(stump.time), stump.by,
+    stump.wrong,
   ].join(',')));
   return [COLUMNS.join(','), ...rows].join('\n');
 }
