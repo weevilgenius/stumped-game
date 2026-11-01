@@ -22,6 +22,18 @@ let master: GainNode | null = null;
 let muted = false;
 let lastX = -Infinity;
 
+/** Selects the iOS audio policy when supported, without blocking gameplay. */
+const setSessionType = (type: 'auto' | 'playback'): void => {
+  try {
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      session.type = type;
+    }
+  } catch {
+    // The experimental Audio Session API may be unavailable or restricted.
+  }
+};
+
 /** Creates the audio context on first use, or resumes it after the browser suspended it. */
 const unlock = (): void => {
   if (muted) {
@@ -35,14 +47,7 @@ const unlock = (): void => {
     }
     // iOS otherwise treats Web Audio as ambient audio and silences it with the
     // Ring/Silent switch, even when the game's sound setting is enabled.
-    try {
-      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-      if (session) {
-        session.type = 'playback';
-      }
-    } catch {
-      // The experimental Audio Session API may be unavailable or restricted.
-    }
+    setSessionType('playback');
     try {
       context = new AudioContextClass();
     } catch {
@@ -72,6 +77,18 @@ if (typeof document !== 'undefined') {
 export function setMuted(value: boolean): void {
   const wasMuted = muted;
   muted = value;
+  if (value) {
+    // Muting must release the audio session, including already scheduled notes.
+    // A fresh context is unlocked by the next gesture after enabling effects.
+    const previous = context;
+    context = null;
+    master = null;
+    lastX = -Infinity;
+    if (previous && previous.state !== 'closed') {
+      void previous.close().catch(() => undefined);
+    }
+    setSessionType('auto');
+  }
   if (wasMuted && !value) {
     unlock();
   }
@@ -294,7 +311,11 @@ export function playSound(sounds: SoundSet, sound: Sound, delay = 0): void {
   const ctx = context;
   const out = master;
   if (delay > 0) {
-    window.setTimeout(() => sounds[sound](ctx, out), delay * 1000);
+    window.setTimeout(() => {
+      if (!muted && context === ctx && ctx.state !== 'closed') {
+        sounds[sound](ctx, out);
+      }
+    }, delay * 1000);
   } else {
     sounds[sound](ctx, out);
   }

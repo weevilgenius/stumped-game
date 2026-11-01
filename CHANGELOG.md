@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.1
+- Fix Stumped interrupting music and audiobooks on iOS when sound effects are turned off.
+
 ## 0.14.0
 - Adventure mode playtest, turned on with Show adventure mode in Settings: a strip above the board shows your health, the enemy's next attack, and your equipment. Tap an item to ready or unready it.
 - Adventure playtest data: Copy adventure data in Settings copies the current and last ten runs with timestamped command logs. The solve record now marks adventure solves and notes when What if? was used.

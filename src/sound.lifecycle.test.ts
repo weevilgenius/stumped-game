@@ -6,6 +6,10 @@ class BrowserAudioContext {
   state = 'suspended';
   destination = {};
   resume = vi.fn(() => Promise.resolve());
+  close = vi.fn(() => {
+    this.state = 'closed';
+    return Promise.resolve();
+  });
   createGain = (): unknown => ({ gain: { value: 0 }, connect: vi.fn() });
 
   constructor() {
@@ -120,5 +124,39 @@ describe('browser audio lifecycle', () => {
     expect(BrowserAudioContext.instances).toHaveLength(0);
     sound.setMuted(false);
     expect(BrowserAudioContext.instances).toHaveLength(1);
+  });
+
+  it('releases the context and playback session when muted and stays inactive on return', () => {
+    const session = { type: 'auto' };
+    vi.stubGlobal('navigator', { audioSession: session });
+    document.dispatchEvent(new Event('touchend'));
+    const context = BrowserAudioContext.instances[0];
+    expect(session.type).toBe('playback');
+    sound.setMuted(true);
+    expect(context.close).toHaveBeenCalledOnce();
+    expect(session.type).toBe('auto');
+    document.dispatchEvent(new Event('visibilitychange'));
+    document.dispatchEvent(new Event('touchend'));
+    sound.playSound(sound.WOODS_SOUNDS, 'win');
+    expect(context.resume).toHaveBeenCalledOnce();
+    expect(BrowserAudioContext.instances).toHaveLength(1);
+    expect(session.type).toBe('auto');
+    sound.setMuted(false);
+    expect(BrowserAudioContext.instances).toHaveLength(2);
+    expect(session.type).toBe('playback');
+  });
+
+  it('discards a delayed effect after muting, even if effects are enabled again', () => {
+    vi.useFakeTimers();
+    try {
+      const win = vi.fn();
+      sound.playSound({ ...sound.WOODS_SOUNDS, win }, 'win', 1);
+      sound.setMuted(true);
+      sound.setMuted(false);
+      vi.runAllTimers();
+      expect(win).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

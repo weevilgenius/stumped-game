@@ -1239,6 +1239,9 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
     backgroundColor: options.theme.background,
     banner: false,
     disableContextMenu: true,
+    // Effects use sound.ts. Phaser's unused context would still resume on focus,
+    // interrupting other iOS audio even while our effects are muted.
+    audio: { noAudio: true },
     // Unused, and off so Phaser never listens for keys typed into the seed code box.
     input: { keyboard: false },
     scale: { mode: Phaser.Scale.NONE, expandParent: false, ...size() },
