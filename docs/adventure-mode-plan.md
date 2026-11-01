@@ -81,6 +81,17 @@ Validate recordings against rebuilt puzzles, reproduce the documented statistics
 
 Use the 98 zero-loss recordings for exact collection replay, all 100 for descriptive statistics, and clearly labeled synthetic wrong turns. Defer changing the solve-log format until exact mistake recording is needed.
 
+### Decisions
+
+- **Exact replay:** Only plays whose every turn is known replay exactly, in recorded order: in the current sample, the 98 zero-loss recordings. The 2 games that lost an acorn count toward statistics but are never replayed, unless given labeled synthetic wrong turns. Any other order (shuffled, solver-ordered, synthetic) is a modeled sequence and is labeled as such in reports. Givens are part of the board but produce no turns. If exact wrong turns become useful, the solve log can be extended to record them.
+- **Synthetic wrong turns:** A test asks for a fixed number of wrong turns (0 to 2, since 3 acorns lost ends the run), each placed in a random gap between collections chosen from a seed, so runs repeat exactly. Reports label these sequences synthetic. A worst-case placement (just before an enemy attack) can be added later as a stress test. Barry's experience is that wrong guesses mostly happen when playing fast and not X-ing out all of a revealed color, which may not hold for careful adventure play.
+- **First sandbox data:** All 26 9×9 recordings form the baseline, reported by tier so the 9 medium games stay visible. Generated 9×9 medium boards with a modeled order are added in phase 4 when solver-ordered experiments need them.
+- **More data:** Barry will record more games to extend the sample. The solve log records wrong guesses first (version 0.11.5), so new recordings with lost acorns are exact replays too. Recordings from other players go in separate files.
+
+### Implementation
+
+`src/adventure/sim/traces.ts` imports solve log CSVs (with or without the `wrong` column), validates each play, rebuilds its board from the seed code, builds replay and synthetic round inputs that keep their dataset and play identifiers, and computes the section 10 statistics. `pnpm traces [files...]` prints the report, including the 9×9 breakdown by tier and the median pulse at each collection number, writes the replay rounds to `reports/rounds.json` (gitignored), and exits with an error listing any invalid recordings. All 100 sample games import and rebuild, and the statistics match section 10.
+
 ### Completion criteria
 
 Valid traces reproduce reliably, malformed recordings fail clearly, and the report confirms the available pulse sizes, colors, and arrival order.

@@ -44,6 +44,16 @@ export interface Found {
   by: FoundBy;
 }
 
+/** One wrong reveal during play. */
+export interface Miss {
+  /** The square revealed. */
+  cell: number;
+  /** Play time when it was revealed, in milliseconds. */
+  time: number;
+  /** Stumps found before it, so it can be placed in order among them. */
+  after: number;
+}
+
 /** One undo step: `[cell, mark before]` for each square a tap or stroke changed. */
 export type UndoStep = [number, number][];
 
@@ -80,6 +90,12 @@ export interface Game {
    * and incomplete if an older version of the game revealed stumps since.
    */
   found?: Found[];
+  /**
+   * Wrong reveals in order, kept beside `found` rather than in it so older
+   * versions of the game still accept the save. Missing when not collecting
+   * solve data, and incomplete if an older version lost acorns since.
+   */
+  misses?: Miss[];
 }
 
 /**
@@ -100,6 +116,7 @@ export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.ran
     explaining: null,
     found: import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true'
       ? puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })) : undefined,
+    misses: import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true' ? [] : undefined,
   };
 }
 
@@ -234,6 +251,9 @@ const reveal = (game: Game, cell: number, by: FoundBy): RevealResult => {
   }
   const conflict = conflicts(game.puzzle, cell, stumps(game)).at(0);
   game.marks[cell] = MARK_RED;
+  if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true' && game.found) {
+    game.misses?.push({ cell, time: game.elapsed, after: game.found.length });
+  }
   game.acorns--;
   game.acornsLost++;
   if (game.acorns === 0) {

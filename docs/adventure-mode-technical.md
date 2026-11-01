@@ -806,15 +806,13 @@ For a baseline simulation, only `found_by=player` entries generate collection tu
 
 ### 11.5 Wrong reveals
 
-The existing recordings do not locate wrong reveals within the turn sequence.
-
-For initial tests:
+Recordings made before version 0.11.5 do not locate wrong reveals within the turn sequence. For those:
 
 - Use the 98 zero-loss recordings for exact successful-collection replay.
 - Include all recordings in descriptive collection-order statistics.
 - Model wrong turns synthetically when testing loss sensitivity.
 
-To record them exactly, `reveal()` in `src/game.ts` can add wrong reveals to `game.found` as well (with a flag such as `wrong: true`), and `solvesCsv()` can write them as rows with a new column. This changes the solve log format, so `parseSolves()` must keep reading older logs.
+Since 0.11.5, `reveal()` in `src/game.ts` records each wrong reveal in `game.misses`, with its square, play time, and the number of stumps found before it. It is kept beside `game.found` rather than in it, because older versions of the game reject a save whose found list holds a square that is not a stump. `solveOf()` copies the misses into the solve only when there is one for every acorn lost, and `solvesCsv()` writes them as rows in turn order with a `wrong` column. The importer reads exports with and without that column; a play is an exact replay when its wrong rows account for every acorn lost.
 
 ### 11.6 Simulated player policies
 
@@ -1107,6 +1105,7 @@ src/
   puzzleScene.ts     adventure strip and readiness controls
   index.ts           between-round screens
 scripts/
+  traces.ts          trace import report and replay rounds (pnpm traces)
   simulate.ts        CLI for batch runs and reports
 tests/
   sample-games.csv   recorded traces

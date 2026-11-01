@@ -58,6 +58,35 @@ describe('solve log', () => {
     expect(parseSave(JSON.stringify({ ...newSave(), game: older }))?.game?.found).toBeUndefined();
   });
 
+  it('keeps wrong reveals in order beside the stumps', () => {
+    const game = newGame(PUZZLE, false, 'play');
+    game.elapsed = 2000;
+    tap(game, 0);
+    game.elapsed = 3000;
+    tap(game, 22);
+    game.elapsed = 4000;
+    tap(game, 2);
+    expect(game.acornsLost).toBe(2);
+    expect(game.misses).toEqual([{ cell: 0, time: 2000, after: 1 }, { cell: 2, time: 4000, after: 2 }]);
+    const saved = parseSave(JSON.stringify({ ...newSave(), game }))?.game;
+    expect(saved?.misses).toEqual(game.misses);
+    expect(parseSave(JSON.stringify({ ...newSave(), game: { ...game, misses: [{ cell: 1, time: 0, after: 0 }] } }))).toBeNull();
+    for (const cell of [1, 8, 10]) {
+      tap(game, cell);
+    }
+    const solve = solveOf(game, 0, 'woods')!;
+    expect(solve.misses).toEqual([
+      { row: 0, col: 0, color: 2, patch: 12, time: 2000, after: 1 },
+      { row: 0, col: 2, color: 4, patch: 2, time: 4000, after: 2 },
+    ]);
+    expect(parseSolves(JSON.stringify([solve]))).toEqual([solve]);
+    expect(solvesCsv([solve]).split('\n').map((row) => row.split(',').slice(-2).join(' '))).toEqual([
+      'found_by wrong', 'given false', 'player true', 'player false', 'player true', 'player false', 'player false',
+      'player false',
+    ]);
+    expect(solveOf({ ...game, misses: game.misses?.slice(1) }, 0, 'woods')?.misses).toBeUndefined();
+  });
+
   it('formats one CSV row per stump', () => {
     const solve: Solve = {
       id: 'a', date: Date.UTC(2026, 9, 29), code: 'CODE', size: 5, tier: 'hard', silver: false, repeat: false,
@@ -66,11 +95,13 @@ describe('solve log', () => {
         { row: 0, col: 1, color: 2, patch: 6, time: 1500, by: 'player' },
         { row: 1, col: 3, color: 0, patch: 3, time: 61234, by: 'owl' },
       ],
+      misses: [{ row: 2, col: 2, color: 1, patch: 4, time: 30000, after: 1 }],
     };
     expect(solvesCsv([solve]).split('\n')).toEqual([
-      'solve,date,size,difficulty,silver,repeat,theme,hints,acorns_lost,total_seconds,code,order,row,col,color,patch_size,found_seconds,found_by',
-      'a,2026-10-29T00:00:00.000Z,5,hard,false,false,woods,owl squirrel,1,61.2,CODE,1,1,2,3,6,1.5,player',
-      'a,2026-10-29T00:00:00.000Z,5,hard,false,false,woods,owl squirrel,1,61.2,CODE,2,2,4,1,3,61.2,owl',
+      'solve,date,size,difficulty,silver,repeat,theme,hints,acorns_lost,total_seconds,code,order,row,col,color,patch_size,found_seconds,found_by,wrong',
+      'a,2026-10-29T00:00:00.000Z,5,hard,false,false,woods,owl squirrel,1,61.2,CODE,1,1,2,3,6,1.5,player,false',
+      'a,2026-10-29T00:00:00.000Z,5,hard,false,false,woods,owl squirrel,1,61.2,CODE,2,3,3,2,4,30.0,player,true',
+      'a,2026-10-29T00:00:00.000Z,5,hard,false,false,woods,owl squirrel,1,61.2,CODE,3,2,4,1,3,61.2,owl,false',
     ]);
   });
 

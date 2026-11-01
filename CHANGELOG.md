@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.5
+- The solve record now also keeps each wrong guess: where it was, its color, and when it happened.
+
 ## 0.11.4
 - Choose Always, Sometimes, or Never for silver acorn mode. Sometimes is the default, including with a fixed size and difficulty.
 

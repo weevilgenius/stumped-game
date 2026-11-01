@@ -140,6 +140,12 @@ const validFound = (value: unknown, normal: readonly number[]): boolean => value
     && value.every((found: unknown) => object(found) && integer(found.cell, 0, normal.length - 1)
       && normal[found.cell] === MARK_STUMP && duration(found.time) && FOUND_BY.some((by) => by === found.by)));
 
+/** Wrong reveals in order: absent in older games, otherwise red squares, no more than the acorns lost. */
+const validMisses = (value: unknown, normal: readonly number[], size: number, lost: number): boolean => value === undefined
+  || (Array.isArray(value) && value.length <= lost && value.every((miss: unknown) => object(miss)
+    && integer(miss.cell, 0, normal.length - 1) && normal[miss.cell] === MARK_RED && duration(miss.time)
+    && integer(miss.after, 0, size)));
+
 const validGame = (value: unknown): value is Game => {
   if (!object(value) || !id(value.id) || !validPuzzle(value.puzzle)) {
     return false;
@@ -161,7 +167,8 @@ const validGame = (value: unknown): value is Game => {
   || !(value.status === 'won' ? solved && value.acorns > 0
     : value.status === 'lost' ? value.acorns === 0 && !solved
       : value.status === 'playing' && value.acorns > 0 && !solved)
-    || !validHistory(value.undo, normal, normal, MARK_X) || !validFound(value.found, normal)) {
+    || !validHistory(value.undo, normal, normal, MARK_X) || !validFound(value.found, normal)
+    || !validMisses(value.misses, normal, puzzle.size, value.acornsLost)) {
     return false;
   }
   if (value.hypo === null) {
