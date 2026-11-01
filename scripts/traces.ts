@@ -6,13 +6,13 @@
  *  the exact replay rounds for the adventure simulator.     *
  *                                                           *
  *  Usage:                                                   *
- *    pnpm traces [files...]  (default tests/sample-games.csv)
+ *    pnpm traces [files...]  (default every tests/*.csv)   *
  *    --out <file>  rounds JSON (default reports/rounds.json)
  *                                                           *
  *  Exits with status 1 if any recording is invalid.         *
 \* ========================================================= */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import process from 'node:process';
 import { parseArgs } from 'node:util';
@@ -24,7 +24,8 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: { out: { type: 'string', default: 'reports/rounds.json' } },
 });
-const files = positionals.length > 0 ? positionals : ['tests/sample-games.csv'];
+const files = positionals.length > 0 ? positionals
+  : readdirSync('tests').filter((name) => name.endsWith('.csv')).sort().map((name) => `tests/${name}`);
 
 const traces: SolveTrace[] = [];
 const problems: TraceProblem[] = [];
