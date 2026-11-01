@@ -151,7 +151,19 @@ Add solver-based ordering when testing deliberate reveal-order strategy; label o
 - How much unused energy is desirable?
 - What results justify revising a mechanic instead of adjusting numbers?
 
-Set provisional acceptance ranges before tuning. Exact win-rate targets can wait for complete runs.
+### Decisions
+
+- **Readiness:** Evaluate the benefit by loadout, without a universal percentage target. Balanced equipment from lucky loot may need little tending; overlapping colors, specialist weapons, and unlucky draws can require active management to avoid wasting pulses. At normal difficulty, active management is generally necessary for survival, while loot luck strongly affects the outcome.
+- **Reveal order:** Deliberate ordering is usually an advantage, rather than necessary for survival. Exceptional circumstances such as a curse, boss fight, or particularly unfortunate equipment may require it. Compare solver-reachable choices separately from full-solution oracle choices.
+- **Opening survival:** Target roughly 95% survival through the first encounter with ordinary starting equipment and sensible management. Randomness may still cause occasional initial failure. Measure encounter completion separately from surviving a single puzzle, and report unfinished encounters at the simulation limit.
+- **Unused energy:** Expect substantial unused energy early on a fixed 9×9 board. Finding and selecting equipment should improve coverage; colors consumed can matter more than raw damage. Measure early and improved loadouts separately, without a fixed waste percentage target.
+- **Tuning versus rules:** Adjust numbers when equipment choices and management offer interesting tradeoffs but the difficulty is wrong. Revisit mechanics when sensible equipment choices and active management consistently offer little control. Occasional unwinnable draws are acceptable.
+
+These are provisional acceptance criteria set before phase 4 tuning. Exact complete-run win-rate targets wait for progression content. The roughly 95% opening-survival target is descriptive, not a hard test threshold for this small, single-player dataset.
+
+### Implementation
+
+`pnpm simulate [files...]` runs deterministic encounter experiments against validated 9×9 recordings and generated 9×9 medium boards. It compares passive/reactive readiness by loadout, observed/shuffled order, solver-constrained tactical choices, and separately labeled oracle choices. Reports retain provenance, censor unfinished encounters, and include opening survival, damage, energy loss, charges, and postcombat income. See [simulation instructions and initial evidence](adventure-mode-simulation.md) for assumptions, reproduction commands, results, and the review checkpoint. The initial results support loadout-dependent management and modest reveal-order advantages; starting color coverage and balance still need progression content and human playtesting.
 
 ### Completion criteria
 
