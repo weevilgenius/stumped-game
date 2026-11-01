@@ -200,6 +200,19 @@ This phase needs a refinement to the proposed adapter contract in sections 3 and
 
 Keep the controller as the integration owner, but permit a small game-model change if reliable action records require it. Do not make “no scene changes” a constraint that compromises recovery.
 
+### Decisions
+
+- **Action record:** Adventure games always keep `found` (stumps in order, with who found them) and `misses` (wrong reveals placed among them), which otherwise are only kept when the solve log is on. The adventure remembers how many of those entries it has already played as turns, so missed reveals replay in order exactly once. An Owl reveal is written when its explanation closes, which is when its turn happens; opening an Owl explanation only uses the hint.
+- **Saves:** The adventure's puzzle is saved inside the `adventure` key together with the run, so every change is one write that cannot be half done. The regular `save` key is unchanged, so older versions of the game cannot drop adventure data.
+- **Commands:** Readiness changes and other commands apply to the run immediately and are saved in the same write. Every reveal becomes a turn before the next command can arrive; a save found with unplayed reveals plays them first. The save also keeps a log of every command since the run began, in order with the turns, so an adventure can be replayed exactly for debugging or simulation.
+- **Unfinished puzzles:** Ordinary play and the adventure each keep their own unfinished puzzle (decided in phase 1).
+- **Updates:** A run continues under a new version's rules. Items are copied into the save, so content changes don't break it. The save has a format number; a save the app cannot read is kept as a recovery copy with a notice, as for the regular save.
+- **Retries, links, settings, tabs:** Adventure puzzles cannot be retried. A seed code link always opens ordinary play. The adventure ignores the size, difficulty, single-acorn, and freebie settings (9×9 medium, three acorns, no freebies) and prepares its own next puzzle, while timer and sound settings apply. When another tab saves either regular play or the adventure, this tab stops saving both.
+
+### Implementation
+
+`src/adventurePlay.ts` is the adapter: `turnsOf()` turns a puzzle's `found` and `misses` into turn commands in order, `sync()` plays the ones not yet played and ends the round on a win or loss, and `command()` applies a command and appends it to the log. The controller keeps the adventure apart from ordinary play (`adventure`, `startAdventure()`, `playAdventure()`, `setReady()`, `abandonAdventure()`, and an `'adventure'` screen), prepares its next 9×9 medium puzzle itself, times it separately, keeps its solves out of best times and stats, and passes engine events to an optional `onAdventure` callback. Development builds show an Adventure section on the home screen (start, continue, give up), log events to the console, and expose `window.controller` for readiness changes until phase 6 adds the strip. A run is the sandbox Wanderer against a fresh wolf whenever the last encounter is over. Giving up between rounds discards the run, since the engine can only end one during a round; phase 7 adds proper run endings.
+
 ### Completion criteria
 
 Controller tests cover action mapping, duplicate prevention, interrupted writes, reloads, terminal actions, generation failures, and tab conflicts. Existing saves, ordinary play, and storage prefixes remain compatible.

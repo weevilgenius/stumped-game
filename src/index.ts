@@ -87,7 +87,15 @@ const controller = createController({
   random: Math.random,
   confirm: (question) => confirm(question),
   theme: () => theme.name,
+  onAdventure: (events) => {
+    if (import.meta.env.DEV) {
+      console.debug('adventure', events);
+    }
+  },
 });
+if (import.meta.env.DEV) {
+  Object.assign(window, { controller });
+}
 setMuted(controller.settings.muted ?? false);
 
 /* ========================================================= *\
@@ -145,6 +153,7 @@ const RETRY_LINES = {
 
 const renderMenu = (): void => {
   $('summary').textContent = summary();
+  renderAdventure();
   const { game } = controller;
   $('current').hidden = !game;
   if (!game) {
@@ -185,15 +194,17 @@ const render = (): void => {
   sizeStorageNotice();
   menu.classList.toggle('busy', controller.busy);
   menu.inert = controller.busy;
-  const { game, screen } = controller;
-  if (screen === 'puzzle' && game) {
+  const { screen } = controller;
+  const game = screen === 'adventure' ? controller.adventure?.game : controller.game;
+  if (screen !== 'menu' && game) {
     if (stage.hidden || opened !== game) {
       opened = game;
       menu.hidden = true;
       stage.hidden = false;
       openPuzzle(stage, {
         model: game,
-        results: controller.results,
+        // Adventure solves are kept out of best times, so none are compared.
+        results: screen === 'adventure' ? [] : controller.results,
         showTimer: controller.settings.timer,
         onChange: controller.changed,
         elapsed: controller.tick,
@@ -222,6 +233,24 @@ $('new').onclick = (): void => void controller.newPuzzle();
 $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
 $('retry').onclick = controller.retry;
+
+/** Development entry point for adventure mode until it has screens of its own (phase 6). */
+const renderAdventure = (): void => {
+  const { adventure } = controller;
+  const state = adventure?.state;
+  const enemy = state?.encounter?.type === 'enemy' ? `, wolf ${state.encounter.health}` : '';
+  $('adventureInfo').textContent = !state ? 'No adventure yet.'
+    : state.phase === 'ended' ? `Run ended (${state.outcome}) after ${state.rounds} rounds.`
+      : `Health ${state.health}/${state.maxHealth}${enemy}, ${state.rounds} rounds done.`;
+  $('adventureContinue').hidden = !state || state.phase === 'ended';
+  $('adventureAbandon').hidden = !state || state.phase === 'ended';
+};
+if (import.meta.env.DEV) {
+  $('adventure').hidden = false;
+  $('adventureStart').onclick = (): void => void controller.startAdventure();
+  $('adventureContinue').onclick = (): void => void controller.playAdventure();
+  $('adventureAbandon').onclick = controller.abandonAdventure;
+}
 
 $('share').onclick = (): void => {
   if (!controller.game) {
@@ -485,7 +514,7 @@ controller.setHidden(document.hidden);
 /** Set once another tab or window saves, after which this copy is out of date. */
 let outdated = false;
 addEventListener('storage', (event) => {
-  if (event.key === `${STORAGE_PREFIX}save`) {
+  if (event.key === `${STORAGE_PREFIX}save` || event.key === `${STORAGE_PREFIX}adventure`) {
     outdated = true;
     controller.savedElsewhere();
   }

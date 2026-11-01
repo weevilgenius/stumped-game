@@ -6,6 +6,8 @@ import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseS
 import type { Generate } from './generator';
 import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
+import type { AdventureEvent, AdventureState } from './adventure/engine';
+import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, sync } from './adventurePlay';
 
 /* ========================================================= *\
  *  Application controller: storage, puzzle generation,      *
@@ -24,8 +26,8 @@ export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'size
   muted?: boolean;
 }
 
-/** The screen that is up. */
-export type Screen = 'menu' | 'puzzle';
+/** The screen that is up: the main screen, an ordinary puzzle, or the adventure's puzzle. */
+export type Screen = 'menu' | 'puzzle' | 'adventure';
 
 /** What the controller reaches the outside world through. Tests pass fakes. */
 export interface ControllerDeps {
@@ -45,14 +47,26 @@ export interface ControllerDeps {
   readonly confirm: (question: string) => boolean;
   /** Name of the theme being played, recorded with each solve. */
   readonly theme?: () => string;
+  /** Receives what happened in the adventure, in order. */
+  readonly onAdventure?: (events: readonly AdventureEvent[]) => void;
+}
+
+/** The adventure as the screens see it. */
+export interface Adventure {
+  /** The run. */
+  readonly state: Readonly<AdventureState>;
+  /** Its puzzle: in progress, or the last one played. Null before the first. */
+  readonly game: Game | null;
 }
 
 /** The application state and the actions that change it. */
 export interface Controller {
   /** Current settings. */
   readonly settings: Readonly<Settings>;
-  /** The current puzzle: the most recent one, in progress or finished. */
+  /** The current ordinary puzzle: the most recent one, in progress or finished. */
   readonly game: Game | null;
+  /** The adventure, ended or not, or null if none was started. */
+  readonly adventure: Adventure | null;
   /** The best 15 completed plays for each size and difficulty. */
   readonly results: readonly Result[];
   /** Lifetime games played and perfect solves, including plays outside the best times. */
@@ -86,8 +100,16 @@ export interface Controller {
   readonly showMenu: () => void;
   /** Replaces the settings and prepares a puzzle to match. Drops a pending start made under the old settings. */
   readonly updateSettings: (settings: Settings) => void;
-  /** Saves after a change to the game, and records a win the first time it happens. */
+  /** Saves after a change to the game on screen, records a win the first time it happens, and plays adventure turns. */
   readonly changed: () => void;
+  /** Starts a new adventure run, after confirming if one is under way, and plays its first puzzle. */
+  readonly startAdventure: () => Promise<void>;
+  /** Returns to the adventure's puzzle, or starts its next one. Ignored once the run has ended. */
+  readonly playAdventure: () => Promise<void>;
+  /** Readies or unreadies an equipment slot. */
+  readonly setReady: (slot: number, ready: boolean) => void;
+  /** Gives up the adventure run, after confirming. */
+  readonly abandonAdventure: () => void;
   /** @returns play time so far, in milliseconds */
   readonly tick: () => number;
   /** Pauses play time while the page is hidden. */
@@ -188,6 +210,31 @@ export function createController(deps: ControllerDeps): Controller {
     }
   };
 
+  /* ------------------------------------------------------- *\
+   *  Adventure, saved whole under its own key               *
+  \* ------------------------------------------------------- */
+
+  let adventure: AdventureSave | null = null;
+  /** True once there is an adventure on this device, so giving one up is saved too. */
+  let adventureSaved = false;
+  if (writable) {
+    try {
+      const raw = deps.storage.getItem('adventure');
+      const parsed = raw === null ? null : parseAdventure(raw);
+      if (parsed === undefined) {
+        deps.storage.setItem(`recovery.${deps.createId()}`, JSON.stringify({ date: deps.date(), entries: { adventure: raw } }));
+        recoveryNotice = [recoveryNotice, 'Your adventure could not be opened. A recovery copy was kept on this device.']
+          .filter(Boolean).join(' ');
+      } else {
+        adventure = parsed;
+        adventureSaved = parsed !== null;
+      }
+    } catch {
+      writable = false;
+      storageError = 'Progress cannot be saved. Device storage may be full or unavailable; keep this page open.';
+    }
+  }
+
   let { settings, game } = data;
   const { played } = data;
   const stats = data.stats ?? initialStats(data);
@@ -202,6 +249,9 @@ export function createController(deps: ControllerDeps): Controller {
   const listeners = new Set<() => void>();
   const emit = (): void => listeners.forEach((listener) => listener());
 
+  /** The game on screen, whose play time is running. */
+  const active = (): Game | null => (screen === 'adventure' ? adventure?.game ?? null : game);
+
   /* ------------------------------------------------------- *\
    *  Play time: runs only while a game in progress is on    *
    *  screen and the page is visible                         *
@@ -213,8 +263,9 @@ export function createController(deps: ControllerDeps): Controller {
 
   /** Adds the running span to the game's time and pauses. */
   const fold = (): void => {
-    if (runningFrom !== null && game) {
-      game.elapsed += Math.max(0, deps.now() - runningFrom);
+    const playing = active();
+    if (runningFrom !== null && playing) {
+      playing.elapsed += Math.max(0, deps.now() - runningFrom);
     }
     runningFrom = null;
   };
@@ -222,7 +273,7 @@ export function createController(deps: ControllerDeps): Controller {
   /** Folds in the running span, then runs the clock if play should be timed. */
   const syncClock = (): void => {
     fold();
-    if (screen === 'puzzle' && !hidden && game?.status === 'playing') {
+    if (screen !== 'menu' && !hidden && active()?.status === 'playing') {
       runningFrom = deps.now();
     }
   };
@@ -245,6 +296,9 @@ export function createController(deps: ControllerDeps): Controller {
     const before = storageError;
     try {
       deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, stats, played, open: data.open }));
+      if (adventureSaved) {
+        deps.storage.setItem('adventure', JSON.stringify(adventure));
+      }
       storageError = null;
     } catch {
       storageError = 'Progress could not be saved. Device storage may be full or unavailable; keep this page open.';
@@ -313,9 +367,14 @@ export function createController(deps: ControllerDeps): Controller {
   const show = (next: Screen): void => {
     // Any navigation abandons a start still being generated.
     cancelStart();
+    // Charges time so far to the game leaving the screen.
+    fold();
     screen = next;
     // Remembered so a relaunch mid-puzzle lands back on the puzzle.
     data.open = next === 'puzzle';
+    if (adventure) {
+      adventure.open = next === 'adventure';
+    }
     persist();
     emit();
   };
@@ -334,7 +393,9 @@ export function createController(deps: ControllerDeps): Controller {
   const mayAbandon = (question: string): boolean => game?.status !== 'playing' || deps.confirm(question);
 
   /** Plays a puzzle once generated, unless the player has moved on. A failure leaves the current game as it was. */
-  const generating = async ({ puzzle, abort }: { puzzle: Promise<Puzzle>; abort: AbortController }): Promise<void> => {
+  const generating = async (
+    { puzzle, abort }: { puzzle: Promise<Puzzle>; abort: AbortController }, start: (puzzle: Puzzle) => void = play,
+  ): Promise<void> => {
     starting = abort;
     generationError = null;
     emit();
@@ -352,7 +413,7 @@ export function createController(deps: ControllerDeps): Controller {
     }
     starting = null;
     if (result) {
-      play(result);
+      start(result);
     } else {
       emit();
     }
@@ -381,12 +442,76 @@ export function createController(deps: ControllerDeps): Controller {
     return true;
   };
 
+  /* ------------------------------------------------------- *\
+   *  Adventure                                              *
+  \* ------------------------------------------------------- */
+
+  const report = (events: readonly AdventureEvent[]): void => {
+    if (events.length) {
+      deps.onAdventure?.(events);
+    }
+  };
+
+  /** Plays new reveals as turns. A run that ends mid-puzzle ends the puzzle too, back to the main screen. */
+  const catchUp = (): void => {
+    if (!adventure) {
+      return;
+    }
+    report(sync(adventure));
+    if (screen === 'adventure' && adventure.state.phase === 'ended') {
+      show('menu');
+    }
+  };
+
+  /** The adventure's next puzzle, always 9x9 medium with three acorns and no freebies, whatever the settings. */
+  let adventurePrepared: Promise<Puzzle> | null = null;
+  const prepareAdventure = (): Promise<Puzzle> => {
+    if (!adventurePrepared) {
+      const puzzle = deps.generate({
+        settings: randomSettings(deps.random, { size: 9, tier: 'medium', silver: false, freebies: 0 }),
+        seed: Math.floor(deps.random() * 2 ** 32),
+      });
+      adventurePrepared = puzzle;
+      // A failed puzzle is not kept, so the next start asks again.
+      puzzle.catch(() => {
+        if (adventurePrepared === puzzle) {
+          adventurePrepared = null;
+        }
+      });
+    }
+    return adventurePrepared;
+  };
+
+  const playAdventure = async (): Promise<void> => {
+    if (!adventure || adventure.state.phase === 'ended' || starting) {
+      return;
+    }
+    if (adventure.state.phase === 'round') {
+      show('adventure');
+      return;
+    }
+    const puzzle = prepareAdventure();
+    adventurePrepared = null;
+    await generating({ puzzle, abort: new AbortController() }, (result) => {
+      if (adventure?.state.phase !== 'between') {
+        return;
+      }
+      fold();
+      report(beginRound(adventure, newGame(result, false, deps.createId(), true)));
+      show('adventure');
+      void prepareAdventure();
+    });
+  };
+
   return {
     get settings() {
       return settings;
     },
     get game() {
       return game;
+    },
+    get adventure() {
+      return adventure;
     },
     get results() {
       return results;
@@ -416,9 +541,12 @@ export function createController(deps: ControllerDeps): Controller {
       // A linked puzzle is asked for first, so it is not queued behind the prepared one.
       if (code) {
         playCode(code);
+      } else if (adventure?.open) {
+        void playAdventure();
       } else if (data.open) {
         resume();
       }
+      catchUp();
       void prepare();
     },
     newPuzzle: async () => {
@@ -443,7 +571,42 @@ export function createController(deps: ControllerDeps): Controller {
       persist();
       void prepare();
     },
-    changed: persist,
+    changed: () => {
+      if (screen === 'adventure') {
+        catchUp();
+      }
+      persist();
+    },
+    startAdventure: async () => {
+      if (adventure && adventure.state.phase !== 'ended' && !deps.confirm('Abandon the adventure under way and start a new one?')) {
+        return;
+      }
+      adventure = newAdventure();
+      adventureSaved = true;
+      persist();
+      await playAdventure();
+    },
+    playAdventure,
+    setReady: (slot, ready) => {
+      if (adventure) {
+        report(command(adventure, { type: 'set-ready', slot, ready }));
+        persist();
+        emit();
+      }
+    },
+    abandonAdventure: () => {
+      if (!adventure || adventure.state.phase === 'ended' || !deps.confirm('Give up this adventure?')) {
+        return;
+      }
+      catchUp();
+      if (adventure.state.phase === 'round') {
+        report(command(adventure, { type: 'end-round', outcome: 'abandoned' }));
+      } else {
+        // shortcut: between rounds the engine has no way to end a run, so it is dropped; phase 7 adds run endings.
+        adventure = null;
+      }
+      show('menu');
+    },
     tick: () => {
       syncClock();
       return game?.elapsed ?? 0;
