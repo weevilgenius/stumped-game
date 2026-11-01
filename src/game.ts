@@ -96,16 +96,23 @@ export interface Game {
    * solve data, and incomplete if an older version lost acorns since.
    */
   misses?: Miss[];
+  /** Keeps `found` and `misses` even when solve data is not collected. Set for adventure puzzles, which play them as turns. */
+  record?: true;
 }
+
+/** True when this build collects solve data. Read on each call so tests can change it. */
+const logging = (): boolean => import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true';
 
 /**
  * Starts a play of a puzzle from a blank board.
  * @param puzzle the puzzle
  * @param repeat whether it was played before on this device
  * @param id unique identifier for this play
+ * @param record keep `found` and `misses` even when solve data is not collected
  * @returns the new game
  */
-export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.randomUUID()): Game {
+export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.randomUUID(), record = false): Game {
+  const log = record || logging();
   const marks = new Array<number>(puzzle.size ** 2).fill(MARK_NONE);
   for (const cell of puzzle.givens) {
     marks[cell] = MARK_STUMP;
@@ -114,9 +121,9 @@ export function newGame(puzzle: Puzzle, repeat: boolean, id: string = crypto.ran
     id, puzzle, marks, hypo: null, undo: [], hypoUndo: [],
     acorns: puzzle.silver ? 1 : 3, acornsLost: 0, hints: [], elapsed: 0, status: 'playing', repeat,
     explaining: null,
-    found: import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true'
-      ? puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })) : undefined,
-    misses: import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true' ? [] : undefined,
+    found: log ? puzzle.givens.map((cell) => ({ cell, time: 0, by: 'given' })) : undefined,
+    misses: log ? [] : undefined,
+    ...(record ? { record } : {}),
   };
 }
 
@@ -241,7 +248,7 @@ const reveal = (game: Game, cell: number, by: FoundBy): RevealResult => {
   settle(game, [cell]);
   if (game.puzzle.solution.includes(cell)) {
     game.marks[cell] = MARK_STUMP;
-    if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true') {
+    if (logging() || game.record) {
       game.found?.push({ cell, time: game.elapsed, by });
     }
     if (stumps(game).length === game.puzzle.size) {
@@ -251,7 +258,7 @@ const reveal = (game: Game, cell: number, by: FoundBy): RevealResult => {
   }
   const conflict = conflicts(game.puzzle, cell, stumps(game)).at(0);
   game.marks[cell] = MARK_RED;
-  if (import.meta.env.VITE_COLLECT_SOLVE_DATA === 'true' && game.found) {
+  if ((logging() || game.record) && game.found) {
     game.misses?.push({ cell, time: game.elapsed, after: game.found.length });
   }
   game.acorns--;

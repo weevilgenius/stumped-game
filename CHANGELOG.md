@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.0
+- Lay the groundwork for adventure mode: an adventure keeps its own puzzle and saves alongside regular play, and resumes exactly where it left off. Playable only in development builds for now.
+
 ## 0.12.0
 - Add adventure strategy simulations to compare equipment, readiness, and reveal order before interactive playtesting.
 

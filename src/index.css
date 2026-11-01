@@ -360,6 +360,18 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
+#adventure {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+#adventureInfo {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 #thumb {
   flex: none;
   display: grid;
