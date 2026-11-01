@@ -1148,7 +1148,7 @@ The engine should avoid hardcoding decisions that are still under consideration.
 | Readiness | Persistent toggles |
 | Collected energy | Immediate consumption or discard |
 | Unused energy | Discard; explicit foraging abilities may capture it |
-| Pulse scaling | Configurable per ability |
+| Pulse scaling | Decided: size bands per item; events carry the band for animation tiers ([implementation plan](adventure-mode-plan.md), phase 3) |
 | Multi-color abilities | Charge and release over several turns |
 | Cooldowns | Measured in turns |
 | Per-round uses | Supported |

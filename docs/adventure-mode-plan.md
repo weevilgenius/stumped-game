@@ -117,6 +117,20 @@ Add mechanics as this content needs them; avoid building a general-purpose abili
 - What remaining pulses can accomplish after combat.
 - Invalid-command behavior and the semantic events consumers receive.
 
+### Decisions
+
+- **Pulse scaling:** Size bands. Each item lists its own bands, such as 1-3, 4-7, 8-14, and 15+ squares, with an effect size for each. A 1-square pulse falls in the first band, so it always does something, and the top band caps a huge region. The final UI will probably not show raw damage, healing, or block numbers, but animation tiers that suggest the power, so every effect event carries its band number as well as its value.
+- **Eligibility:** A cooling-down item is skipped, and the pulse goes to the next eligible readied item. A charging item takes only the colors its recipe still needs. Items whose effect has nothing to act on are skipped too: attack and block need an active enemy (or an objective that accepts them), while heal and forage always apply.
+- **Charges:** A multi-color charge takes its recipe's colors in any order (each color appears only once per puzzle) and fires on the turn its last color arrives, sized by the band of the total squares it took. As decided in phase 1, unfinished charges, block, and cooldowns reset at round end, while an unfinished encounter, its health, and its countdowns carry over unchanged.
+- **After combat:** Defeating the enemy, or completing an objective, starts a scavenge phase for the rest of that puzzle. Pulses still go to readied items that apply (heal, forage), and an unclaimed pulse goes to the encounter's scavenge rules, which turn some colors into a resource by size band. Which colors scavenge into what is still to be decided; it might be only certain colors (for example yellow for coins, purple for experience). The sandbox maps every color to supplies. The encounter ends with that round. Farming stays bounded because each puzzle has only nine regions.
+- **Invalid commands:** `step()` returns the unchanged state and a single `command-rejected` event with a reason code, never throws, so a bad input can't break the puzzle. Events follow section 8 of the technical design, trimmed to what this content uses, and carry identifiers and values, never rendering instructions.
+
+### Implementation
+
+`src/adventure/engine/` holds the pure engine: `types.ts` (definitions, state, commands, events), and `step.ts` (`startRun()`, `step()`, `bandOf()`). State is plain JSON, and items are copied into their slots so a save doesn't depend on content. `src/adventure/content/sandbox.ts` holds the 9×9 sandbox content: the Wanderer (20 health) with a dagger (attack, colors 0-1), shield (block, 2-3), staff (attack charge needing 4, 5, and 6), and herbs (heal, 7), plus a satchel (forage, 8) outside the starting loadout; a wolf that alternates telegraphed attacks; and a rockfall objective with a deadline. The lint rule that keeps Phaser and UI assets out of `src/engine/` now covers both folders.
+
+The engine has no random generator yet, because nothing in this content is random. Encounters start with a `begin-encounter` command between rounds until phase 7 adds navigation. Runs end in death, a lost puzzle, or abandonment; victory comes with phase 7.
+
 ### Completion criteria
 
 Scripted scenarios demonstrate the complete turn lifecycle. Tests establish determinism, JSON save round trips, single pulse consumption, valid command handling, and encounter continuity.

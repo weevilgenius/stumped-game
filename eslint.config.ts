@@ -173,9 +173,9 @@ export default defineConfig(
   // override any legacy style/formatting rules included above
   stylistic.configs["disable-legacy"],
 
-  // the puzzle engine is a standalone library: no Phaser or other UI code
+  // the puzzle and adventure engines are standalone libraries: no Phaser or other UI code
   {
-    files: ["src/engine/**"],
+    files: ["src/engine/**", "src/adventure/engine/**", "src/adventure/content/**"],
     rules: {
       "no-restricted-imports": ["error", {
         patterns: [
