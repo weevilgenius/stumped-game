@@ -166,6 +166,15 @@ These are provisional acceptance criteria set before phase 4 tuning. Exact compl
 
 `pnpm simulate [files...]` runs deterministic encounter experiments against validated 9×9 recordings and generated 9×9 medium boards. It compares passive/reactive readiness by loadout, observed/shuffled order, solver-constrained tactical choices, and separately labeled oracle choices. Reports retain provenance, censor unfinished encounters, and include opening survival, damage, energy loss, charges, and postcombat income. See [simulation instructions and initial evidence](adventure-mode-simulation.md) for assumptions, reproduction commands, results, and the review checkpoint. The initial results support loadout-dependent management and modest reveal-order advantages; starting color coverage and balance still need progression content and human playtesting.
 
+### Results review (2026-11-01)
+
+Barry reviewed the rerun on the extended sample (83 exact 9×9 recordings) before phase 5:
+
+- **Starting equipment:** The sandbox Wanderer is too strong to be a starter (60 of 60 medium openings beat the wolf, 6 to 10% of energy discarded). A typical starting loadout should deal low damage and use only two or three colors, so early waste may reach about 80% as a natural consequence rather than a target. The point is scope for equipment growth, not forcing color management. Early enemies are tuned so such a loadout mostly survives; one tactic for a thin loadout is to outlast the current puzzle and get a fresh color mix in the next, so judge early encounters by survival across puzzles rather than a first-puzzle win. This replaces the 25 to 40% early-waste expectation.
+- **Reveal order:** Solver-reachable tactical order barely helps (about 0.05 damage saved of roughly 14 for the Wanderer), while the oracle saves about 5. The tactical model only chooses among simultaneously forced stumps and never keeps deducing past a known stump it holds back. Players can bank reveals for strategic reasons, so the simulator should model banking before reveal order is judged; the long-term goal is an adventure that is tough to win.
+- **Objectives:** Rockfall succeeds 12 to 25% of the time with the Wanderer, and the oracle adds about 70 points, but failure costs only health. For phase 4, objectives are mostly a bonus. An objective that needs colors in a set order, like a charge weapon, would reward strategic solving.
+- **Policy bounds:** The greedy reactive policy is a lower bound on skilled management (with the specialist it takes more damage than passive play), and oracle order is the upper bound. With What if? mode allowed, Barry could play about 70% of boards at oracle level if necessary. Whether to disable or limit What if? mode in an adventure is an open question.
+
 ### Completion criteria
 
 Reproducible reports show useful equipment tradeoffs, plausible opening survival, and a measurable strategic advantage without requiring oracle knowledge. Save any discovered exploit or engine bug as a regression scenario.
@@ -270,3 +279,4 @@ Ideas raised during planning, not yet part of any phase.
 - **Silver acorn encounters:** Enable silver acorn mode (one acorn) for specific adventure reasons, such as a challenge room, a curse, or a special boss fight.
 - **Multiple adventure slots:** Keep more than one adventure run in progress at once.
 - **Varying puzzle sizes:** Offer a range of board sizes, perhaps driven by particular enemies or power-ups.
+- **Ordered-color objectives:** A challenge that needs colors in a set order, like a charge weapon, rewarding strategic reveal order.
