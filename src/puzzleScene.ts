@@ -46,8 +46,11 @@ const STROKE_SOUNDS: Record<NonNullable<StrokeMode>, Sound> = { place: 'x', eras
 const MAX_PIXEL_RATIO = 3;
 /** Size vector icons are drawn at before they are scaled down to fit a square. */
 const VECTOR_ICON_PX = 512;
-/** Height of the adventure strip, in CSS pixels. */
+/** Height of the adventure strip, in CSS pixels, and the most it grows to when the screen has room. */
 const STRIP_PX = 88;
+const STRIP_MAX_PX = 124;
+/** Height the compact button rows give up, in CSS pixels: two rows of 40px with 8px gaps instead of 52px with 10px. */
+const COMPACT_SAVES_PX = 28;
 /** Character and enemy health bar colors. */
 const HEALTH_COLOR = 0x5cb85c;
 const ENEMY_COLOR = 0xd9534f;
@@ -145,6 +148,8 @@ class PuzzleScene extends Phaser.Scene {
 
   /** Device pixels per CSS pixel. Sizes are written in CSS pixels times this. */
   private u = 1;
+  /** Smaller buttons under the board, on phones too short for a full adventure strip. */
+  private compact = false;
   private boardX = 0;
   private boardY = 0;
   private cellSize = 0;
@@ -278,13 +283,26 @@ class PuzzleScene extends Phaser.Scene {
     const u = this.u = 1 / zoom;
     const pad = 8 * u;
     const bar = 52 * u;
-    const below = 176 * u;
+    let below = 176 * u;
     const beside = 300 * u;
-    const strip = this.options.adventure ? STRIP_PX * u : 0;
+    let strip = this.options.adventure ? STRIP_PX * u : 0;
 
     // Controls go under the board or beside it, whichever leaves the board larger.
-    const tall = Math.min(width - 2 * pad, height - bar - strip - below - pad);
+    let tall = Math.min(width - 2 * pad, height - bar - strip - below - pad);
     const wide = Math.min(height - 2 * pad, width - beside - 3 * pad);
+    this.compact = false;
+    if (strip && tall >= wide) {
+      // Stacked, the strip grows into height the board cannot use. On the shortest
+      // phones, the buttons under the board shrink to give it more.
+      const spare = (): number => height - bar - strip - below - pad - (width - 2 * pad);
+      const want = (STRIP_MAX_PX - STRIP_PX) * u;
+      // Whatever the smaller buttons save goes to the strip, not the board.
+      const saved = spare() < want ? COMPACT_SAVES_PX * u : 0;
+      this.compact = saved > 0;
+      below -= saved;
+      strip += Phaser.Math.Clamp(Math.max(spare(), saved), 0, want);
+      tall = Math.min(width - 2 * pad, height - bar - strip - below - pad);
+    }
     const cell = this.cellSize = Math.max(8, Math.floor(Math.max(tall, wide) / n));
     const board = cell * n;
     let status: Rect;
@@ -350,7 +368,7 @@ class PuzzleScene extends Phaser.Scene {
   /** Redraws the source art at the exact sizes on screen, so nothing is scaled at draw time. */
   private makeTextures(): void {
     const { cellSize: cell, u } = this;
-    const key = `${cell}/${u}/${this.model.puzzle.silver}/${this.theme.name}`;
+    const key = `${cell}/${u}/${this.compact}/${this.model.puzzle.silver}/${this.theme.name}`;
     if (key === this.textureKey) {
       return;
     }
@@ -391,7 +409,7 @@ class PuzzleScene extends Phaser.Scene {
     paint('count', 30 * u, icon('stump'));
     paint('acorn', 26 * u, icon(this.model.puzzle.silver ? 'silver' : 'acorn'));
     for (const hint of HINTS) {
-      paint(hint, 42 * u, icon(hint));
+      paint(hint, (this.compact ? 34 : 42) * u, icon(hint));
     }
   }
 
@@ -584,8 +602,8 @@ class PuzzleScene extends Phaser.Scene {
     items: readonly (readonly [name: string, content: string, onTap: () => void, dim?: () => boolean])[],
   ): number {
     const { u } = this;
-    const gap = 10 * u;
-    const h = 52 * u;
+    const gap = (this.compact ? 8 : 10) * u;
+    const h = (this.compact ? 40 : 52) * u;
     const w = Math.min((r.w - gap * (items.length - 1)) / items.length, 132 * u);
     const x0 = r.x + (r.w - w * items.length - gap * (items.length - 1)) / 2 + w / 2;
     items.forEach(([name, content, onTap, dim], i) => {
@@ -1008,7 +1026,9 @@ class PuzzleScene extends Phaser.Scene {
       return part;
     };
     const left = r.w * 0.62;
-    const barH = 12 * u;
+    // A strip that grew into spare height scales its bars, text, and pips with it.
+    const k = r.h / ((STRIP_PX - 8) * u);
+    const barH = 12 * u * k;
     const top = r.y + 4 * u;
 
     // The character: health, block, and one chip per equipment slot.
@@ -1036,13 +1056,13 @@ class PuzzleScene extends Phaser.Scene {
       const won = encounter.phase === 'scavenge';
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13)).setOrigin(0, 0));
+      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
       if (won) {
         enemy.setAlpha(0.5);
         add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
-        this.healthBar(add, ex + 6 * u, top + 20 * u, ew - 12 * u, barH, fill,
+        this.healthBar(add, ex + 6 * u, top + 20 * u * k, ew - 12 * u, barH, fill,
           encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
@@ -1051,9 +1071,9 @@ class PuzzleScene extends Phaser.Scene {
         const now = encounter.countdown <= 1;
         const enemyType = encounter.type === 'enemy';
         const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
-        add(this.add.text(ex + 6 * u, top + 38 * u, due,
-          now ? { ...this.textStyle(13), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13), fontStyle: 'normal' }));
-        add(this.add.text(ex + 6 * u, top + 56 * u, pips, { ...this.textStyle(13), color: cssColor(ENEMY_COLOR) }));
+        add(this.add.text(ex + 6 * u, top + 38 * u * k, due,
+          now ? { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13 * k), fontStyle: 'normal' }));
+        add(this.add.text(ex + 6 * u, top + 56 * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
       }
     }
 
@@ -1092,7 +1112,7 @@ class PuzzleScene extends Phaser.Scene {
       }
     }
     this.markers(add, mine, r.x + left / 2, top + barH / 2);
-    this.markers(add, theirs, ex + ew / 2, top + 20 * u + barH / 2);
+    this.markers(add, theirs, ex + ew / 2, top + 20 * u * k + barH / 2);
   }
 
   /**
