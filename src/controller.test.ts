@@ -2,6 +2,7 @@ import { type Controller, type ControllerDeps, createController } from './contro
 import { decodeSeedCode, encodeSeedCode, generate, type Puzzle } from './engine';
 import { parseBoard } from './engine/testBoards';
 import { applyExplanation, beginStroke, doubleTap, explain, type Game, newGame, resultOf } from './game';
+import { LOADOUTS } from './adventure/content/loadouts';
 import { type AdventureSave, parseAdventure } from './adventurePlay';
 import { newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
@@ -770,6 +771,19 @@ describe('adventure', () => {
     expect(savedAdventure(fake.store).open).toBe(true);
   });
 
+  it.each(LOADOUTS)('keeps $id in current and archived exports through a reload', async (definition) => {
+    const { fake, controller } = setup();
+    await controller.startAdventure(definition.id);
+    const restored = setup(fake.store).controller;
+    expect(savedAdventure(fake.store).loadout).toEqual(definition);
+    expect(restored.adventure?.state.character).toBe(definition.id);
+    await restored.startAdventure('wanderer');
+    const data = JSON.parse(restored.adventureData()) as { current: AdventureSave; past: AdventureSave[] };
+    expect(data.current.loadout?.id).toBe('wanderer');
+    expect(data.past[0].loadout).toEqual(definition);
+    expect(data.past[0].start.slots.map((slot) => slot.item)).toEqual(definition.loadout);
+  });
+
   it('turns correct, wrong, and hint reveals into turns, and X marks into none', async () => {
     const { fake, controller } = setup();
     await controller.startAdventure();
@@ -878,7 +892,7 @@ describe('adventure', () => {
       tap(first, cell);
       controller.changed();
     }
-    expect(controller.solves.at(-1)).toMatchObject({ id: first.id, adventure: true });
+    expect(controller.solves.at(-1)).toMatchObject({ id: first.id, adventure: true, loadout: 'wanderer' });
     const saved = savedAdventure(fake.store);
     expect(saved.times).toHaveLength(saved.log.length);
     controller.showMenu();

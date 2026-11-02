@@ -108,7 +108,7 @@ export interface Controller {
   /** Saves after a change to the game on screen, records a win the first time it happens, and plays adventure turns. */
   readonly changed: () => void;
   /** Starts a new adventure run, after confirming if one is under way, and plays its first puzzle. */
-  readonly startAdventure: () => Promise<void>;
+  readonly startAdventure: (loadoutId?: string) => Promise<void>;
   /** Returns to the adventure's puzzle, or starts its next one. Ignored once the run has ended. */
   readonly playAdventure: () => Promise<void>;
   /** The current run and earlier ones, with their command logs, as JSON for analysis. */
@@ -203,7 +203,7 @@ export function createController(deps: ControllerDeps): Controller {
 
   /** Adds a win to the solve log. Losing it to a failed write leaves play unaffected. */
   const logSolve = (won: Game, inAdventure = false): void => {
-    const solve = solveOf(won, deps.date(), deps.theme?.() ?? 'woods', inAdventure);
+    const solve = solveOf(won, deps.date(), deps.theme?.() ?? 'woods', inAdventure, inAdventure ? adventure?.start.character : undefined);
     if (!solve || solves.some((other) => other.id === solve.id)) {
       return;
     }
@@ -609,14 +609,15 @@ export function createController(deps: ControllerDeps): Controller {
       }
       persist();
     },
-    startAdventure: async () => {
+    startAdventure: async (loadoutId) => {
       if (adventure && adventure.state.phase !== 'ended' && !deps.confirm('Abandon the adventure under way and start a new one?')) {
         return;
       }
+      const next = newAdventure(loadoutId);
       if (adventure) {
         archive(adventure);
       }
-      adventure = newAdventure();
+      adventure = next;
       adventureSaved = true;
       persist();
       await playAdventure();
