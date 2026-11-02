@@ -322,6 +322,34 @@ $<HTMLFormElement>('codeForm').onsubmit = (event): void => {
 
 const settingsDialog = $<HTMLDialogElement>('settings');
 const settingsForm = settingsDialog.querySelector('form')!;
+const fullscreenButton = $<HTMLButtonElement>('fullscreenButton');
+const fullscreenStatus = $('fullscreenStatus');
+const renderFullscreen = (): void => {
+  $('fullscreenControls').hidden = !document.fullscreenEnabled;
+  fullscreenButton.textContent = document.fullscreenElement ? 'Exit full screen' : 'Enter full screen';
+};
+document.addEventListener('fullscreenchange', () => {
+  fullscreenStatus.textContent = '';
+  renderFullscreen();
+});
+fullscreenButton.onclick = async (): Promise<void> => {
+  fullscreenStatus.textContent = '';
+  fullscreenButton.disabled = true;
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      // Fullscreen needs a user gesture. Include the whole app so menus and dialogs stay available.
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    }
+  } catch {
+    fullscreenStatus.textContent = document.fullscreenElement ? 'Could not exit full screen.' : 'Could not enter full screen.';
+  } finally {
+    fullscreenButton.disabled = false;
+    renderFullscreen();
+  }
+};
+renderFullscreen();
 const SELECTS = ['sizeMix', 'shape', 'freebies', 'silver'] as const;
 /** Groups of toggles where checking none means Any, which has the empty value. */
 const TOGGLES = ['sizes', 'tiers'] as const;
