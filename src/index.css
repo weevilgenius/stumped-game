@@ -769,6 +769,16 @@ fieldset label + label {
   width: min(92vw, 540px);
 }
 
+#fullscreenControls p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#fullscreenStatus:empty {
+  display: none;
+}
+
 /* Export of how each puzzle was solved, kept out of the way. */
 .solve-data {
   display: flex;

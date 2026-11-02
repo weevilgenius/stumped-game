@@ -4,6 +4,9 @@
 - Adventure playtest: choose Wanderer, Coverage, Overlap, Specialist, or Hunter before a new run, with a short description and equipment preview.
 - Adventure data records the selected loadout and its exact starting equipment; solve data includes the loadout for comparison.
 
+## 0.14.3
+- Enter or exit full screen from Settings on supported devices, hiding browser and system bars while playing.
+
 ## 0.14.2
 - Adventure strip: heals, blocks, and damage briefly show as markers, so effects that land in the same turn are all visible. An enemy about to strike now says Attacking! in red, and items no longer show a cooldown count after every use.
 - Adventure strip: grows into spare space under the top bar for larger health bars and attack pips. On the shortest phones, the buttons under the board get smaller to make room.
