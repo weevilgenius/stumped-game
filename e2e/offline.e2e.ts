@@ -49,8 +49,8 @@ test('the installed app plays a seed code and another puzzle with no connection'
   });
   await page.goto('./');
   await expect(page.locator('#menu')).toBeVisible();
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'New puzzle' }).click();
+  await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('#storageNotice')).not.toContainText('could not be generated');
   await expect.poll(() => page.evaluate(() => {
@@ -134,14 +134,21 @@ test('an update keeps the running build, offers a refresh, and leaves comparison
   await expect(page.locator('#updateNotice')).toBeVisible();
 
   // The new worker's changelog is available before the old page refreshes.
-  await page.evaluate(async (current) => {
+  const running = (await page.locator('#appVersion').getAttribute('data-version'))!;
+  const [major, minor] = running.split('.').map(Number);
+  const latest = `${major}.${minor + 2}.0`;
+  const skipped = `${major}.${minor + 1}.0`;
+  await page.evaluate(async ({ current, notes }) => {
     const cache = await caches.open(current);
-    await cache.put('./CHANGELOG.md', new Response('## 0.12.0\n- Latest improvement\n## 0.11.0\n- Skipped release\n## 0.10.0\n- Already running'));
-  }, `stumped-main-${next}`);
+    await cache.put('./CHANGELOG.md', new Response(notes));
+  }, {
+    current: `stumped-main-${next}`,
+    notes: `## ${latest}\n- Latest improvement\n## ${skipped}\n- Skipped release\n## ${running}\n- Already running`,
+  });
 
   await context.setOffline(true);
   await page.getByRole('button', { name: "What's new", exact: true }).click();
-  await expect(page.locator('#changelogBody h3')).toHaveText(['0.12.0', '0.11.0']);
+  await expect(page.locator('#changelogBody h3')).toHaveText([latest, skipped]);
   await expect(page.locator('#changelogBody')).not.toContainText('Already running');
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   expect(await page.evaluate(async () => (await fetch('./assets/old-only.js')).text())).toBe('old build');

@@ -740,9 +740,18 @@ dialog label {
 
 dialog form > button:last-child {
   margin-top: 8px;
+}
+
+dialog form > button:last-child,
+dialog .row > button:last-child {
   border-color: var(--green);
   background: var(--green);
   color: var(--on-green);
+}
+
+#confirmation p {
+  margin: 0 0 8px;
+  line-height: 1.5;
 }
 
 dialog label select {

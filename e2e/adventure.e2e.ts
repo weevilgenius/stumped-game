@@ -10,7 +10,6 @@ test('selects simulator loadouts, describes them, and preserves each run through
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   const selector = page.getByRole('combobox', { name: 'New run loadout' });
   await expect(selector.locator('option')).toHaveCount(LOADOUTS.length);
-  page.on('dialog', (dialog) => void dialog.accept());
   for (const definition of LOADOUTS) {
     await selector.selectOption(definition.id);
     await expect(page.locator('#adventureLoadoutDescription')).toHaveText(LOADOUT_DESCRIPTIONS[definition.id]);
@@ -18,6 +17,9 @@ test('selects simulator loadouts, describes them, and preserves each run through
       await page.screenshot({ path: `screenshots/adventure-${testInfo.project.name}.png`, fullPage: true });
     }
     await page.getByRole('button', { name: 'New run', exact: true }).click();
+    if (definition !== LOADOUTS[0]) {
+      await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
+    }
     await expect(page.locator('#game canvas')).toBeVisible();
     const readSave = (): Promise<AdventureSave> => page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
     expect((await readSave()).loadout).toEqual(definition);

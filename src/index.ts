@@ -12,6 +12,7 @@ import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
 import { LOADOUT_DESCRIPTIONS, LOADOUTS } from './adventure/content/loadouts';
 import { solvesCsv } from './solves';
+import { createConfirmDialog } from './confirm';
 
 /* ========================================================= *\
  *  Main screen and DOM glue. App state lives in the         *
@@ -86,7 +87,7 @@ const controller = createController({
   date: () => Date.now(),
   createId: () => crypto.randomUUID(),
   random: Math.random,
-  confirm: (question) => confirm(question),
+  confirm: createConfirmDialog(document.getElementById('confirmation') as HTMLDialogElement),
   theme: () => theme.name,
   onAdventure: (events) => {
     if (import.meta.env.DEV) {
@@ -238,7 +239,7 @@ const render = (): void => {
 $('new').onclick = (): void => void controller.newPuzzle();
 $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
-$('retry').onclick = controller.retry;
+$('retry').onclick = (): void => void controller.retry();
 
 /** How a run ended, for the main screen. */
 const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' } as const;
@@ -277,7 +278,7 @@ const renderAdventure = (): void => {
 };
 $('adventureStart').onclick = (): void => void controller.startAdventure(loadoutSelect.value);
 $('adventureContinue').onclick = (): void => void controller.playAdventure();
-$('adventureAbandon').onclick = controller.abandonAdventure;
+$('adventureAbandon').onclick = (): void => void controller.abandonAdventure();
 
 $('share').onclick = (): void => {
   if (!controller.game) {
@@ -306,9 +307,9 @@ $('share').onclick = (): void => {
 
 const codeInput = $<HTMLInputElement>('code');
 codeInput.oninput = (): void => codeInput.setCustomValidity('');
-$<HTMLFormElement>('codeForm').onsubmit = (event): void => {
+$<HTMLFormElement>('codeForm').onsubmit = async (event): Promise<void> => {
   event.preventDefault();
-  if (controller.playCode(codeInput.value)) {
+  if (await controller.playCode(codeInput.value)) {
     codeInput.value = '';
   } else {
     codeInput.setCustomValidity('That is not a valid seed code.');

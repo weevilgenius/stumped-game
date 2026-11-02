@@ -44,6 +44,32 @@ test('puzzle full screen toggles beside help and follows browser exits', async (
   await expect(page.locator('#game canvas')).toBeVisible();
 });
 
+test('HTML confirmations cancel and restart a puzzle without leaving full screen', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Exercise the real Fullscreen API in desktop Chromium.');
+  page.on('dialog', () => { throw new Error('Unexpected native JavaScript dialog'); });
+  await openPuzzle(page);
+  await page.getByRole('gridcell').first().press('Space');
+  await tapControl(page, 'fullscreen');
+  await expect(page.getByRole('button', { name: 'Exit full screen', exact: true })).toBeVisible();
+  await tapControl(page, 'back');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Please confirm', exact: true });
+  await expect(dialog).toContainText('Start this puzzle over from a blank board?');
+  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  expect(await page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+  await page.getByRole('button', { name: 'Resume puzzle', exact: true }).click();
+  await expect(page.getByRole('gridcell').first()).toHaveAccessibleName(/: X$/);
+  await tapControl(page, 'back');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('gridcell').first()).toHaveAccessibleName(/: open$/);
+  expect(await page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+});
+
 test('devices without full screen omit the puzzle control', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(document, 'fullscreenEnabled', { get: () => false });

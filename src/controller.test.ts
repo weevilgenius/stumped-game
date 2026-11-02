@@ -31,7 +31,7 @@ const setup = (store = new Map<string, string>(), errors: Partial<{ readError: b
     writeError: false,
     backupError: false,
     writes: [] as string[],
-    answer: true,
+    answer: true as boolean | Promise<boolean>,
     questions: [] as string[],
     requests: [] as GenerateRequest[],
     signals: [] as (AbortSignal | undefined)[],
@@ -133,16 +133,16 @@ describe('navigation', () => {
     expect(saved(fake.store).open).toBe(true);
   });
 
-  it('resumes instead of generating when the code is the puzzle in progress', () => {
+  it('resumes instead of generating when the code is the puzzle in progress', async () => {
     const { fake, controller } = setup(savedStore(false, { puzzle: { ...PUZZLE, code: CODE } }));
-    expect(controller.playCode(CODE)).toBe(true);
+    expect(await controller.playCode(CODE)).toBe(true);
     expect(controller.screen).toBe('puzzle');
     expect(fake.requests).toEqual([]);
     expect(fake.questions).toEqual([]);
   });
 
-  it('refuses an invalid code', () => {
-    expect(setup().controller.playCode('nonsense')).toBe(false);
+  it('refuses an invalid code', async () => {
+    expect(await setup().controller.playCode('nonsense')).toBe(false);
   });
 
   it('notifies subscribers until they unsubscribe', () => {
@@ -157,13 +157,42 @@ describe('navigation', () => {
 });
 
 describe('replacing a game', () => {
+  it('waits for HTML confirmation and ignores duplicate replacement actions', async () => {
+    const { fake, controller } = setup(savedStore(false));
+    const before = controller.game;
+    let answer!: (value: boolean) => void;
+    fake.answer = new Promise<boolean>((resolve) => { answer = resolve; });
+    const pending = controller.newPuzzle();
+    await controller.retry();
+    await controller.newPuzzle();
+    expect(fake.questions).toHaveLength(1);
+    expect(controller.game).toBe(before);
+    expect(fake.requests).toEqual([]);
+    answer(true);
+    await pending;
+    expect(controller.game).not.toBe(before);
+  });
+
+  it('ignores a confirmation answered after navigation', async () => {
+    const { fake, controller } = setup(savedStore(false));
+    const before = controller.game;
+    let answer!: (value: boolean) => void;
+    fake.answer = new Promise<boolean>((resolve) => { answer = resolve; });
+    const pending = controller.retry();
+    controller.resume();
+    answer(true);
+    await pending;
+    expect(controller.game).toBe(before);
+    expect(controller.screen).toBe('puzzle');
+  });
+
   it('asks before abandoning a game in progress, and keeps it when declined', async () => {
     const { fake, controller } = setup(savedStore(false));
     const before = game(controller);
     fake.answer = false;
     await controller.newPuzzle();
-    controller.retry();
-    expect(controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5))).toBe(true);
+    await controller.retry();
+    expect(await controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5))).toBe(true);
     await flush();
     expect(fake.questions).toHaveLength(3);
     expect(fake.requests).toEqual([]);
@@ -187,13 +216,13 @@ describe('replacing a game', () => {
     expect(game(controller).status).toBe('playing');
   });
 
-  it('retries a finished game from a blank board, as a repeat', () => {
+  it('retries a finished game from a blank board, as a repeat', async () => {
     const store = savedStore(false, { status: 'lost', marks: new Array<number>(25).fill(1) });
     const data = saved(store);
     data.played = [CODE];
     store.set('save', JSON.stringify(data));
     const { fake, controller } = setup(store);
-    controller.retry();
+    await controller.retry();
     expect(fake.questions).toEqual([]);
     expect(game(controller).repeat).toBe(true);
     expect(game(controller).marks.every((mark) => mark === 0)).toBe(true);
@@ -303,7 +332,7 @@ describe('generation failures and stale results', () => {
     controller.boot(null);
     const start = controller.newPuzzle();
     void controller.newPuzzle();
-    expect(controller.playCode(CODE)).toBe(true);
+    expect(await controller.playCode(CODE)).toBe(true);
     expect(fake.requests).toHaveLength(2);
     expect(controller.busy).toBe(true);
     fake.pending[0].resolve();
@@ -324,7 +353,7 @@ describe('generation failures and stale results', () => {
     const { fake, controller } = setup(savedStore(false));
     fake.manual = true;
     const before = game(controller);
-    controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5));
+    await controller.playCode(encodeSeedCode(decodeSeedCode(CODE)!.settings, 5));
     controller.resume();
     controller.showMenu();
     expect(controller.busy).toBe(false);
@@ -492,10 +521,10 @@ describe('persistence and recovery', () => {
     expect(restored.stats.gamesPlayed).toBe(1);
     restored.resume();
     expect(restored.stats.gamesPlayed).toBe(1);
-    restored.retry();
+    await restored.retry();
     expect(restored.stats.gamesPlayed).toBe(2);
     restoredFake.answer = false;
-    restored.retry();
+    await restored.retry();
     expect(restored.stats.gamesPlayed).toBe(2);
     expect(setup(fake.store).controller.stats).toEqual(restored.stats);
   });
@@ -510,13 +539,13 @@ describe('persistence and recovery', () => {
     },
   );
 
-  it('retains the play ID across reloads and gives retries new IDs', () => {
+  it('retains the play ID across reloads and gives retries new IDs', async () => {
     const { fake, controller } = setup(savedStore(false));
     const before = game(controller).id;
     controller.changed();
     const restored = setup(fake.store).controller;
     expect(game(restored).id).toBe(before);
-    restored.retry();
+    await restored.retry();
     expect(game(restored).id).not.toBe(before);
   });
 
@@ -557,7 +586,7 @@ describe('persistence and recovery', () => {
     expect(setup(fake.store).controller.results).toHaveLength(1);
   });
 
-  it('stops saving once another tab saves, so a win there is never overwritten', () => {
+  it('stops saving once another tab saves, so a win there is never overwritten', async () => {
     const store = savedStore(false);
     const outdated = setup(store).controller;
     const current = setup(store).controller;
@@ -565,7 +594,7 @@ describe('persistence and recovery', () => {
     expect(saved(store).results).toHaveLength(1);
     outdated.savedElsewhere();
     expect(outdated.storageError).toContain('another tab');
-    outdated.retry();
+    await outdated.retry();
     outdated.setHidden(true);
     expect(saved(store).results).toHaveLength(1);
     expect(saved(store).game?.status).toBe('won');
@@ -679,9 +708,9 @@ describe('solve log', () => {
   beforeEach(() => vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true'));
   afterEach(() => vi.unstubAllEnvs());
 
-  it('records each win once, with its stumps in the order found, under its own key', () => {
+  it('records each win once, with its stumps in the order found, under its own key', async () => {
     const { fake, controller } = setup(savedStore(false));
-    controller.retry();
+    await controller.retry();
     const id = game(controller).id;
     for (const cell of [...SOLUTION].reverse()) {
       fake.time += 2000;
@@ -707,11 +736,11 @@ describe('solve log', () => {
     expect(controller.solves).toEqual([]);
   });
 
-  it('never overwrites a solve log it cannot read', () => {
+  it('never overwrites a solve log it cannot read', async () => {
     const store = savedStore(false);
     store.set('solves', 'not json');
     const { fake, controller } = setup(store);
-    controller.retry();
+    await controller.retry();
     solve(controller);
     expect(controller.solves).toHaveLength(1);
     expect(fake.store.get('solves')).toBe('not json');
@@ -721,14 +750,14 @@ describe('solve log', () => {
 describe('disabled solve collection', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it.each([undefined, 'false', '1', 'TRUE', ''])('does not read or write solve data with flag %s', (flag) => {
+  it.each([undefined, 'false', '1', 'TRUE', ''])('does not read or write solve data with flag %s', async (flag) => {
     vi.stubEnv('VITE_COLLECT_SOLVE_DATA', flag);
     const store = savedStore(false);
     store.set('solves', 'existing log');
     const read = vi.spyOn(store, 'get');
     const { fake, controller } = setup(store);
     expect(read).not.toHaveBeenCalledWith('solves');
-    controller.retry();
+    await controller.retry();
     expect(game(controller).found).toBeUndefined();
     solve(controller);
     expect(game(controller).status).toBe('won');
@@ -907,10 +936,10 @@ describe('adventure', () => {
     const { fake, controller } = setup();
     await controller.startAdventure();
     fake.answer = false;
-    controller.abandonAdventure();
+    await controller.abandonAdventure();
     expect(controller.adventure!.state.phase).toBe('round');
     fake.answer = true;
-    controller.abandonAdventure();
+    await controller.abandonAdventure();
     expect([savedAdventure(fake.store).state.outcome, controller.screen]).toEqual(['abandoned', 'menu']);
   });
 
