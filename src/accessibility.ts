@@ -138,8 +138,9 @@ export function createAccessiblePuzzle(
           (target as HTMLElement | null)?.focus();
         }
       }
-      controls.forEach(({ bounds: [left, top, width, height], disabled }, i) => {
+      controls.forEach(({ label, bounds: [left, top, width, height], disabled }, i) => {
         const button = toolbar.children[i] as HTMLButtonElement;
+        button.setAttribute('aria-label', label);
         button.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
         button.setAttribute('aria-disabled', String(disabled));
       });

@@ -317,44 +317,6 @@ $<HTMLFormElement>('codeForm').onsubmit = (event): void => {
 };
 
 /* ========================================================= *\
- *  Full screen                                              *
-\* ========================================================= */
-
-const fullscreenButton = $<HTMLButtonElement>('fullscreenButton');
-const fullscreenStatus = $('fullscreenStatus');
-const renderFullscreen = (): void => {
-  const active = !!document.fullscreenElement;
-  const label = active ? 'Exit full screen' : 'Enter full screen';
-  fullscreenButton.hidden = !document.fullscreenEnabled;
-  fullscreenButton.setAttribute('aria-label', label);
-  fullscreenButton.setAttribute('aria-pressed', String(active));
-  fullscreenButton.title = label;
-  document.getElementById('fullscreenIcon')!.setAttribute('d', active ? 'M20 10h-6V4M4 14h6v6' : 'M14 4h6v6M4 14v6h6');
-};
-document.addEventListener('fullscreenchange', () => {
-  fullscreenStatus.textContent = '';
-  renderFullscreen();
-});
-fullscreenButton.onclick = async (): Promise<void> => {
-  fullscreenStatus.textContent = '';
-  fullscreenButton.disabled = true;
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      // Fullscreen needs a user gesture. Include the whole app so menus and dialogs stay available.
-      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
-    }
-  } catch {
-    fullscreenStatus.textContent = document.fullscreenElement ? 'Could not exit full screen.' : 'Could not enter full screen.';
-  } finally {
-    fullscreenButton.disabled = false;
-    renderFullscreen();
-  }
-};
-renderFullscreen();
-
-/* ========================================================= *\
  *  Settings                                                 *
 \* ========================================================= */
 
