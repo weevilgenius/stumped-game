@@ -175,6 +175,7 @@ class PuzzleScene extends Phaser.Scene {
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
   private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
   private inputState = '';
+  private fullscreenPending = false;
   /** Where the adventure strip goes, and what is drawn there now. */
   private strip: { r: Rect; parts: Phaser.GameObjects.GameObject[] } | null = null;
 
@@ -197,6 +198,7 @@ class PuzzleScene extends Phaser.Scene {
     this.explanation = explaining && { pages: explainPages(this.model, explaining, this.theme.piece), index: 0 };
     this.complete = new Set(completedUnits(this.model).keys());
     this.shownSeconds = -1;
+    this.fullscreenPending = false;
   }
 
   preload(): void {
@@ -222,6 +224,17 @@ class PuzzleScene extends Phaser.Scene {
     const rebuild = (): void => this.build();
     this.scale.on('resize', rebuild);
     this.events.once('shutdown', () => this.scale.off('resize', rebuild));
+    const fullscreenStatus = document.getElementById('fullscreenStatus')!;
+    fullscreenStatus.textContent = '';
+    const onFullscreen = (): void => {
+      fullscreenStatus.textContent = '';
+      this.build();
+    };
+    document.addEventListener('fullscreenchange', onFullscreen);
+    this.events.once('shutdown', () => {
+      document.removeEventListener('fullscreenchange', onFullscreen);
+      fullscreenStatus.textContent = '';
+    });
     this.game.canvas.setAttribute('aria-hidden', 'true');
     this.accessible = createAccessiblePuzzle(this.game.canvas.parentElement!, this.model,
       (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
@@ -408,6 +421,22 @@ class PuzzleScene extends Phaser.Scene {
     paint('light', cell, cross('#ffffff', 'rgba(43, 29, 18, 0.85)'));
     paint('count', 30 * u, icon('stump'));
     paint('acorn', 26 * u, icon(this.model.puzzle.silver ? 'silver' : 'acorn'));
+    for (const active of [false, true]) {
+      paint(active ? 'exitFullscreen' : 'enterFullscreen', 22 * u, (ctx, size) => {
+        ctx.scale(size / 24, size / 24);
+        ctx.strokeStyle = cssColor(this.theme.cream);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const corners = active ? [[20, 10, 14, 10, 14, 4], [4, 14, 10, 14, 10, 20]]
+          : [[14, 4, 20, 4, 20, 10], [4, 14, 4, 20, 10, 20]];
+        for (const [x1, y1, x2, y2, x3, y3] of corners) {
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.lineTo(x3, y3);
+        }
+        ctx.stroke();
+      });
+    }
     for (const hint of HINTS) {
       paint(hint, (this.compact ? 34 : 42) * u, icon(hint));
     }
@@ -498,11 +527,21 @@ class PuzzleScene extends Phaser.Scene {
   private drawStatus(r: Rect): void {
     const { u, model } = this;
     const mid = r.y + r.h / 2;
-    this.button('back', r.x + 42 * u, mid, 84 * u, 38 * u, '‹ Menu', () => this.exit());
+    const fullscreen = document.fullscreenEnabled;
+    // Trade the Menu label for its back arrow on narrow toolbars, leaving the stats their existing space.
+    const compactMenu = fullscreen && r.w < 420 * u;
+    const menuWidth = (compactMenu ? 38 : 84) * u;
+    this.button('back', r.x + menuWidth / 2, mid, menuWidth, 38 * u, compactMenu ? '‹' : '‹ Menu', () => this.exit());
     const helpSize = 38 * u;
     this.button('help', r.x + r.w - helpSize / 2, mid, helpSize, helpSize, '?', () => this.options.onHelp());
-    const left = r.x + 96 * u;
-    const right = r.x + r.w - helpSize - 10 * u;
+    const fullscreenWidth = fullscreen ? helpSize + 8 * u : 0;
+    if (fullscreen) {
+      this.button('fullscreen', r.x + r.w - helpSize / 2 - fullscreenWidth, mid, helpSize, helpSize,
+        document.fullscreenElement ? 'exitFullscreen' : 'enterFullscreen',
+        () => { void this.toggleFullscreen(); }, () => this.fullscreenPending);
+    }
+    const left = r.x + menuWidth + 12 * u;
+    const right = r.x + r.w - helpSize - fullscreenWidth - 10 * u;
     const span = right - left;
 
     const countX = left + span * 0.16;
@@ -519,6 +558,28 @@ class PuzzleScene extends Phaser.Scene {
     if (this.options.showTimer) {
       this.timerText = this.add.text(right, mid, formatTime(model.elapsed), this.textStyle(18))
         .setOrigin(1, 0.5);
+    }
+  }
+
+  /** Called on pointer release so touch browsers accept the fullscreen user gesture. */
+  private async toggleFullscreen(): Promise<void> {
+    const status = document.getElementById('fullscreenStatus')!;
+    status.textContent = '';
+    this.fullscreenPending = true;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      }
+    } catch {
+      status.textContent = document.fullscreenElement ? 'Could not exit full screen.' : 'Could not enter full screen.';
+    } finally {
+      this.fullscreenPending = false;
+      if (this.sys.isActive()) {
+        this.syncHud();
+        this.syncAccessible();
+      }
     }
   }
 
@@ -630,6 +691,7 @@ class PuzzleScene extends Phaser.Scene {
       back: 'Menu', help: 'How to play', hypothesis: 'What if?', woodpecker: `${names.woodpecker}: reveal a stump`,
       owl: `${names.owl}: explain a deduction`, squirrel: `${names.squirrel}: mark empty squares`,
       previous: 'Previous explanation page', next: 'Next explanation page',
+      fullscreen: document.fullscreenElement ? 'Exit full screen' : 'Enter full screen',
     };
     this.controls.set(name, {
       view: { name, label: labels[name] ?? content, bounds: [(x - w / 2) / u, (y - h / 2) / u, w / u, h / u], disabled: false },
@@ -637,7 +699,7 @@ class PuzzleScene extends Phaser.Scene {
     });
     back.setInteractive(new Phaser.Geom.Rectangle(-u, -u, w, h),
       (area: Phaser.Geom.Rectangle, px: number, py: number) => Phaser.Geom.Rectangle.Contains(area, px, py))
-      .on('pointerdown', () => this.activateControl(name));
+      .on(name === 'fullscreen' ? 'pointerup' : 'pointerdown', () => this.activateControl(name));
     if (dim) {
       this.dimmers.push({ parts: [border, back, face], dim });
     }

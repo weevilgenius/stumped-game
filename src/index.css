@@ -188,7 +188,6 @@ input[type='checkbox'] {
 
 .masthead {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -250,18 +249,8 @@ input[type='checkbox'] {
 
 .masthead nav {
   display: flex;
-  align-items: center;
   gap: 4px;
-  margin-left: auto;
   white-space: nowrap;
-}
-
-#fullscreenButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  flex: none;
 }
 
 .home {
@@ -781,8 +770,17 @@ fieldset label + label {
 }
 
 #fullscreenStatus {
-  color: var(--muted);
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 1;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--text);
   font-size: 0.9rem;
+  pointer-events: none;
 }
 
 #fullscreenStatus:empty {

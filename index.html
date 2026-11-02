@@ -41,15 +41,11 @@
           <span class="wordmark">stumped<span>.</span></span>
         </span>
         <nav aria-label="Main">
-          <button id="fullscreenButton" type="button" class="text-button" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path id="fullscreenIcon" d="M14 4h6v6M4 14v6h6" /></svg>
-          </button>
           <button id="helpButton" type="button" class="text-button">Help</button>
           <button id="timesButton" type="button" class="text-button">Best times</button>
           <button id="settingsButton" type="button" class="text-button">Settings</button>
         </nav>
       </header>
-      <p id="fullscreenStatus" role="status"></p>
       <p id="updateNotice" role="status" hidden>
         <span>A new version of Stumped is ready.</span>
         <span class="update-actions">
@@ -119,7 +115,7 @@
     </main>
 
     <!-- Puzzle screen: the Phaser canvas. -->
-    <div id="game" hidden></div>
+    <div id="game" hidden><p id="fullscreenStatus" role="status"></p></div>
 
     <dialog id="changelog" aria-labelledby="changelogTitle">
       <form method="dialog">
