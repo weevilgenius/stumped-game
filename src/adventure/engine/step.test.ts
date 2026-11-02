@@ -40,7 +40,7 @@ describe('bands', () => {
 
 describe('turn lifecycle', () => {
   it('resolves the pulse, then the enemy, then countdowns', () => {
-    const round = manifest([{ color: 0, amount: 2 }, { color: 2, amount: 4 }, { color: 8, amount: 75 }], [8]);
+    const round = manifest([{ color: 0, amount: 2 }, { color: 2, amount: 2 }, { color: 8, amount: 77 }], [8]);
     let { state, events } = run(startRun(WANDERER), { type: 'begin-encounter', encounter: WOLF },
       { type: 'begin-round', round }, turn(0, 2));
     expect(types(events).slice(2)).toEqual([
@@ -49,7 +49,7 @@ describe('turn lifecycle', () => {
     expect(events).toContainEqual({ type: 'ability-activated', slot: 0, item: 'dagger', effect: 'attack', value: 2, band: 0 });
     expect(state.encounter).toMatchObject({ health: 22, countdown: 2 });
 
-    ({ state } = run(state, turn(2, 4)));
+    ({ state } = run(state, turn(2, 2)));
     expect(state.block).toBe(3);
 
     // A wrong reveal is a turn: the wolf attacks into the block, and the rest of the block is lost.
