@@ -125,6 +125,17 @@
       </form>
     </dialog>
 
+    <dialog id="confirmation" aria-labelledby="confirmTitle" aria-describedby="confirmQuestion">
+      <form method="dialog">
+        <h2 id="confirmTitle">Please confirm</h2>
+        <p id="confirmQuestion" data-question></p>
+        <div class="row">
+          <button value="cancel" autofocus>Cancel</button>
+          <button value="confirm">Continue</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="settings">
       <form method="dialog">
         <h2>Settings</h2>

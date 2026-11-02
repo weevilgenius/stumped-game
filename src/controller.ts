@@ -49,7 +49,7 @@ export interface ControllerDeps {
   /** Random source for prepared puzzles. */
   readonly random: () => number;
   /** Asks the player a yes or no question. */
-  readonly confirm: (question: string) => boolean;
+  readonly confirm: (question: string) => boolean | Promise<boolean>;
   /** Name of the theme being played, recorded with each solve. */
   readonly theme?: () => string;
   /** Receives what happened in the adventure, in order. */
@@ -93,12 +93,12 @@ export interface Controller {
   /** Starts a new puzzle, after confirming if one is in progress. Ignored while one is being generated. */
   readonly newPuzzle: () => Promise<void>;
   /** Starts the current puzzle over from a blank board, after confirming if it is in progress. */
-  readonly retry: () => void;
+  readonly retry: () => Promise<void>;
   /**
    * Plays the puzzle a seed code stands for. Resumes instead if it is already in progress.
    * @returns false if the code is not valid
    */
-  readonly playCode: (text: string) => boolean;
+  readonly playCode: (text: string) => Promise<boolean>;
   /** Returns to the puzzle in progress. */
   readonly resume: () => void;
   /** Leaves the puzzle for the main screen. */
@@ -116,7 +116,7 @@ export interface Controller {
   /** Readies or unreadies an equipment slot. */
   readonly setReady: (slot: number, ready: boolean) => void;
   /** Gives up the adventure run, after confirming. */
-  readonly abandonAdventure: () => void;
+  readonly abandonAdventure: () => Promise<void>;
   /** @returns play time so far, in milliseconds */
   readonly tick: () => number;
   /** Pauses play time while the page is hidden. */
@@ -276,6 +276,7 @@ export function createController(deps: ControllerDeps): Controller {
   let screen: Screen = 'menu';
   /** The start being generated; a result arriving after it changes is stale. Null when idle. */
   let starting: AbortController | null = null;
+  let confirming: object | null = null;
   let generationError: string | null = null;
 
   const listeners = new Set<() => void>();
@@ -357,6 +358,7 @@ export function createController(deps: ControllerDeps): Controller {
 
   /** Abandons the start being generated, if any, so its result is ignored and the worker stops on it. */
   const cancelStart = (): void => {
+    confirming = null;
     starting?.abort();
     starting = null;
   };
@@ -426,7 +428,20 @@ export function createController(deps: ControllerDeps): Controller {
     show('puzzle');
   };
 
-  const mayAbandon = (question: string): boolean => game?.status !== 'playing' || deps.confirm(question);
+  /** Only one confirmation may be pending; navigation invalidates its eventual answer. */
+  const ask = async (question: string): Promise<boolean> => {
+    if (confirming) {
+      return false;
+    }
+    const request = confirming = {};
+    try {
+      return await deps.confirm(question) && confirming === request;
+    } finally {
+      if (confirming === request) {
+        confirming = null;
+      }
+    }
+  };
 
   /** Plays a puzzle once generated, unless the player has moved on. A failure leaves the current game as it was. */
   const generating = async (
@@ -461,17 +476,17 @@ export function createController(deps: ControllerDeps): Controller {
     }
   };
 
-  const playCode = (text: string): boolean => {
+  const playCode = async (text: string): Promise<boolean> => {
     const decoded = decodeSeedCode(text);
     if (!decoded) {
       return false;
     }
-    if (starting) {
+    if (starting || confirming) {
       return true;
     }
     if (game?.status === 'playing' && game.puzzle.code === encodeSeedCode(decoded.settings, decoded.seed, decoded.version)) {
       resume();
-    } else if (mayAbandon('Abandon the puzzle in progress and play this one?')) {
+    } else if (game?.status !== 'playing' || await ask('Abandon the puzzle in progress and play this one?')) {
       const abort = new AbortController();
       void generating({ puzzle: deps.generate(decoded, abort.signal), abort });
     }
@@ -515,7 +530,7 @@ export function createController(deps: ControllerDeps): Controller {
   };
 
   const playAdventure = async (): Promise<void> => {
-    if (!adventure || adventure.state.phase === 'ended' || starting) {
+    if (!adventure || adventure.state.phase === 'ended' || starting || confirming) {
       return;
     }
     if (adventure.state.phase === 'round') {
@@ -572,7 +587,7 @@ export function createController(deps: ControllerDeps): Controller {
     boot: (code) => {
       // A linked puzzle is asked for first, so it is not queued behind the prepared one.
       if (code) {
-        playCode(code);
+        void playCode(code);
       } else if (adventure?.open) {
         void playAdventure();
       } else if (data.open) {
@@ -582,21 +597,29 @@ export function createController(deps: ControllerDeps): Controller {
       void prepare();
     },
     newPuzzle: async () => {
-      if (!starting && mayAbandon('Abandon the puzzle in progress and start a new one?')) {
-        await generating(takePrepared());
+      if (starting || confirming) {
+        return;
       }
+      if (game?.status === 'playing' && !await ask('Abandon the puzzle in progress and start a new one?')) {
+        return;
+      }
+      await generating(takePrepared());
     },
-    retry: () => {
-      if (game && mayAbandon('Start this puzzle over from a blank board?')) {
-        play(game.puzzle);
+    retry: async () => {
+      if (!game || starting || confirming) {
+        return;
       }
+      if (game.status === 'playing' && !await ask('Start this puzzle over from a blank board?')) {
+        return;
+      }
+      play(game.puzzle);
     },
     playCode,
     resume,
     showMenu: () => show('menu'),
     updateSettings: (next) => {
       settings = next;
-      if (starting) {
+      if (starting || confirming) {
         cancelStart();
         emit();
       }
@@ -610,7 +633,10 @@ export function createController(deps: ControllerDeps): Controller {
       persist();
     },
     startAdventure: async (loadoutId) => {
-      if (adventure && adventure.state.phase !== 'ended' && !deps.confirm('Abandon the adventure under way and start a new one?')) {
+      if (starting || confirming) {
+        return;
+      }
+      if (adventure && adventure.state.phase !== 'ended' && !await ask('Abandon the adventure under way and start a new one?')) {
         return;
       }
       const next = newAdventure(loadoutId);
@@ -631,8 +657,11 @@ export function createController(deps: ControllerDeps): Controller {
         emit();
       }
     },
-    abandonAdventure: () => {
-      if (!adventure || adventure.state.phase === 'ended' || !deps.confirm('Give up this adventure?')) {
+    abandonAdventure: async () => {
+      if (!adventure || adventure.state.phase === 'ended' || confirming || starting) {
+        return;
+      }
+      if (!await ask('Give up this adventure?')) {
         return;
       }
       catchUp();

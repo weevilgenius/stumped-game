@@ -570,11 +570,11 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
 
   // Starting another while one is in progress asks first.
   await press(page, 'back');
-  page.once('dialog', (dialog) => void dialog.dismiss());
   await page.getByRole('button', { name: 'New puzzle' }).click();
+  await page.locator('#confirmation').getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.locator('#menu')).toBeVisible();
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'New puzzle' }).click();
+  await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
   await page.waitForFunction((code) => (
     (window as unknown as { stumped: Scene }).stumped.model.puzzle.code !== code), first.puzzle.code);
   expect((await model(page)).puzzle.size).toBe(5);
