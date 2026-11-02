@@ -248,6 +248,21 @@ The puzzle scene draws the strip when it is given an adventure (`AdventureView` 
 
 For analysis, each logged command has a timestamp (`times`, beside `log`), a replaced or dropped run is kept under `adventureRuns` (last ten), and Settings has Copy adventure data (current and earlier runs as JSON). Adventure wins go into the solve log flagged `adventure`, and every solve records when What if? mode was turned on (`whatIfs`; CSV columns `mode` and `what_if_seconds`).
 
+### Playtest review (2026-11-02)
+
+Barry played two logged runs with the Wanderer against back-to-back wolves (plus an earlier unlogged run), and the runs were replayed through the engine.
+
+- **Overall:** Encounters feel about right for an early-to-mid-game fight. One wolf is not hard; a chain of them is very hard, which is good. Ignoring the strip is unwise, and the disjoint-color loadout needs no readiness tending.
+- **Attrition sets run length:** A wolf lands 13 damage per puzzle (4, 5, 4); the shield blocks about 6 and herbs heal 2 to 7, so a run loses about 2 to 3 health per puzzle. The logged runs died to the seventh and sixth wolves, after 14 and 9 puzzles. Most wolves take two puzzles (about 19 damage dealt per puzzle against 24 health).
+- **Reveal order matters a lot:** Replaying the 23 recorded puzzles with the stumps of each puzzle in random order (a stand-in for solving in the usual most-obvious-first way) kills 2.2 wolves on average and dies by about puzzle 6, against 6 wolves and 14 puzzles with Barry's planned orders.
+- **Pre-solving:** When low, Barry marked the whole puzzle and then chose the reveal order. In the solve log, adventure puzzles took about twice as long as ordinary 9x9 medium ones (about 139s against 65s), the first stump came about halfway through instead of about a quarter, and in 4 of 21 puzzles all nine stumps came in the last fifth of the time. This is accepted as competitive play. There will be no real-time element, which would break the take-your-time feel; limiting What if? would reduce it but not stop it. What if? was used in 6 of 21 adventure puzzles, about a fifth of adventure play time.
+- **Unusable colors:** A color no item takes (brown here) is part of the game. Planning when to take it feels right.
+- **Cooldowns:** A single-color item or a charge item is already once per puzzle, so a cooldown only means anything on a multi-color item that fires on any of its colors. The "1" shown after an item fired was a display bug (the engine's same-turn lock); fixed so only real cooldowns show, dimmed like an unreadied chip.
+- **Urgency:** "Hits in 1" was ambiguous; it now reads "Attacking!" (or "Falling!") in red. The fatal turn of one run came from this: entering a puzzle at 3 health against a wolf about to hit for 5, a shield color first would have survived.
+- **Several effects in one turn:** Seeing only the result was unsatisfying and sometimes confusing ("did my purple do anything?"). The strip now shows lingering markers for heals, blocks, and damage, appearing in order. Staggered animations come with the final presentation.
+- **Layout:** The strip needs more height on the smallest phone, where the attack pips are tiny. Free room by shrinking the five buttons under the board, for example one row with clear, distinct icons for Undo and What if? (still wider than the hint buttons, since they are used most), and the unused gap above the strip.
+- **Pacing:** The full game needs ways to lower tension and regroup between high-stakes encounters, even without always healing (FTL's empty sectors and neutral encounters), and ways to spend supplies. Runs ended with 23 and 41 supplies and nothing to spend them on.
+
 ### Completion criteria
 
 Someone can play several puzzles without developer explanation, understand the consequences, and make useful tactical adjustments. Keyboard/accessibility behavior, responsive layout, and rapid input have been verified.
@@ -310,3 +325,5 @@ Ideas raised during planning, not yet part of any phase.
 - **Varying puzzle sizes:** Offer a range of board sizes, perhaps driven by particular enemies or power-ups.
 - **Run statistics on defeat:** A death screen showing statistics about the run, perhaps compared with recent runs.
 - **Ordered-color objectives:** A challenge that needs colors in a set order, like a charge weapon, rewarding strategic reveal order.
+- **Quiet sectors:** Empty sectors and neutral encounters between fights, so a run has room to regroup.
+- **Staggered strip animations:** Effects that land in the same turn play one after another, so a heal before a hit reads clearly.
