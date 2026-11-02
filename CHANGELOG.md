@@ -5,7 +5,7 @@
 - Adventure data records the selected loadout and its exact starting equipment; solve data includes the loadout for comparison.
 
 ## 0.14.3
-- Enter or exit full screen from Settings on supported devices, hiding browser and system bars while playing.
+- Enter or exit full screen with the icon beside Help on supported devices, hiding browser and system bars while playing.
 
 ## 0.14.2
 - Adventure strip: heals, blocks, and damage briefly show as markers, so effects that land in the same turn are all visible. An enemy about to strike now says Attacking! in red, and items no longer show a cooldown count after every use.

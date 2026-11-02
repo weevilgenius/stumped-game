@@ -317,16 +317,19 @@ $<HTMLFormElement>('codeForm').onsubmit = (event): void => {
 };
 
 /* ========================================================= *\
- *  Settings                                                 *
+ *  Full screen                                              *
 \* ========================================================= */
 
-const settingsDialog = $<HTMLDialogElement>('settings');
-const settingsForm = settingsDialog.querySelector('form')!;
 const fullscreenButton = $<HTMLButtonElement>('fullscreenButton');
 const fullscreenStatus = $('fullscreenStatus');
 const renderFullscreen = (): void => {
-  $('fullscreenControls').hidden = !document.fullscreenEnabled;
-  fullscreenButton.textContent = document.fullscreenElement ? 'Exit full screen' : 'Enter full screen';
+  const active = !!document.fullscreenElement;
+  const label = active ? 'Exit full screen' : 'Enter full screen';
+  fullscreenButton.hidden = !document.fullscreenEnabled;
+  fullscreenButton.setAttribute('aria-label', label);
+  fullscreenButton.setAttribute('aria-pressed', String(active));
+  fullscreenButton.title = label;
+  document.getElementById('fullscreenIcon')!.setAttribute('d', active ? 'M20 10h-6V4M4 14h6v6' : 'M14 4h6v6M4 14v6h6');
 };
 document.addEventListener('fullscreenchange', () => {
   fullscreenStatus.textContent = '';
@@ -350,6 +353,13 @@ fullscreenButton.onclick = async (): Promise<void> => {
   }
 };
 renderFullscreen();
+
+/* ========================================================= *\
+ *  Settings                                                 *
+\* ========================================================= */
+
+const settingsDialog = $<HTMLDialogElement>('settings');
+const settingsForm = settingsDialog.querySelector('form')!;
 const SELECTS = ['sizeMix', 'shape', 'freebies', 'silver'] as const;
 /** Groups of toggles where checking none means Any, which has the empty value. */
 const TOGGLES = ['sizes', 'tiers'] as const;
