@@ -54,6 +54,20 @@ const ENEMY_COLOR = 0xd9534f;
 const OBJECTIVE_COLOR = 0xe0b84a;
 /** Smallest damage of the medium and big hit tiers. Shortcut: fixed for the sandbox wolf; tune with real enemies. */
 const HIT_TIERS = [4, 7];
+/** Delay between a turn's lingering effect markers appearing, in ms. */
+const MARKER_STAGGER_MS = 250;
+/** How long a lingering effect marker stays before fading, in ms. */
+const MARKER_HOLD_MS = 1400;
+
+/** One lingering effect marker on the adventure strip. */
+interface Marker {
+  /** Which glyph it shows. */
+  readonly effect: ItemDef['effect'];
+  /** The amount, signed. */
+  readonly text: string;
+  /** Glyph and text color. */
+  readonly color: number;
+}
 
 /* ========================================================= *\
  *  Scene                                                    *
@@ -1033,19 +1047,28 @@ class PuzzleScene extends Phaser.Scene {
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
         const pips = '\u25cf'.repeat(tier) + '\u25cb'.repeat(3 - tier);
-        add(this.add.text(ex + 6 * u, top + 38 * u, `${encounter.type === 'enemy' ? 'Hits' : 'Falls'} in ${encounter.countdown}`,
-          { ...this.textStyle(13), fontStyle: 'normal' }));
+        // The last countdown step gets urgent wording: the next reveal still resolves before it lands.
+        const now = encounter.countdown <= 1;
+        const enemyType = encounter.type === 'enemy';
+        const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
+        add(this.add.text(ex + 6 * u, top + 38 * u, due,
+          now ? { ...this.textStyle(13), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13), fontStyle: 'normal' }));
         add(this.add.text(ex + 6 * u, top + 56 * u, pips, { ...this.textStyle(13), color: cssColor(ENEMY_COLOR) }));
       }
     }
 
     // Effects, on top of the fresh drawing.
     let color = 0;
+    const mine: Marker[] = [];
+    const theirs: Marker[] = [];
     for (const event of events) {
       if (event.type === 'collected') {
         color = event.color;
       } else if (event.type === 'pulse-routed' || event.type === 'ability-charged' || event.type === 'ability-activated') {
         this.flash(add, chips[event.slot], 0xffffff);
+        if (event.type === 'ability-activated' && event.effect === 'block') {
+          mine.push({ effect: 'block', text: `+${event.value}`, color: this.theme.cream });
+        }
       } else if (event.type === 'pulse-discarded') {
         // The pulse fizzles at the character's side.
         const size = 18 * u;
@@ -1057,10 +1080,50 @@ class PuzzleScene extends Phaser.Scene {
         if (target) {
           this.flash(add, target, event.target === 'character' ? ENEMY_COLOR : 0xffffff);
         }
+        if (event.target === 'character') {
+          mine.push({ effect: 'attack', text: `-${event.amount - event.blocked}`, color: ENEMY_COLOR });
+        } else {
+          theirs.push({ effect: 'attack', text: `-${event.amount}`, color: this.theme.cream });
+        }
+      } else if (event.type === 'healed') {
+        mine.push({ effect: 'heal', text: `+${event.amount}`, color: HEALTH_COLOR });
       } else if (event.type === 'run-ended' && event.outcome === 'death') {
         this.defeat();
       }
     }
+    this.markers(add, mine, r.x + left / 2, top + barH / 2);
+    this.markers(add, theirs, ex + ew / 2, top + 20 * u + barH / 2);
+  }
+
+  /**
+   * Shows a row of lingering markers for one turn's effects, centered on (x, y), appearing one
+   * after another in event order, so a heal or block that landed before a hit is still seen.
+   */
+  private markers(
+    add: <T extends Phaser.GameObjects.GameObject>(part: T) => T, markers: readonly Marker[], x: number, y: number,
+  ): void {
+    const { u } = this;
+    const h = 24 * u;
+    const w = 52 * u;
+    const gap = 4 * u;
+    const start = x - (markers.length * (w + gap) - gap) / 2;
+    markers.forEach((marker, i) => {
+      const cx = start + i * (w + gap) + w / 2;
+      const back = add(this.add.rectangle(cx, y, w, h, this.theme.ink, 0.9).setRounded(h / 2).setDepth(5));
+      const g = add(this.add.graphics().setDepth(5));
+      this.glyph(g, marker.effect, cx - w * 0.22, y, h * 0.6, marker.color);
+      const text = add(this.add.text(cx + w * 0.3, y, marker.text, { ...this.textStyle(13), color: cssColor(marker.color) })
+        .setOrigin(0.5).setDepth(5));
+      const parts = [back, g, text];
+      parts.forEach((part) => part.setAlpha(0));
+      this.tweens.chain({
+        targets: parts,
+        tweens: [
+          { alpha: 1, duration: 120, delay: i * MARKER_STAGGER_MS },
+          { alpha: 0, duration: 400, delay: MARKER_HOLD_MS },
+        ],
+      });
+    });
   }
 
   /** Draws a bar filled by `fraction`, with an optional label. Returns its background, for flashes. */
@@ -1103,11 +1166,13 @@ class PuzzleScene extends Phaser.Scene {
       }
     });
     const parts: Phaser.GameObjects.GameObject[] = [back, g];
-    const wait = slot.readyAt - (state.round?.turn ?? 0);
+    // Turns it will still be skipped. The engine also locks an item for the turn it fired in,
+    // which never matters (one reveal per turn), so that lock is not shown.
+    const wait = slot.readyAt - (state.round?.turn ?? 0) - 1;
     if (wait > 0) {
       parts.push(add(this.add.text(x + w - 4 * u, y + 3 * u, `${wait}`, this.textStyle(13)).setOrigin(1, 0)));
     }
-    if (!slot.ready) {
+    if (!slot.ready || wait > 0) {
       parts.forEach((part) => (part as unknown as Phaser.GameObjects.Components.AlphaSingle).setAlpha(0.35));
     }
     const name = `slot${index}`;

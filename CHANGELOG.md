@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.2
+- Adventure strip: heals, blocks, and damage briefly show as markers, so effects that land in the same turn are all visible. An enemy about to strike now says Attacking! in red, and items no longer show a cooldown count after every use.
+
 ## 0.14.1
 - Fix Stumped interrupting music and audiobooks on iOS when sound effects are turned off.
 
