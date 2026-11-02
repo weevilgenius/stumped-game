@@ -263,6 +263,16 @@ Barry played two logged runs with the Wanderer against back-to-back wolves (plus
 - **Layout:** The strip needed more height on the smallest phone, where the attack pips were tiny. In the stacked layout it now grows into spare height (up to 124px, scaling its bars, text, and pips), and where there is not enough, the buttons under the board shrink (40px rows instead of 52px) and only there. A single button row with icons for Undo and What if? stays an option if more room is needed.
 - **Pacing:** The full game needs ways to lower tension and regroup between high-stakes encounters, even without always healing (FTL's empty sectors and neutral encounters), and ways to spend supplies. Runs ended with 23 and 41 supplies and nothing to spend them on.
 
+### Playtest review: loadouts (2026-11-02)
+
+Barry then played the Overlap loadout (20 puzzles, 10 wolves, still alive at 18 of 20 health) and started a Hunter run (2 puzzles, too short to judge). The logs were replayed through the engine.
+
+- **Many-color items are hard to read:** The Hunter's any-color sling showed nine tiny dots. Final UI rule: an item that takes every color shows a single wildcard symbol; every other item takes at most four colors, so swatches never need a second row. Avoid "all but one or two" items; if one is ever wanted, show the wildcard with the excluded colors crossed out. The playtest now draws any-color items as a small color wheel.
+- **Solve, then plan:** At this difficulty it is unwise to reveal the first stump deduced. The rhythm that works is to solve the whole puzzle without marking it, then turn to the strip and choose the reveal and readiness order. The cause is perfect information: sizes and enemy attacks are all visible, so the best order can be worked out once the puzzle is solved. Accepted for now; weaving the two halves together would need fundamental changes, such as information that appears only as you reveal.
+- **Options are the fun:** The best play sits between no choices (Wanderer: disjoint colors, no readiness tending) and many choices (Overlap: four colors shared by herbs, shield, and dagger, with 123 readiness changes over the run). Heavy overlap is very strong, fine as a lucky drop but too easy as a starter. Its edge was not damage (it dealt less per puzzle than the Wanderer) but healing and blocking on demand: after a wolf died, the rest of the puzzle healed 7 to 12, and big colors went to the shield just before attacks (9 to 11 blocked). A middle starter would have a few "swing" colors shared by two items. Starter tuning waits for phase 7, because in these tests in-fight healing is the only way to recover; rest, consumables, or healing encounters would take some of that load.
+- **Block versus healing:** When a color can block or heal, the better choice was not obvious, and healing was equal or stronger at every size band. Block is riskier (it only meets the next hit, excess is lost when that hit lands, and it clears at the end of the puzzle), so at the same tier block is one step above healing. The shield is now 3/4/6/8 against the herbs' 2/3/5/7.
+- **Harvest is anticlimactic:** After a win every color scavenges with nearly flat bands, so order no longer matters. Ideas for later: only some colors are harvestable, harvest that charges up like the staff, and charge that carries between puzzles.
+
 ### Completion criteria
 
 Someone can play several puzzles without developer explanation, understand the consequences, and make useful tactical adjustments. Keyboard/accessibility behavior, responsive layout, and rapid input have been verified.
@@ -327,3 +337,7 @@ Ideas raised during planning, not yet part of any phase.
 - **Ordered-color objectives:** A challenge that needs colors in a set order, like a charge weapon, rewarding strategic reveal order.
 - **Quiet sectors:** Empty sectors and neutral encounters between fights, so a run has room to regroup.
 - **Staggered strip animations:** Effects that land in the same turn play one after another, so a heal before a hit reads clearly.
+- **Reveal-time information:** Show the enemy's next attack only one step ahead, or let a reveal trigger a small event, so pre-solved plans must adapt and the puzzle and adventure interleave.
+- **Harvestable colors:** Only some colors scavenge after a win, explained up front, so players try to save them for the end. Different enemies could drop different colors.
+- **Charged harvest:** A harvest that charges like the staff, with a bonus for collecting colors in the right order.
+- **Carry-over charge:** Some charge carries from one puzzle to the next.

@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.15.1
+- Adventure playtest: the shield blocks more than herbs heal for the same color size, and items that take every color show a color wheel.
 - Adventure playtest: choose Wanderer, Coverage, Overlap, Specialist, or Hunter before a new run, with a short description and equipment preview.
 - Adventure data records the selected loadout and its exact starting equipment; solve data includes the loadout for comparison.
 

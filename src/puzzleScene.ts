@@ -1236,9 +1236,20 @@ class PuzzleScene extends Phaser.Scene {
     const g = add(this.add.graphics());
     this.glyph(g, item.effect, x + w / 2, y + h * 0.32, h * 0.38, this.theme.cream);
     // Color swatches; a charge item's are hollow until it takes that color this round.
+    // An item that takes every color shows one color wheel instead of a row of tiny swatches.
+    const wild = item.colors.length >= this.model.puzzle.size;
+    if (wild) {
+      const r = 8 * u;
+      const step = (Math.PI * 2) / item.colors.length;
+      item.colors.forEach((color, i) => {
+        g.fillStyle(this.theme.palette[color])
+          .slice(x + w / 2, y + h * 0.72 + 6 * u, r, i * step - Math.PI / 2, (i + 1) * step - Math.PI / 2)
+          .fillPath();
+      });
+    }
     const size = Math.min(12 * u, (w - 8 * u) / item.colors.length - 3 * u);
     const sx = x + (w - item.colors.length * (size + 3 * u) + 3 * u) / 2;
-    item.colors.forEach((color, i) => {
+    (wild ? [] : item.colors).forEach((color, i) => {
       const cx = sx + i * (size + 3 * u);
       const cy = y + h * 0.72;
       if (!item.charge || slot.charged.includes(color)) {

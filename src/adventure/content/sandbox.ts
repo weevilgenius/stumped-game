@@ -14,7 +14,7 @@ const bands = (...values: readonly [number, number, number, number]): readonly B
 export const DAGGER: ItemDef = { id: 'dagger', effect: 'attack', colors: [0, 1], bands: bands(2, 3, 5, 8) };
 
 /** Defense on two colors. */
-export const SHIELD: ItemDef = { id: 'shield', effect: 'block', colors: [2, 3], bands: bands(2, 3, 4, 6) };
+export const SHIELD: ItemDef = { id: 'shield', effect: 'block', colors: [2, 3], bands: bands(3, 4, 6, 8) };
 
 /** Multi-color charge: fires once it has taken colors 4, 5, and 6, sized by their total. */
 export const STAFF: ItemDef = {
