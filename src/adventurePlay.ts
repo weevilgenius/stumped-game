@@ -1,7 +1,8 @@
 import {
-  type AdventureCommand, type AdventureEvent, type AdventureState, type Collection, type RoundManifest, startRun, step,
+  type AdventureCommand, type AdventureEvent, type AdventureState, type CharacterDef, type Collection, type RoundManifest, startRun, step,
 } from './adventure/engine';
-import { WANDERER, WOLF } from './adventure/content/sandbox';
+import { WOLF } from './adventure/content/sandbox';
+import { LOADOUTS } from './adventure/content/loadouts';
 import type { Game } from './game';
 
 /* ========================================================= *\
@@ -18,6 +19,8 @@ export const ADVENTURE_VERSION = 1;
 export interface AdventureSave {
   /** Save format. */
   version: typeof ADVENTURE_VERSION;
+  /** Selected simulator loadout, including its exact definitions. Missing in older saves; use `start` there. */
+  loadout?: CharacterDef;
   /** The run as it began, so the log can replay it. */
   start: AdventureState;
   /** Every accepted command since the run began, in order, turns included. */
@@ -35,12 +38,16 @@ export interface AdventureSave {
 }
 
 /**
- * Starts a sandbox run: the Wanderer against a wolf.
+ * Starts a sandbox run with a simulator loadout against a wolf.
+ * @param loadoutId simulator loadout identifier; defaults to Wanderer
  * @returns the new adventure, between rounds with no puzzle yet
  */
-export function newAdventure(): AdventureSave {
-  const state = startRun(WANDERER);
-  return { version: ADVENTURE_VERSION, start: state, log: [], times: [], state, game: null, played: 0, open: false };
+export function newAdventure(loadoutId = 'wanderer'): AdventureSave {
+  const definition = LOADOUTS.find((loadout) => loadout.id === loadoutId);
+  if (!definition) throw new Error(`Unknown adventure loadout: ${loadoutId}`);
+  const loadout = structuredClone(definition);
+  const state = startRun(loadout);
+  return { version: ADVENTURE_VERSION, loadout, start: state, log: [], times: [], state, game: null, played: 0, open: false };
 }
 
 /**

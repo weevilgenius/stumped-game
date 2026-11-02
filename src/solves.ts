@@ -76,6 +76,8 @@ export interface Solve {
   readonly whatIfs?: readonly number[];
   /** Played in an adventure. */
   readonly adventure?: true;
+  /** Starting simulator loadout id for adventure solves. Missing in older records. */
+  readonly loadout?: string;
 }
 
 /**
@@ -83,9 +85,10 @@ export interface Solve {
  * @param date completion time as epoch milliseconds
  * @param theme the theme it was played in
  * @param adventure true if played in an adventure
+ * @param loadout starting simulator loadout id, when known
  * @returns the solve, or null if the game did not keep the order of every stump
  */
-export function solveOf(game: Game, date: number, theme: string, adventure = false): Solve | null {
+export function solveOf(game: Game, date: number, theme: string, adventure = false, loadout?: string): Solve | null {
   const { puzzle } = game;
   const found = game.found ?? [];
   if (found.length !== puzzle.size) {
@@ -109,6 +112,7 @@ export function solveOf(game: Game, date: number, theme: string, adventure = fal
     ...(misses && { misses }),
     ...(game.whatIfs && { whatIfs: [...game.whatIfs] }),
     ...(adventure && { adventure }),
+    ...(adventure && loadout && { loadout }),
   };
 }
 
@@ -131,7 +135,8 @@ const validSolve = (value: unknown): value is Solve => object(value)
   && Array.isArray(value.stumps) && value.stumps.every(validStump)
   && (value.misses === undefined || (Array.isArray(value.misses) && value.misses.every(validMiss)))
   && (value.whatIfs === undefined || (Array.isArray(value.whatIfs) && value.whatIfs.every(duration)))
-  && (value.adventure === undefined || value.adventure === true);
+  && (value.adventure === undefined || value.adventure === true)
+  && (value.loadout === undefined || typeof value.loadout === 'string');
 
 /**
  * @param raw the saved solve log
@@ -149,12 +154,12 @@ export function parseSolves(raw: string): Solve[] | null {
 /**
  * CSV columns: one row per stump or wrong reveal, in the order they happened,
  * with its solve's details repeated. `wrong`, then `mode` and `what_if_seconds`,
- * were added after the first recordings, so older exports lack them.
+ * then `loadout`, were added after the first recordings, so older exports lack them.
  */
 const COLUMNS = [
   'solve', 'date', 'size', 'difficulty', 'silver', 'repeat', 'theme', 'hints', 'acorns_lost', 'total_seconds', 'code',
   'order', 'row', 'col', 'color', 'patch_size', 'found_seconds', 'found_by', 'wrong',
-  'mode', 'what_if_seconds',
+  'mode', 'what_if_seconds', 'loadout',
 ] as const;
 
 /** A solve's stumps and wrong reveals in the order they happened. Misses are always the player's. */
@@ -178,7 +183,7 @@ export function solvesCsv(solves: readonly Solve[]): string {
     solve.id, new Date(solve.date).toISOString(), solve.size, solve.tier, solve.silver, solve.repeat, solve.theme,
     solve.hints.join(' '), solve.acornsLost, seconds(solve.time), solve.code,
     index + 1, stump.row + 1, stump.col + 1, stump.color + 1, stump.patch, seconds(stump.time), stump.by,
-    stump.wrong, solve.adventure ? 'adventure' : 'normal', (solve.whatIfs ?? []).map(seconds).join(' '),
+    stump.wrong, solve.adventure ? 'adventure' : 'normal', (solve.whatIfs ?? []).map(seconds).join(' '), solve.loadout ?? '',
   ].join(',')));
   return [COLUMNS.join(','), ...rows].join('\n');
 }

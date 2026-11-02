@@ -1278,3 +1278,15 @@ fieldset label + label {
     linear-gradient(90deg, #e8458b 0 16.6%, #f5a623 0 33.3%, #18a7b5 0 50%, #8e44ad 0 66.6%, #59b83a 0 83.3%, #ff7a1a 0) 0 0 / 360px 100%;
   opacity: 0.85;
 }
+
+/* Keep the playtest's equipment preview compact on phones. */
+#adventureLoadoutDescription,
+#adventureLoadoutInfo {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#adventure .actions {
+  flex-wrap: wrap;
+}

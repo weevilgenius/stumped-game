@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LOADOUTS } from './adventure/content/loadouts';
 import { type AdventureState, step } from './adventure/engine';
 import { generate } from './engine';
 import { beginStroke, doubleTap, type Game, newGame, woodpecker } from './game';
@@ -77,5 +78,34 @@ describe('parseAdventure', () => {
     expect(parseAdventure('null')).toBeNull();
     expect(parseAdventure('not json')).toBeUndefined();
     expect(parseAdventure(JSON.stringify({ ...save, version: 2 }))).toBeUndefined();
+  });
+});
+
+describe('loadouts', () => {
+  it.each(LOADOUTS)('starts $id with the simulator equipment and replays after saving', (definition) => {
+    const save = newAdventure(definition.id);
+    expect(save.loadout).toEqual(definition);
+    expect(save.loadout).not.toBe(definition);
+    expect(save.start.character).toBe(definition.id);
+    expect(save.state.slots.map((slot) => slot.item)).toEqual(definition.loadout);
+    const game = newGame(PUZZLE, false, 'play', true);
+    beginRound(save, game, 1);
+    tap(game, open(game)[0]);
+    sync(save, 2);
+    const restored = parseAdventure(JSON.stringify(save))!;
+    expect(restored.loadout).toEqual(definition);
+    expect(restored.log.reduce((state, next) => step(state, next).state, restored.start)).toEqual(restored.state);
+  });
+
+  it('still reads older saves without explicit loadout metadata', () => {
+    const save = newAdventure();
+    delete save.loadout;
+    const restored = parseAdventure(JSON.stringify(save))!;
+    expect(restored.start.character).toBe('wanderer');
+    expect(restored.start.slots).toEqual(save.start.slots);
+  });
+
+  it('rejects an unknown loadout', () => {
+    expect(() => newAdventure('missing')).toThrow('Unknown adventure loadout');
   });
 });

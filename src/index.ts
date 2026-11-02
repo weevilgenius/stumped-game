@@ -10,6 +10,7 @@ import { fillHelpBoards } from './help';
 import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
+import { LOADOUT_DESCRIPTIONS, LOADOUTS } from './adventure/content/loadouts';
 import { solvesCsv } from './solves';
 
 /* ========================================================= *\
@@ -242,6 +243,19 @@ $('retry').onclick = controller.retry;
 /** How a run ended, for the main screen. */
 const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' } as const;
 
+const loadoutSelect = $<HTMLSelectElement>('adventureLoadout');
+const loadoutName = (id: string): string => `${id[0].toUpperCase()}${id.slice(1)}`;
+for (const loadout of LOADOUTS) {
+  loadoutSelect.add(new Option(loadoutName(loadout.id), loadout.id));
+}
+const renderLoadout = (): void => {
+  const loadout = LOADOUTS.find((entry) => entry.id === loadoutSelect.value)!;
+  $('adventureLoadoutDescription').textContent = LOADOUT_DESCRIPTIONS[loadout.id];
+  $('adventureLoadoutInfo').textContent = `${loadout.health} health · ${loadout.loadout.map((item) => loadoutName(item.id)).join(' → ')} (priority order)`;
+};
+loadoutSelect.onchange = renderLoadout;
+renderLoadout();
+
 /** Adventure mode while it is playtested: shown from Settings, and doubles as the between-round summary. */
 const renderAdventure = (): void => {
   const { adventure } = controller;
@@ -256,11 +270,12 @@ const renderAdventure = (): void => {
   $('adventureInfo').textContent = !state ? 'No adventure yet.'
     : outcome ? `${RUN_OUTCOMES[outcome]} after ${state.rounds} ${state.rounds === 1 ? 'puzzle' : 'puzzles'}.`
       : `Health ${state.health}/${state.maxHealth} · Supplies ${state.resources.supplies ?? 0} · ${ahead}`;
+  if (adventure) $('adventureInfo').textContent = `${loadoutName(adventure.state.character)} · ${$('adventureInfo').textContent}`;
   $('adventureContinue').hidden = !state || state.phase === 'ended';
   $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
   $('adventureAbandon').hidden = !state || state.phase === 'ended';
 };
-$('adventureStart').onclick = (): void => void controller.startAdventure();
+$('adventureStart').onclick = (): void => void controller.startAdventure(loadoutSelect.value);
 $('adventureContinue').onclick = (): void => void controller.playAdventure();
 $('adventureAbandon').onclick = controller.abandonAdventure;
 
