@@ -26,7 +26,7 @@ Tap an equipment chip to inspect its color swatches and exact size bands,
 charge/cooldown, level, and free readiness control. Tap the enemy for exact health,
 next damage and countdown, enrage/escape, and harvest colors. These cards also
 expose instant consumables. All have keyboard-accessible controls and Escape
-closes the card. Harvest colors are visible on the strip before the kill.
+closes the card. Harvest colors are visible on the strip before the kill. Tap an equipped item or skill to toggle readiness; hold it for half a second to inspect. This works in the puzzle strip and on equipment cards. Keyboard users can press Enter/Space to toggle and Shift+Enter for details.
 
 The home screen contains only **Start adventure** and **Resume adventure** for this mode. Selection and run management use the shared Phaser canvas. **Route**, **Gear**, **Loot**, **Camp/Shop**, and **Potions** have separate views with touch and keyboard controls; inspections and equipment swaps have their own detail views. Returning from a puzzle opens run management, and **Home** returns to ordinary play. Starting selection does not replace a saved run until confirmed. Both puzzle clocks pause in these views, and reloading restores preparation or the open puzzle.
 

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bindItemPress } from './itemPress';
 import { AdventureScene } from './adventureScene';
 import type { AdventureSceneOptions } from './adventureScene';
 import { createAccessiblePuzzle } from './accessibility';
@@ -178,7 +179,7 @@ class PuzzleScene extends Phaser.Scene {
   private complete = new Set<string>();
   private shownSeconds = -1;
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
-  private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
+  private controls = new Map<string, { view: AccessibleControl; onTap: () => void; onHold?: () => void; dim?: () => boolean }>();
   private inputState = '';
   private fullscreenPending = false;
   /** Where the adventure strip goes, and what is drawn there now. */
@@ -243,7 +244,7 @@ class PuzzleScene extends Phaser.Scene {
     this.game.canvas.setAttribute('aria-hidden', 'true');
     this.accessible = createAccessiblePuzzle(this.game.canvas.parentElement!, this.model,
       (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
-      (cell) => this.revealCell(cell), (name) => this.activateControl(name));
+      (cell) => this.revealCell(cell), (name, details) => this.activateControl(name, details));
     this.events.once('shutdown', () => {
       this.accessible?.destroy();
       this.accessible = undefined;
@@ -831,14 +832,15 @@ class PuzzleScene extends Phaser.Scene {
     );
   }
 
-  private activateControl(name: string): void {
+  private activateControl(name: string, details = false): void {
     const control = this.controls.get(name);
     if (!control || this.blocked() || performance.now() < this.buttonsFrom || control.dim?.()) {
       return;
     }
     this.lastTap = null;
     this.stroke = null;
-    control.onTap();
+    if (details) control.onHold?.();
+    else control.onTap();
     this.syncAccessible();
   }
 
@@ -1290,13 +1292,12 @@ class PuzzleScene extends Phaser.Scene {
     const name = `slot${index}`;
     const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
-      view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
-      onTap: () => {
-        if (state.campaign) this.options.adventure?.inspect?.(index);
-        else this.options.adventure?.setReady(index, !slot.ready);
-      },
+      view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false, details: !!this.options.adventure?.inspect },
+      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+      onHold: () => this.options.adventure?.inspect?.(index),
     });
-    back.setInteractive().on('pointerdown', () => this.activateControl(name));
+    back.setInteractive();
+    bindItemPress(back, u, () => this.activateControl(name), () => this.activateControl(name, true));
     return back;
   }
 

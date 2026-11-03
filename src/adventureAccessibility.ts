@@ -1,7 +1,7 @@
 import type { AccessibleControl } from './accessibility';
 
 /** Semantic companion to the adventure canvas; Phaser owns layout and actions. */
-export function createAccessibleAdventure(parent: HTMLElement, onSelect: (name: string) => void): {
+export function createAccessibleAdventure(parent: HTMLElement, onSelect: (name: string, details?: boolean) => void): {
   render: (title: string, description: string, controls: readonly AccessibleControl[], current?: string) => void;
   focus: () => void;
   destroy: () => void;
@@ -24,14 +24,22 @@ export function createAccessibleAdventure(parent: HTMLElement, onSelect: (name: 
       if (changed) status.textContent = title;
       const names = new Set(actions.map((action) => action.name));
       for (const [name, button] of controls) if (!names.has(name)) { button.remove(); controls.delete(name); }
-      for (const { name, label, disabled, bounds: [x, y, width, height] } of actions) {
+      for (const { name, label, disabled, details, bounds: [x, y, width, height] } of actions) {
         let button = controls.get(name);
         if (!button) {
           button = document.createElement('button'); button.type = 'button'; button.dataset.action = name;
           button.onclick = () => { if (!controls.get(name)?.disabled) onSelect(name); };
+          button.onkeydown = (event) => {
+            if (event.shiftKey && event.key === 'Enter' && button!.hasAttribute('aria-keyshortcuts')) {
+              event.preventDefault();
+              if (!event.repeat && !button!.disabled) onSelect(name, true);
+            }
+          };
           controls.set(name, button);
         }
         button.setAttribute('aria-label', label); button.disabled = disabled;
+        if (details) { button.setAttribute('aria-keyshortcuts', 'Shift+Enter'); button.title = 'Tap to toggle readiness; hold or Shift+Enter for details'; }
+        else { button.removeAttribute('aria-keyshortcuts'); button.removeAttribute('title'); }
         if (name === current) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
         button.style.cssText = `left:${x}px;top:${y}px;width:${width}px;height:${height}px`;

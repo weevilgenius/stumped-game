@@ -11,12 +11,14 @@ export interface AccessibleControl {
   readonly bounds: readonly [number, number, number, number];
   /** Whether the shared action is unavailable. */
   readonly disabled: boolean;
+  /** Shift+Enter opens item details instead of invoking the primary action. */
+  readonly details?: boolean;
 }
 
 /** Creates a semantic companion; actions and availability remain owned by the scene. */
 export function createAccessiblePuzzle(
   parent: HTMLElement, game: Game, onMark: (cell: number) => void,
-  onReveal: (cell: number) => void, onControl: (name: string) => void,
+  onReveal: (cell: number) => void, onControl: (name: string, details?: boolean) => void,
 ): {
   render: (bounds: readonly [number, number, number], controls: readonly AccessibleControl[], blocked: boolean, message: string) => void;
   focus: () => void;
@@ -129,6 +131,12 @@ export function createAccessiblePuzzle(
           button.dataset.action = name;
           button.setAttribute('aria-label', label);
           button.onclick = () => onControl(name);
+          button.onkeydown = (event) => {
+            if (event.shiftKey && event.key === 'Enter' && button.hasAttribute('aria-keyshortcuts')) {
+              event.preventDefault();
+              if (!event.repeat) onControl(name, true);
+            }
+          };
           return button;
         }));
         names = nextNames;
@@ -138,11 +146,13 @@ export function createAccessiblePuzzle(
           (target as HTMLElement | null)?.focus();
         }
       }
-      controls.forEach(({ label, bounds: [left, top, width, height], disabled }, i) => {
+      controls.forEach(({ label, bounds: [left, top, width, height], disabled, details }, i) => {
         const button = toolbar.children[i] as HTMLButtonElement;
         button.setAttribute('aria-label', label);
         button.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
         button.setAttribute('aria-disabled', String(disabled));
+        if (details) { button.setAttribute('aria-keyshortcuts', 'Shift+Enter'); button.title = 'Tap to toggle readiness; hold or Shift+Enter for details'; }
+        else { button.removeAttribute('aria-keyshortcuts'); button.removeAttribute('title'); }
       });
       const text = `${stumps(game).length} of ${n} stumps found. ${game.acorns} acorns remaining. ${game.hypo ? 'What if mode. ' : ''}${message}`;
       if (live.textContent !== text) {

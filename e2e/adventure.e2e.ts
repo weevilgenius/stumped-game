@@ -69,7 +69,7 @@ test('route, equipment and an unfinished puzzle resume through separate canvas s
   await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
   await activate(page, 'Next puzzle');
   await expect(page.getByRole('gridcell')).toHaveCount(81);
-  await page.getByRole('button', { name: /^Shortbow, ready/ }).focus(); await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /^Shortbow, ready/ }).focus(); await page.keyboard.press('Shift+Enter');
   const card = page.getByRole('dialog', { name: 'Adventure details' });
   await expect(card).toContainText('1–3 squares: 2');
   await card.getByRole('button', { name: 'Unready', exact: true }).click();
@@ -87,6 +87,55 @@ test('route, equipment and an unfinished puzzle resume through separate canvas s
   await page.getByRole('button', { name: 'Resume adventure' }).click();
   await expect(page.getByRole('gridcell')).toHaveCount(81);
   await expect(page.locator('#game canvas')).toHaveCount(1);
+});
+
+test('item and skill taps toggle readiness while holds inspect without toggling', async ({ page }, info) => {
+  await enable(page); await start(page); await activate(page, 'Gear');
+  const touch = info.project.name === 'mobile-chromium' ? await page.context().newCDPSession(page) : null;
+  const down = async (target: Locator): Promise<{ x: number; y: number }> => {
+    const bounds = await target.boundingBox();
+    const spot = { x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2 };
+    if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [spot] });
+    else { await page.mouse.move(spot.x, spot.y); await page.mouse.down(); }
+    return spot;
+  };
+  const up = async (): Promise<void> => {
+    if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    else await page.mouse.up();
+  };
+  const gear = page.locator('.accessible-adventure [data-action="ready-0"]');
+  await ready(page); await down(gear); await up();
+  await expect.poll(async () => (await readSave(page)).state.slots[0].ready).toBe(false);
+  await ready(page); await down(gear);
+  await expect(page.getByRole('heading', { name: 'Shortbow', exact: true })).toBeAttached();
+  await up(); expect((await readSave(page)).state.slots[0].ready).toBe(false);
+  await activate(page, 'Back'); await ready(page);
+  const spot = await down(gear);
+  if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: spot.x + 35, y: spot.y }] });
+  else await page.mouse.move(spot.x + 35, spot.y);
+  await up(); expect((await readSave(page)).state.slots[0].ready).toBe(false);
+  await gear.focus(); await page.keyboard.press('Space');
+  await expect.poll(async () => (await readSave(page)).state.slots[0].ready).toBe(true);
+  await ready(page); await gear.focus(); await page.keyboard.press('Shift+Enter');
+  await expect(page.getByRole('heading', { name: 'Shortbow', exact: true })).toBeAttached();
+  expect((await readSave(page)).state.slots[0].ready).toBe(true);
+  await activate(page, 'Back');
+  await page.screenshot({ path: `screenshots/adventure-tap-gear-${info.project.name}.png` });
+  await activate(page, 'Route');
+  await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
+  await activate(page, 'Next puzzle');
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  const card = page.getByRole('dialog', { name: 'Adventure details' });
+  for (const [slot, name] of ['Shortbow', 'Parry'].entries()) {
+    const item = page.locator(`.accessible-puzzle [data-action="slot${slot}"]`);
+    await down(item); await up();
+    await expect.poll(async () => (await readSave(page)).state.slots[slot].ready).toBe(false);
+    await expect(card).not.toBeVisible();
+    await down(item); await expect(card).toBeVisible();
+    await expect(card.getByRole('heading', { name, exact: true })).toBeVisible();
+    await up(); expect((await readSave(page)).state.slots[slot].ready).toBe(false);
+    await card.getByRole('button', { name: 'Back to puzzle', exact: true }).click();
+  }
 });
 
 test('loot and forward travel follow an actual fight, with new preparation screens after each puzzle', async ({ page }) => {

@@ -19,6 +19,8 @@ export interface AdventureAction {
   disabled?: boolean;
   /** Applies the action through the controller or changes the current view. */
   onSelect: () => void;
+  /** Optional item inspection on a sustained pointer press. */
+  onHold?: () => void;
 }
 /** A compact scene card; exact item details have their own cards. */
 export interface AdventureCard {
@@ -32,6 +34,8 @@ export interface AdventureCard {
   colors?: readonly number[];
   /** Card controls. */
   actions?: AdventureAction[];
+  /** Optional interaction with the card itself. */
+  press?: AdventureAction;
   /** Highlight a selected character or current item. */
   selected?: boolean;
 }
@@ -208,8 +212,9 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
   } else if (view.panel === 'gear') {
     page.title = 'Equipment';
     page.cards = state.slots.map((slot, index) => ({ id: `equipped-${slot.item.instance ?? slot.item.id}`, title: `${index + 1}. ${name(slot.item.id)} · ${slot.ready ? 'Ready' : 'Unready'}`,
-      body: `${name(slot.item.effect)} · Level ${slot.level ?? 0}/3\nFirst eligible ready item takes each pulse.`, colors: slot.item.colors,
-      actions: [action(`inspect-slot-${index}`, 'Inspect / manage', () => inspect(index)), action(`ready-${index}`, slot.ready ? 'Unready' : 'Ready', () => controller.setReady(index, !slot.ready))],
+      body: `${name(slot.item.effect)} · Level ${slot.level ?? 0}/3\nTap to toggle readiness. Hold for details.`, colors: slot.item.colors,
+      press: { ...action(`ready-${index}`, `${name(slot.item.id)}, ${slot.ready ? 'ready' : 'not ready'}`, () => controller.setReady(index, !slot.ready)), onHold: () => inspect(index) },
+      actions: [action(`inspect-slot-${index}`, 'Inspect / manage', () => inspect(index))],
     }));
     page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · Level ${slot.level ?? 0}/3\nReserve item; does not receive pulses.`, colors: slot.item.colors, actions: [action(`inspect-pack-${index}`, 'Inspect / manage', () => inspect(index, true))] })));
   } else if (view.panel === 'loot') {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bindItemPress } from './itemPress';
 import type { Controller } from './controller';
 import type { AccessibleControl } from './accessibility';
 import { createAccessibleAdventure } from './adventureAccessibility';
@@ -59,7 +60,7 @@ export class AdventureScene extends Phaser.Scene {
     const resize = (): void => { this.dirty = true; };
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.game.canvas.setAttribute('aria-hidden', 'true');
-    this.accessible = createAccessibleAdventure(this.game.canvas.parentElement!, (name) => this.activate(name));
+    this.accessible = createAccessibleAdventure(this.game.canvas.parentElement!, (name, details) => this.activate(name, details));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
       this.accessible?.destroy(); this.accessible = undefined;
@@ -78,12 +79,13 @@ export class AdventureScene extends Phaser.Scene {
 
   update(): void { if (this.dirty) this.build(); }
 
-  private activate(name: string): void {
+  private activate(name: string, details = false): void {
     const control = this.controls.get(name);
     if (!control || control.view.disabled || performance.now() < this.blockedUntil || !this.sys.isActive()) return;
     // A second tap must not activate a different offer or destination that replaced this button.
     this.blockedUntil = performance.now() + 300;
-    control.action.onSelect();
+    if (details) control.action.onHold?.();
+    else control.action.onSelect();
     this.dirty = true;
   }
 
@@ -105,7 +107,10 @@ export class AdventureScene extends Phaser.Scene {
     this.controls.set(action.name, { view: { name: action.name, label: action.label, bounds: [x, y, width, height], disabled }, action });
     this.spots[action.name] = { x: x + width / 2, y: y + height / 2 };
     if (disabled) { back.setAlpha(0.4); text.setAlpha(0.5); }
-    else back.setInteractive({ useHandCursor: true }).on('pointerup', () => this.activate(action.name));
+    else {
+      back.setInteractive({ useHandCursor: true });
+      bindItemPress(back, this.u, () => this.activate(action.name));
+    }
   }
 
   private build(): void {
@@ -161,8 +166,14 @@ export class AdventureScene extends Phaser.Scene {
 
   private drawCard(card: AdventureCard, x: number, y: number, width: number, height: number): void {
     const theme = this.options.theme;
-    this.add.rectangle((x + width / 2) * this.u, (y + height / 2) * this.u, width * this.u, height * this.u, theme.ink).setRounded(12 * this.u)
+    const back = this.add.rectangle((x + width / 2) * this.u, (y + height / 2) * this.u, width * this.u, height * this.u, theme.ink).setRounded(12 * this.u)
       .setStrokeStyle(this.u, theme.cream, card.selected ? 0.8 : 0.18);
+    if (card.press) {
+      const action = card.press;
+      this.controls.set(action.name, { view: { name: action.name, label: action.label, bounds: [x, y, width, height], disabled: false, details: !!action.onHold }, action });
+      back.setInteractive({ useHandCursor: true });
+      bindItemPress(back, this.u, () => this.activate(action.name), () => this.activate(action.name, true));
+    }
     this.label(card.title, x + 12, y + 12, 16, width - 24);
     const actions = card.actions ?? [];
     const perRow = width >= 360 ? 3 : 2;
