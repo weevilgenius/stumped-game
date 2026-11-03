@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { LOADOUTS } from './adventure/content/loadouts';
-import { type AdventureState, step } from './adventure/engine';
+import { STARTERS } from './adventure/content/campaign';
+import { advance, choices } from './adventure/campaign';
+import type { AdventureState } from './adventure/engine';
 import { generate } from './engine';
 import { beginStroke, doubleTap, type Game, newGame, woodpecker } from './game';
-import { beginRound, command, newAdventure, parseAdventure, sync, turnsOf } from './adventurePlay';
+import { type AdventureSave, beginRound, command, needsPuzzle, newAdventure, parseAdventure, sync, turnsOf } from './adventurePlay';
+
+/** A new run moved onto its first fight. */
+const atFight = (starter = 'knight'): AdventureSave => {
+  const save = newAdventure(starter, 5);
+  command(save, { type: 'move', node: choices(save.state)[0] }, 0);
+  return save;
+};
 
 const BOARD = generate({ size: 9, tier: 'medium', silver: false, sizeMix: 1, shape: 1, freebies: 0 }, 7);
 /** The board with one given stump. */
@@ -43,7 +51,7 @@ describe('turnsOf', () => {
 
 describe('sync', () => {
   it('plays each reveal once, ends the round on a win, and the log replays the run exactly', () => {
-    const save = newAdventure();
+    const save = atFight();
     const game = newGame(PUZZLE, false, 'play', true);
     beginRound(save, game, 1);
     tap(game, open(game)[0]);
@@ -58,22 +66,23 @@ describe('sync', () => {
     expect(game.status).toBe('won');
     expect(save.played).toBe(PUZZLE.size - PUZZLE.givens.length);
     expect(['between', 'ended']).toContain(save.state.phase);
-    const replayed = save.log.reduce((state: AdventureState, next) => step(state, next).state, save.start);
+    const replayed = save.log.reduce((state: AdventureState, next) => advance(state, next).state, save.start);
     expect(replayed).toEqual(save.state);
     expect(save.log.filter((logged) => logged.type === 'turn')).toHaveLength(save.played);
-    expect([save.times?.length, save.times?.slice(0, 4)]).toEqual([save.log.length, [1, 1, 2, 4]]);
+    expect([save.times?.length, save.times?.slice(0, 5)]).toEqual([save.log.length, [0, 1, 2, 4, 5]]);
+    expect(save.puzzles).toEqual([expect.objectContaining({ id: game.id, app: '', content: 1, code: PUZZLE.code, status: 'won' })]);
   });
 
   it('does not log rejected commands', () => {
-    const save = newAdventure();
+    const save = atFight();
     expect(command(save, { type: 'set-ready', slot: 9, ready: false }, 1)[0].type).toBe('command-rejected');
-    expect(save.log).toEqual([]);
+    expect(save.log).toHaveLength(1);
   });
 });
 
 describe('parseAdventure', () => {
   it('reads its own format, treats null as no adventure, and rejects anything else', () => {
-    const save = newAdventure();
+    const save = atFight();
     expect(parseAdventure(JSON.stringify(save))).toEqual(save);
     expect(parseAdventure('null')).toBeNull();
     expect(parseAdventure('not json')).toBeUndefined();
@@ -81,31 +90,22 @@ describe('parseAdventure', () => {
   });
 });
 
-describe('loadouts', () => {
-  it.each(LOADOUTS)('starts $id with the simulator equipment and replays after saving', (definition) => {
-    const save = newAdventure(definition.id);
-    expect(save.loadout).toEqual(definition);
-    expect(save.loadout).not.toBe(definition);
-    expect(save.start.character).toBe(definition.id);
-    expect(save.state.slots.map((slot) => slot.item)).toEqual(definition.loadout);
+describe('starters', () => {
+  it.each(STARTERS)('starts $id on a seeded map and replays after saving', (starter) => {
+    const save = atFight(starter.id);
+    expect(save.loadout).toEqual({ id: starter.id, health: starter.health, loadout: starter.loadout });
+    expect(save.state.slots.map((slot) => slot.item)).toEqual(starter.loadout);
+    expect(needsPuzzle(save.start)).toBe(false);
+    expect(needsPuzzle(save.state)).toBe(true);
     const game = newGame(PUZZLE, false, 'play', true);
     beginRound(save, game, 1);
     tap(game, open(game)[0]);
     sync(save, 2);
     const restored = parseAdventure(JSON.stringify(save))!;
-    expect(restored.loadout).toEqual(definition);
-    expect(restored.log.reduce((state, next) => step(state, next).state, restored.start)).toEqual(restored.state);
+    expect(restored.log.reduce((state, next) => advance(state, next).state, restored.start)).toEqual(restored.state);
   });
 
-  it('still reads older saves without explicit loadout metadata', () => {
-    const save = newAdventure();
-    delete save.loadout;
-    const restored = parseAdventure(JSON.stringify(save))!;
-    expect(restored.start.character).toBe('wanderer');
-    expect(restored.start.slots).toEqual(save.start.slots);
-  });
-
-  it('rejects an unknown loadout', () => {
-    expect(() => newAdventure('missing')).toThrow('Unknown adventure loadout');
+  it('rejects an unknown starter', () => {
+    expect(() => newAdventure('missing', 1)).toThrow('Unknown adventure character');
   });
 });

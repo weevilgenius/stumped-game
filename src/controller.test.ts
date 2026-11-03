@@ -2,7 +2,8 @@ import { type Controller, type ControllerDeps, createController } from './contro
 import { decodeSeedCode, encodeSeedCode, generate, type Puzzle } from './engine';
 import { parseBoard } from './engine/testBoards';
 import { applyExplanation, beginStroke, doubleTap, explain, type Game, newGame, resultOf } from './game';
-import { LOADOUTS } from './adventure/content/loadouts';
+import { STARTERS } from './adventure/content/campaign';
+import { choices } from './adventure/campaign';
 import { type AdventureSave, parseAdventure } from './adventurePlay';
 import { newSave, parseSave } from './save';
 import type { GenerateRequest } from './worker';
@@ -798,11 +799,17 @@ describe('adventure', () => {
   const unrevealed = (target: Game): number[] => target.puzzle.solution.filter((cell) => target.marks[cell] !== 3);
   const wrongCell = (target: Game): number => target.marks.findIndex((mark, cell) => mark === 0 && !target.puzzle.solution.includes(cell));
   const savedAdventure = (store: Map<string, string>) => parseAdventure(store.get('adventure')!)!;
+  /** Starts a run, moves to its first fight, and opens the fight's first puzzle. */
+  const begin = async (controller: Controller, starter = 'knight'): Promise<void> => {
+    await controller.startAdventure(starter);
+    expect(controller.act({ type: 'move', node: choices(controller.adventure!.state)[0] })).toBeNull();
+    await controller.playAdventure();
+  };
 
   it('plays a 9x9 medium puzzle with three acorns and no freebies, whatever the settings', async () => {
     const { fake, controller } = setup(savedStore(false));
     controller.updateSettings({ ...controller.settings, sizes: [5], silver: 'always', freebies: 3 });
-    await controller.startAdventure();
+    await begin(controller);
     expect(controller.screen).toBe('adventure');
     const { puzzle, acorns, found, misses } = adventureGame(controller);
     expect([puzzle.size, puzzle.tier, puzzle.silver, acorns, puzzle.givens]).toEqual([9, 'medium', false, 3, []]);
@@ -812,22 +819,56 @@ describe('adventure', () => {
     expect(savedAdventure(fake.store).open).toBe(true);
   });
 
-  it.each(LOADOUTS)('keeps $id in current and archived exports through a reload', async (definition) => {
+  it.each(STARTERS.filter((starter) => !starter.unlockWins))('keeps $id in current and archived exports through a reload', async (starter) => {
     const { fake, controller } = setup();
-    await controller.startAdventure(definition.id);
+    await begin(controller, starter.id);
     const restored = setup(fake.store).controller;
-    expect(savedAdventure(fake.store).loadout).toEqual(definition);
-    expect(restored.adventure?.state.character).toBe(definition.id);
-    await restored.startAdventure('wanderer');
+    expect(savedAdventure(fake.store).loadout).toEqual({ id: starter.id, health: starter.health, loadout: starter.loadout });
+    expect(restored.adventure?.state.character).toBe(starter.id);
+    await restored.startAdventure('scout');
     const data = JSON.parse(restored.adventureData()) as { current: AdventureSave; past: AdventureSave[] };
-    expect(data.current.loadout?.id).toBe('wanderer');
-    expect(data.past[0].loadout).toEqual(definition);
-    expect(data.past[0].start.slots.map((slot) => slot.item)).toEqual(definition.loadout);
+    expect(data.current.loadout?.id).toBe('scout');
+    expect(data.past[0].loadout?.id).toBe(starter.id);
+    expect(data.past[0].start.slots.map((slot) => slot.item)).toEqual(starter.loadout);
+  });
+
+  it('starts at the map, needs no puzzle until a fight, and refuses moves the map does not allow', async () => {
+    const { controller } = setup();
+    await controller.startAdventure('knight');
+    expect([controller.screen, controller.adventure!.state.campaign?.at]).toEqual(['menu', null]);
+    await controller.playAdventure();
+    expect(controller.screen).toBe('menu');
+    expect(controller.act({ type: 'move', node: 99 })).toBe('bad-node');
+  });
+
+  it('unlocks the herbalist after a won run, recorded apart from runs', async () => {
+    const { fake, controller } = setup();
+    await controller.startAdventure('herbalist');
+    expect(controller.adventure).toBeNull();
+    await begin(controller);
+    const stored = savedAdventure(fake.store);
+    const encounter = stored.state.encounter!;
+    if (encounter.type !== 'enemy') throw new Error('expected a fight');
+    stored.state.encounter = { ...encounter, health: 1, def: { ...encounter.def, boss: true } };
+    stored.state.health = 99;
+    fake.store.set('adventure', JSON.stringify(stored));
+    const winning = setup(fake.store).controller;
+    winning.boot(null);
+    for (const cell of unrevealed(adventureGame(winning))) {
+      tap(adventureGame(winning), cell);
+      winning.changed();
+    }
+    expect(winning.adventure!.state.outcome).toBe('victory');
+    expect(JSON.parse(fake.store.get('adventureUnlocks')!)).toEqual({ wins: 1 });
+    const later = setup(fake.store).controller;
+    expect(later.unlocks.wins).toBe(1);
+    await later.startAdventure('herbalist');
+    expect(later.adventure!.state.character).toBe('herbalist');
   });
 
   it('turns correct, wrong, and hint reveals into turns, and X marks into none', async () => {
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const target = adventureGame(controller);
     beginStroke(target, wrongCell(target));
     controller.changed();
@@ -848,7 +889,7 @@ describe('adventure', () => {
 
   it('replays reveals a save missed exactly once after a reload', async () => {
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const stored = savedAdventure(fake.store);
     // Reveals the save holds but the run never played, as from an older version.
     tap(stored.game!, unrevealed(stored.game!)[0]);
@@ -865,18 +906,18 @@ describe('adventure', () => {
 
   it('logs readiness changes in order with the turns, and keeps them through a reload', async () => {
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     tap(adventureGame(controller), unrevealed(adventureGame(controller))[0]);
     controller.changed();
     controller.setReady(1, false);
     const { log, state } = savedAdventure(fake.store);
-    expect(log.map((logged) => logged.type)).toEqual(['begin-encounter', 'begin-round', 'turn', 'set-ready']);
+    expect(log.map((logged) => logged.type)).toEqual(['move', 'begin-round', 'turn', 'set-ready']);
     expect(state.slots[1].ready).toBe(false);
   });
 
   it('ends the round on a win, keeps it out of best times, and plays the next puzzle', async () => {
     const { controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     for (const cell of unrevealed(adventureGame(controller))) {
       tap(adventureGame(controller), cell);
       controller.changed();
@@ -898,7 +939,7 @@ describe('adventure', () => {
 
   it('ends the run when the puzzle is lost, and when the character dies, leaving the puzzle screen to show it', async () => {
     const lost = setup().controller;
-    await lost.startAdventure();
+    await begin(lost);
     for (let i = 0; i < 3; i++) {
       tap(adventureGame(lost), wrongCell(adventureGame(lost)));
       lost.changed();
@@ -910,14 +951,14 @@ describe('adventure', () => {
     expect(lost.screen).toBe('menu');
 
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const stored = savedAdventure(fake.store);
     stored.state.health = 1;
     stored.state.slots.forEach((slot) => (slot.ready = false));
     fake.store.set('adventure', JSON.stringify(stored));
     const dying = setup(fake.store).controller;
     dying.boot(null);
-    for (let i = 0; i < 3 && dying.adventure!.state.phase !== 'ended'; i++) {
+    for (let i = 0; i < 6 && dying.adventure!.state.phase !== 'ended'; i++) {
       tap(adventureGame(dying), unrevealed(adventureGame(dying))[0]);
       dying.changed();
     }
@@ -927,17 +968,17 @@ describe('adventure', () => {
   it('keeps replaced runs and timestamps for export, and logs adventure wins flagged', async () => {
     vi.stubEnv('VITE_COLLECT_SOLVE_DATA', 'true');
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const first = adventureGame(controller);
     for (const cell of unrevealed(first)) {
       tap(first, cell);
       controller.changed();
     }
-    expect(controller.solves.at(-1)).toMatchObject({ id: first.id, adventure: true, loadout: 'wanderer' });
+    expect(controller.solves.at(-1)).toMatchObject({ id: first.id, adventure: true, loadout: 'knight' });
     const saved = savedAdventure(fake.store);
     expect(saved.times).toHaveLength(saved.log.length);
     controller.showMenu();
-    await controller.startAdventure();
+    await begin(controller);
     const data = JSON.parse(controller.adventureData()) as { current: AdventureSave; past: AdventureSave[] };
     expect([data.past.length, data.past[0].game?.id, data.current.game?.id === first.id]).toEqual([1, first.id, false]);
     expect(JSON.parse(fake.store.get('adventureRuns')!)).toHaveLength(1);
@@ -946,7 +987,7 @@ describe('adventure', () => {
 
   it('gives up a run in progress after confirming', async () => {
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     fake.answer = false;
     await controller.abandonAdventure();
     expect(controller.adventure!.state.phase).toBe('round');
@@ -957,8 +998,10 @@ describe('adventure', () => {
 
   it('keeps the run between rounds when its puzzle fails to generate', async () => {
     const { fake, controller } = setup();
+    await controller.startAdventure('knight');
+    controller.act({ type: 'move', node: choices(controller.adventure!.state)[0] });
     fake.manual = true;
-    const start = controller.startAdventure();
+    const start = controller.playAdventure();
     fake.pending[0].reject();
     await start;
     expect([controller.adventure!.state.phase, controller.screen, controller.generationError !== null])
@@ -971,7 +1014,7 @@ describe('adventure', () => {
 
   it('leaves the adventure alone when a linked code or new puzzle starts ordinary play', async () => {
     const { controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const adventure = adventureGame(controller);
     controller.boot(CODE);
     await flush();
@@ -1005,7 +1048,7 @@ describe('adventure', () => {
 
   it('times the adventure puzzle apart from the ordinary one', async () => {
     const { fake, controller } = setup(savedStore(false));
-    await controller.startAdventure();
+    await begin(controller);
     fake.time += 5000;
     controller.showMenu();
     controller.resume();
@@ -1026,7 +1069,7 @@ describe('adventure', () => {
 
   it('stops saving the adventure once another tab saves', async () => {
     const { fake, controller } = setup();
-    await controller.startAdventure();
+    await begin(controller);
     const before = fake.store.get('adventure');
     controller.savedElsewhere();
     controller.setReady(0, false);

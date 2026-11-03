@@ -55,7 +55,7 @@ describe('sandbox content', () => {
       expect(item.bands[0].min).toBe(1);
     }
     for (const encounter of [WOLF, ROCKFALL]) {
-      expect(encounter.scavenge.every((rule) => rule.bands[0].min === 1)).toBe(true);
+      expect(encounter.type !== 'forage' && encounter.scavenge.every((rule) => rule.bands[0].min === 1)).toBe(true);
     }
   });
 

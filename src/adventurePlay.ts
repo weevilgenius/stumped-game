@@ -1,8 +1,7 @@
-import {
-  type AdventureCommand, type AdventureEvent, type AdventureState, type CharacterDef, type Collection, type RoundManifest, startRun, step,
-} from './adventure/engine';
+import type { AdventureCommand, AdventureEvent, AdventureState, CharacterDef, Collection, RoundManifest } from './adventure/engine';
 import { WOLF } from './adventure/content/sandbox';
-import { LOADOUTS } from './adventure/content/loadouts';
+import { CONTENT_VERSION, STARTERS } from './adventure/content/campaign';
+import { advance, newCampaign, type RunCommand } from './adventure/campaign';
 import type { Game } from './game';
 
 /* ========================================================= *\
@@ -19,12 +18,12 @@ export const ADVENTURE_VERSION = 1;
 export interface AdventureSave {
   /** Save format. */
   version: typeof ADVENTURE_VERSION;
-  /** Selected simulator loadout, including its exact definitions. Missing in older saves; use `start` there. */
+  /** Starting character, including its exact definitions. Missing in older saves; use `start` there. */
   loadout?: CharacterDef;
   /** The run as it began, so the log can replay it. */
   start: AdventureState;
   /** Every accepted command since the run began, in order, turns included. */
-  log: AdventureCommand[];
+  log: RunCommand[];
   /** When each command in `log` was applied, as epoch milliseconds; 0 where unknown. Missing in older saves. */
   times?: number[];
   /** The run now. */
@@ -35,19 +34,56 @@ export interface AdventureSave {
   played: number;
   /** True while the adventure's puzzle is on screen, so a relaunch returns to it. */
   open: boolean;
+  /** One record per finished puzzle, so reports can reconstruct it and label mixed-version runs. Missing in older saves. */
+  puzzles?: PuzzleRecord[];
+}
+
+/** How one adventure puzzle was played, and under which versions. */
+export interface PuzzleRecord {
+  /** Play identifier (`game.id`). */
+  readonly id: string;
+  /** App version it was played on. */
+  readonly app: string;
+  /** Adventure content version. */
+  readonly content: number;
+  /** Seed code, which also fixes the generation settings. */
+  readonly code: string;
+  /** Size and difficulty it was generated at. */
+  readonly size: number;
+  readonly tier: string;
+  /** Active solve time, in milliseconds. */
+  readonly elapsed: number;
+  /** Hints used, in order. */
+  readonly hints: readonly string[];
+  /** Play times at which What if? was used. */
+  readonly whatIfs: readonly number[];
+  /** Solved or out of acorns. */
+  readonly status: Game['status'];
 }
 
 /**
- * Starts a sandbox run with a simulator loadout against a wolf.
- * @param loadoutId simulator loadout identifier; defaults to Wanderer
- * @returns the new adventure, between rounds with no puzzle yet
+ * Starts a campaign run with a starting character on a seeded map.
+ * @param starterId starting character identifier
+ * @param seed map, enemy, and loot seed
+ * @returns the new adventure, before the first move
  */
-export function newAdventure(loadoutId = 'wanderer'): AdventureSave {
-  const definition = LOADOUTS.find((loadout) => loadout.id === loadoutId);
-  if (!definition) throw new Error(`Unknown adventure loadout: ${loadoutId}`);
-  const loadout = structuredClone(definition);
-  const state = startRun(loadout);
-  return { version: ADVENTURE_VERSION, loadout, start: state, log: [], times: [], state, game: null, played: 0, open: false };
+export function newAdventure(starterId: string, seed: number): AdventureSave {
+  const starter = STARTERS.find((entry) => entry.id === starterId);
+  if (!starter) throw new Error(`Unknown adventure character: ${starterId}`);
+  const state = newCampaign(structuredClone(starter), seed);
+  const loadout: CharacterDef = { id: starter.id, health: starter.health, loadout: structuredClone(starter.loadout) };
+  return {
+    version: ADVENTURE_VERSION, loadout, start: state, log: [], times: [], state: structuredClone(state), game: null, played: 0, open: false, puzzles: [],
+  };
+}
+
+/**
+ * True when the run needs a puzzle next: a fight or forage is waiting, or a puzzle is under way.
+ * @param state the run
+ * @returns whether to offer the next puzzle
+ */
+export function needsPuzzle(state: Readonly<AdventureState>): boolean {
+  return state.phase === 'round' || (state.phase === 'between' && (state.encounter !== null || !state.campaign));
 }
 
 /**
@@ -57,8 +93,8 @@ export function newAdventure(loadoutId = 'wanderer'): AdventureSave {
  * @param at when, as epoch milliseconds
  * @returns the engine's events
  */
-export function command(save: AdventureSave, command: AdventureCommand, at: number): readonly AdventureEvent[] {
-  const { state, events } = step(save.state, command);
+export function command(save: AdventureSave, command: RunCommand, at: number): readonly AdventureEvent[] {
+  const { state, events } = advance(save.state, command);
   if (state !== save.state) {
     save.state = state;
     save.times ??= save.log.map(() => 0);
@@ -113,9 +149,10 @@ export function turnsOf(game: Game): AdventureCommand[] {
  * it does nothing when there is nothing new.
  * @param save the adventure, updated in place
  * @param at when, as epoch milliseconds
+ * @param app app version, recorded with the finished puzzle
  * @returns the engine's events
  */
-export function sync(save: AdventureSave, at: number): AdventureEvent[] {
+export function sync(save: AdventureSave, at: number, app = ''): AdventureEvent[] {
   const { game, state } = save;
   if (!game || state.round?.manifest.id !== game.id) {
     return [];
@@ -131,18 +168,24 @@ export function sync(save: AdventureSave, at: number): AdventureEvent[] {
   if (save.state.phase === 'round' && game.status !== 'playing') {
     events.push(...command(save, { type: 'end-round', outcome: game.status === 'won' ? 'completed' : 'failed' }, at));
   }
+  if (game.status !== 'playing' && !save.puzzles?.some((record) => record.id === game.id)) {
+    (save.puzzles ??= []).push({
+      id: game.id, app, content: CONTENT_VERSION, code: game.puzzle.code, size: game.puzzle.size, tier: game.puzzle.tier,
+      elapsed: game.elapsed, hints: [...game.hints], whatIfs: [...game.whatIfs ?? []], status: game.status,
+    });
+  }
   return events;
 }
 
 /**
- * Starts a round on a new puzzle, with a fresh wolf if the last encounter is over.
+ * Starts a round on a new puzzle. A sandbox run from before the campaign gets a fresh wolf if the last encounter is over.
  * @param save the adventure, between rounds; updated in place
  * @param game the new puzzle, which must keep `found` and `misses`
  * @param at when, as epoch milliseconds
  * @returns the engine's events
  */
 export function beginRound(save: AdventureSave, game: Game, at: number): AdventureEvent[] {
-  const events = save.state.encounter ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF }, at)];
+  const events = save.state.encounter || save.state.campaign ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF }, at)];
   events.push(...command(save, { type: 'begin-round', round: manifestOf(game) }, at));
   save.game = game;
   save.played = 0;

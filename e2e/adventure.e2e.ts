@@ -1,40 +1,28 @@
 import { expect, test } from '@playwright/test';
 import type { AdventureSave } from '../src/adventurePlay';
-import { LOADOUT_DESCRIPTIONS, LOADOUTS } from '../src/adventure/content/loadouts';
+import { STARTERS } from '../src/adventure/content/campaign';
 
-test('selects simulator loadouts, describes them, and preserves each run through reload and replacement', async ({ page }, testInfo) => {
+test('starts a campaign run on the map, travels to a fight, and resumes it after reload', async ({ page }) => {
   page.on('pageerror', (error) => { throw error; });
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByLabel('Show adventure mode').check();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
-  const selector = page.getByRole('combobox', { name: 'New run loadout' });
-  await expect(selector.locator('option')).toHaveCount(LOADOUTS.length);
-  for (const definition of LOADOUTS) {
-    await selector.selectOption(definition.id);
-    await expect(page.locator('#adventureLoadoutDescription')).toHaveText(LOADOUT_DESCRIPTIONS[definition.id]);
-    if (definition.id === 'specialist') {
-      await page.screenshot({ path: `screenshots/adventure-${testInfo.project.name}.png`, fullPage: true });
-    }
-    await page.getByRole('button', { name: 'New run', exact: true }).click();
-    if (definition !== LOADOUTS[0]) {
-      await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
-    }
-    await expect(page.locator('#game canvas')).toBeVisible();
-    const readSave = (): Promise<AdventureSave> => page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
-    expect((await readSave()).loadout).toEqual(definition);
-    expect((await readSave()).state.slots.map((slot) => slot.item)).toEqual(definition.loadout);
-    await page.reload();
-    await expect(page.locator('#game canvas')).toBeVisible();
-    expect((await readSave()).loadout).toEqual(definition);
-    await page.waitForFunction(() => (window as unknown as { stumped?: { spots: { back?: unknown } } }).stumped?.spots.back);
-    const { x, y } = await page.evaluate(() => (window as unknown as { stumped: { spots: { back: { x: number; y: number } } } }).stumped.spots.back);
-    await page.mouse.click(x, y);
-    await expect(page.locator('#adventureInfo')).toContainText(definition.id[0].toUpperCase() + definition.id.slice(1));
-    // Selecting the next run's equipment must not change the run being continued.
-    await selector.selectOption('wanderer');
-    expect((await readSave()).loadout).toEqual(definition);
-  }
-  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventureRuns')!) as AdventureSave[]);
-  expect(history.map((run) => run.loadout?.id)).toEqual(LOADOUTS.slice(0, -1).map((loadout) => loadout.id));
+  const selector = page.getByRole('combobox', { name: 'New run character' });
+  await expect(selector.locator('option')).toHaveCount(STARTERS.length);
+  await selector.selectOption('herbalist');
+  await expect(page.getByRole('button', { name: 'New run', exact: true })).toBeDisabled();
+  await selector.selectOption('scout');
+  await expect(page.locator('#adventureLoadoutDescription')).toHaveText(STARTERS[1].description);
+  await page.getByRole('button', { name: 'New run', exact: true }).click();
+  const readSave = (): Promise<AdventureSave> => page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
+  expect((await readSave()).state.character).toBe('scout');
+  // Every first-column node is a fight.
+  await page.getByRole('button', { name: /^Fight, danger 1, travel here/ }).first().click();
+  await expect(page.locator('#adventurePanel')).toContainText('Flee');
+  await page.getByRole('button', { name: /Next puzzle/ }).click();
+  await expect(page.locator('#game canvas')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('#game canvas')).toBeVisible();
+  expect((await readSave()).state.phase).toBe('round');
 });

@@ -105,7 +105,7 @@ describe('equipment', () => {
     let { state } = run(startRun(WANDERER), { type: 'begin-encounter', encounter: WOLF },
       { type: 'begin-round', round }, turn(5, 3), turn(2, 2));
     expect(state.slots[2].charged).toEqual([5]);
-    expect(state.encounter?.countdown).toBe(1);
+    expect(state.encounter).toMatchObject({ countdown: 1 });
     ({ state } = run(state, { type: 'end-round', outcome: 'completed' }));
     expect(state.slots[2]).toMatchObject({ charged: [], chargedAmount: 0, readyAt: 0 });
     expect(state.block).toBe(0);

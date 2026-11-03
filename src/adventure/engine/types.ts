@@ -49,6 +49,18 @@ export interface ItemDef {
   readonly cooldown?: number;
   /** Resource a forage item adds. */
   readonly resource?: string;
+  /** Loot tier, 1 to 3, which sets its shop price. Missing on sandbox items. */
+  readonly tier?: number;
+}
+
+/** A single-use item. Using one never takes a turn. */
+export interface ConsumableDef {
+  /** Content identifier. */
+  readonly id: string;
+  /** What it does: heal or block the character, or damage the enemy. */
+  readonly effect: 'heal' | 'block' | 'attack';
+  /** Effect size. */
+  readonly value: number;
 }
 
 /** One telegraphed enemy action. */
@@ -79,8 +91,27 @@ export type EncounterDef =
     readonly health: number;
     /** Actions it repeats in order. */
     readonly intents: readonly Intent[];
-    /** Rules for the scavenge phase after it is defeated. */
+    /** Rules for the scavenge phase after it is defeated. Ignored when `harvest` is set. */
     readonly scavenge: readonly ScavengeRule[];
+    /**
+     * Colors that harvest after a kill: each goes to the first readied item that takes it as
+     * experience, or becomes supplies. One fewer color harvests for each extra puzzle the fight lasts.
+     */
+    readonly harvest?: readonly ColorId[];
+    /** Damage added to every attack for each new puzzle it survives into. */
+    readonly enrage?: number;
+    /** Puzzles it fights before it flees, taking its loot with it. */
+    readonly flee?: number;
+    /** Killing it wins the run, and the player cannot flee it. */
+    readonly boss?: boolean;
+  }
+  | {
+    /** A puzzle with no enemy, where every listed color harvests. */
+    readonly type: 'forage';
+    /** Content identifier. */
+    readonly id: string;
+    /** Colors that harvest. */
+    readonly harvest: readonly ColorId[];
   }
   | {
     readonly type: 'objective';
@@ -132,6 +163,12 @@ export interface SlotState {
   charged: ColorId[];
   /** Squares a charge item has taken this round. */
   chargedAmount: number;
+  /** Band steps gained from harvest or rest. Missing in older saves, meaning 0. */
+  level?: number;
+  /** Harvested squares toward the next level. */
+  xp?: number;
+  /** Fight number it last levelled in, so it levels at most once per fight. */
+  leveledIn?: number;
 }
 
 /** The active encounter, which can outlast a round. */
@@ -148,6 +185,17 @@ export type EncounterState =
     intent: number;
     /** Turns until the next intent; 1 means it happens this turn. */
     countdown: number;
+    /** Puzzles it has been fought in. Missing in older saves. */
+    rounds?: number;
+    /** Damage added to each attack by enraging. */
+    rage?: number;
+  }
+  | {
+    readonly type: 'forage';
+    /** Its definition. */
+    readonly def: EncounterDef & { readonly type: 'forage' };
+    /** Always 'scavenge': there is nothing to fight. */
+    phase: 'scavenge';
   }
   | {
     readonly type: 'objective';
@@ -172,7 +220,57 @@ export interface RoundState {
 }
 
 /** How a run ended. */
-export type RunOutcome = 'death' | 'failed' | 'abandoned';
+export type RunOutcome = 'death' | 'failed' | 'abandoned' | 'victory';
+
+/** What a map node holds. The player sees the kind and a fight's danger tier before choosing. */
+export type NodeKind = 'fight' | 'elite' | 'boss' | 'shop' | 'rest' | 'event' | 'forage';
+
+/** One node of the run's map. */
+export interface MapNode {
+  /** Column from 0 (the start) to the boss's column. */
+  readonly column: number;
+  /** Position within the column, from 0. */
+  readonly lane: number;
+  /** Nodes in its column. */
+  readonly lanes: number;
+  /** What it holds. */
+  readonly kind: NodeKind;
+  /** Danger tier, 1 to 3, which also sets loot and shop tiers. */
+  readonly tier: number;
+  /** Indexes of the nodes it leads to. */
+  readonly next: readonly number[];
+}
+
+/** Something to pick up or buy. */
+export type Goods =
+  | { readonly kind: 'gear'; readonly item: ItemDef }
+  | { readonly kind: 'consumable'; readonly item: ConsumableDef };
+
+/** A shop's stock, fixed on arrival. Sold entries become null. */
+export interface ShopState {
+  /** Goods for sale and their prices. */
+  stock: ({ readonly goods: Goods; readonly price: number } | null)[];
+}
+
+/** Route, loot, and the current stop of a campaign run. Missing on sandbox runs. */
+export interface CampaignState {
+  /** Seed for the map, enemies, loot, shops, and events, so the run replays exactly. */
+  readonly seed: number;
+  /** Every node, by index. */
+  readonly nodes: readonly MapNode[];
+  /** Current node, or null before the first move. */
+  at: number | null;
+  /** Nodes entered, in order. */
+  visited: number[];
+  /** Drops from the last kill, left behind on moving on. */
+  loot: Goods[];
+  /** The shop here, if any. */
+  shop: ShopState | null;
+  /** The event here, if it has not been answered yet. */
+  event: string | null;
+  /** True while a rest here is unused. */
+  rest: boolean;
+}
 
 /** A whole adventure run. Save it with `JSON.stringify`. */
 export interface AdventureState {
@@ -188,6 +286,12 @@ export interface AdventureState {
   block: number;
   /** Equipment in priority order. */
   slots: SlotState[];
+  /** Reserve items, which keep their state while packed. Missing in older saves. */
+  pack?: SlotState[];
+  /** Single-use items. Missing in older saves. */
+  consumables?: ConsumableDef[];
+  /** Encounters started, so items level at most once per fight. Missing in older saves. */
+  fights?: number;
   /** Supplies, coins, and other resources by name. */
   resources: Record<string, number>;
   /** Current encounter, if any. */
@@ -196,8 +300,18 @@ export interface AdventureState {
   round: RoundState | null;
   /** Rounds finished. */
   rounds: number;
-  /** Set once the run has ended. */
+  /** Set once the run has ended, or on the reveal that kills the boss. */
   outcome: RunOutcome | null;
+  /** The map and current stop. Missing on sandbox runs. */
+  campaign?: CampaignState;
+}
+
+/** Where an item is kept. */
+export interface ItemPlace {
+  /** Equipped or packed. */
+  readonly area: 'slots' | 'pack';
+  /** Position in that area; the area's length means a new place at its end. */
+  readonly index: number;
 }
 
 /** Input to `step()`. */
@@ -232,6 +346,30 @@ export type AdventureCommand =
     readonly slots: readonly number[];
   }
   | {
+    readonly type: 'use-consumable';
+    /** Consumable index. */
+    readonly index: number;
+  }
+  | {
+    /** Moves an item between rounds, swapping with whatever is there. */
+    readonly type: 'move-item';
+    readonly from: ItemPlace;
+    readonly to: ItemPlace;
+  }
+  | {
+    /** Throws an item away between rounds. */
+    readonly type: 'drop-item';
+    readonly from: ItemPlace;
+  }
+  | {
+    /** Leaves an unfinished fight between rounds: the enemy lands its telegraphed hit and keeps its loot. */
+    readonly type: 'flee';
+  }
+  | {
+    /** Gives up the run at any time. */
+    readonly type: 'abandon';
+  }
+  | {
     readonly type: 'end-round';
     /** 'completed' when solved, 'failed' when out of acorns, 'abandoned' when the run is given up. */
     readonly outcome: 'completed' | 'failed' | 'abandoned';
@@ -245,11 +383,16 @@ export type RejectReason =
   | 'bad-manifest'
   | 'bad-collection'
   | 'bad-slot'
-  | 'round-incomplete';
+  | 'round-incomplete'
+  | 'no-target'
+  | 'no-room'
+  | 'no-supplies'
+  | 'bad-node'
+  | 'unavailable';
 
 /** Something that happened, in order. Data only, no rendering instructions. */
 export type AdventureEvent =
-  | { readonly type: 'command-rejected'; readonly command: AdventureCommand['type']; readonly reason: RejectReason }
+  | { readonly type: 'command-rejected'; readonly command: string; readonly reason: RejectReason }
   | { readonly type: 'encounter-started'; readonly encounter: string }
   | { readonly type: 'round-started'; readonly id: string }
   | { readonly type: 'turn-started'; readonly turn: number }
@@ -295,8 +438,22 @@ export type AdventureEvent =
     readonly encounter: string;
     /** 'scavenge' after a win; 'ended' when it is over. */
     readonly to: 'scavenge' | 'ended';
-    readonly outcome: 'defeated' | 'completed' | 'failed' | 'cleared';
+    readonly outcome: 'defeated' | 'completed' | 'failed' | 'cleared' | 'fled' | 'escaped';
   }
+  | { readonly type: 'consumable-used'; readonly item: string; readonly effect: ConsumableDef['effect']; readonly value: number }
+  | { readonly type: 'item-moved'; readonly from: ItemPlace; readonly to: ItemPlace }
+  | { readonly type: 'item-dropped'; readonly item: string }
+  | { readonly type: 'experience-gained'; readonly slot: number; readonly item: string; readonly xp: number; readonly level: number }
+  | { readonly type: 'item-leveled'; readonly item: string; readonly level: number }
+  | { readonly type: 'enemy-enraged'; readonly encounter: string; readonly rage: number }
+  | { readonly type: 'enemy-fled'; readonly encounter: string }
+  | { readonly type: 'player-fled'; readonly encounter: string }
+  | { readonly type: 'moved'; readonly node: number; readonly kind: NodeKind }
+  | { readonly type: 'loot-dropped'; readonly loot: readonly Goods[]; readonly supplies: number }
+  | { readonly type: 'goods-taken'; readonly item: string; readonly price: number }
+  | { readonly type: 'item-sold'; readonly item: string; readonly price: number }
+  | { readonly type: 'rested'; readonly choice: 'heal' | 'upgrade' }
+  | { readonly type: 'event-answered'; readonly event: string; readonly option: number }
   | { readonly type: 'round-ended'; readonly outcome: 'completed' | 'failed' | 'abandoned' }
   | { readonly type: 'run-ended'; readonly outcome: RunOutcome };
 

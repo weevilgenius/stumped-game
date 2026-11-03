@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+- Adventure playtest becomes a full run: pick the Knight or Scout, travel a branching map of fights, elites, shops, rests, events, and forage stops, and face the Old Oak at the end. Winning a run unlocks the Herbalist.
+- Beaten enemies drop loot and supplies. Their harvest colors, shown from the start of the fight, level up readied items after the kill.
+- Between puzzles, rearrange gear between four slots and a three-item pack, use potions and bombs, or flee a fight. Lingering enemies enrage or run off with their loot.
+- Tap an item, the enemy, or your health bar during a puzzle for exact numbers, readiness, and consumables.
+
 ## 0.16.0
 - Add optional 11×11 and 12×12 puzzles, with new region colors in both themes. New installs start with sizes 5×5 through 10×10 selected.
 - Puzzles generate faster, especially larger hard puzzles.

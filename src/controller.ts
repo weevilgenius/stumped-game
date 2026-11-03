@@ -7,7 +7,9 @@ import type { Generate } from './generator';
 import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 import type { AdventureEvent, AdventureState } from './adventure/engine';
-import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, sync } from './adventurePlay';
+import { type AdventureSave, beginRound, command, needsPuzzle, newAdventure, parseAdventure, sync } from './adventurePlay';
+import type { RunCommand } from './adventure/campaign';
+import { STARTERS } from './adventure/content/campaign';
 
 /** Most earlier adventure runs kept for export. The oldest are dropped first. */
 const MAX_RUNS = 10;
@@ -54,6 +56,14 @@ export interface ControllerDeps {
   readonly theme?: () => string;
   /** Receives what happened in the adventure, in order. */
   readonly onAdventure?: (events: readonly AdventureEvent[]) => void;
+  /** App version, recorded with each adventure puzzle. */
+  readonly appVersion?: string;
+}
+
+/** Permanent progression, kept apart from runs so it survives deaths, giving up, and run history rolling over. */
+export interface Unlocks {
+  /** Adventure runs won on this device. */
+  wins: number;
 }
 
 /** The adventure as the screens see it. */
@@ -72,6 +82,8 @@ export interface Controller {
   readonly game: Game | null;
   /** The adventure, ended or not, or null if none was started. */
   readonly adventure: Adventure | null;
+  /** Adventure unlocks. */
+  readonly unlocks: Readonly<Unlocks>;
   /** The best 15 completed plays for each size and difficulty. */
   readonly results: readonly Result[];
   /** Lifetime games played and perfect solves, including plays outside the best times. */
@@ -107,10 +119,15 @@ export interface Controller {
   readonly updateSettings: (settings: Settings) => void;
   /** Saves after a change to the game on screen, records a win the first time it happens, and plays adventure turns. */
   readonly changed: () => void;
-  /** Starts a new adventure run, after confirming if one is under way, and plays its first puzzle. */
-  readonly startAdventure: (loadoutId?: string) => Promise<void>;
-  /** Returns to the adventure's puzzle, or starts its next one. Ignored once the run has ended. */
+  /** Starts a new adventure run with an unlocked character, after confirming if one is under way. */
+  readonly startAdventure: (starterId: string) => Promise<void>;
+  /** Returns to the adventure's puzzle, or starts its next one. Ignored when the run needs no puzzle. */
   readonly playAdventure: () => Promise<void>;
+  /**
+   * Applies a run command between puzzles, or a consumable mid-puzzle, and saves.
+   * @returns why it was refused, or null if it was applied
+   */
+  readonly act: (command: RunCommand) => string | null;
   /** The current run and earlier ones, with their command logs, as JSON for analysis. */
   readonly adventureData: () => string;
   /** Readies or unreadies an equipment slot. */
@@ -497,7 +514,25 @@ export function createController(deps: ControllerDeps): Controller {
    *  Adventure                                              *
   \* ------------------------------------------------------- */
 
+  let unlocks: Unlocks = { wins: 0 };
+  try {
+    const parsed = JSON.parse(deps.storage.getItem('adventureUnlocks') ?? 'null') as Partial<Unlocks> | null;
+    if (Number.isInteger(parsed?.wins)) unlocks = { wins: parsed!.wins! };
+  } catch {
+    // Unreadable unlocks start over; they only gate characters.
+  }
+
   const report = (events: readonly AdventureEvent[]): void => {
+    if (events.some((event) => event.type === 'run-ended' && event.outcome === 'victory')) {
+      unlocks = { wins: unlocks.wins + 1 };
+      if (writable) {
+        try {
+          deps.storage.setItem('adventureUnlocks', JSON.stringify(unlocks));
+        } catch {
+          // Kept in memory until the page is closed.
+        }
+      }
+    }
     if (events.length) {
       deps.onAdventure?.(events);
     }
@@ -506,7 +541,7 @@ export function createController(deps: ControllerDeps): Controller {
   /** Plays new reveals as turns. A run that ends mid-puzzle locks the puzzle; the puzzle screen shows why, then leaves. */
   const catchUp = (): void => {
     if (adventure) {
-      report(sync(adventure, deps.date()));
+      report(sync(adventure, deps.date(), deps.appVersion));
     }
   };
 
@@ -530,7 +565,7 @@ export function createController(deps: ControllerDeps): Controller {
   };
 
   const playAdventure = async (): Promise<void> => {
-    if (!adventure || adventure.state.phase === 'ended' || starting || confirming) {
+    if (!adventure || !needsPuzzle(adventure.state) || starting || confirming) {
       return;
     }
     if (adventure.state.phase === 'round') {
@@ -559,6 +594,9 @@ export function createController(deps: ControllerDeps): Controller {
     },
     get adventure() {
       return adventure;
+    },
+    get unlocks() {
+      return unlocks;
     },
     get results() {
       return results;
@@ -632,23 +670,38 @@ export function createController(deps: ControllerDeps): Controller {
       }
       persist();
     },
-    startAdventure: async (loadoutId) => {
-      if (starting || confirming) {
+    startAdventure: async (starterId) => {
+      const starter = STARTERS.find((entry) => entry.id === starterId);
+      if (starting || confirming || !starter || starter.unlockWins > unlocks.wins) {
         return;
       }
       if (adventure && adventure.state.phase !== 'ended' && !await ask('Abandon the adventure under way and start a new one?')) {
         return;
       }
-      const next = newAdventure(loadoutId);
+      const next = newAdventure(starterId, Math.floor(deps.random() * 2 ** 32));
       if (adventure) {
         archive(adventure);
       }
       adventure = next;
       adventureSaved = true;
       persist();
-      await playAdventure();
+      emit();
     },
     playAdventure,
+    act: (run) => {
+      if (!adventure || starting || confirming) {
+        return 'busy';
+      }
+      catchUp();
+      const events = command(adventure, run, deps.date());
+      if (events[0]?.type === 'command-rejected') {
+        return events[0].reason;
+      }
+      report(events);
+      persist();
+      emit();
+      return null;
+    },
     adventureData: () => JSON.stringify({ current: adventure, past: pastRuns }),
     setReady: (slot, ready) => {
       if (adventure) {
@@ -665,13 +718,7 @@ export function createController(deps: ControllerDeps): Controller {
         return;
       }
       catchUp();
-      if (adventure.state.phase === 'round') {
-        report(command(adventure, { type: 'end-round', outcome: 'abandoned' }, deps.date()));
-      } else {
-        // shortcut: between rounds the engine has no way to end a run, so it is dropped; phase 7 adds run endings.
-        archive(adventure);
-        adventure = null;
-      }
+      report(command(adventure, adventure.state.phase === 'round' ? { type: 'end-round', outcome: 'abandoned' } : { type: 'abandon' }, deps.date()));
       show('menu');
     },
     tick: () => {

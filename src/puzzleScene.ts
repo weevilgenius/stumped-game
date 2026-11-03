@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
-import type { AdventureEvent, AdventureState, ItemDef, SlotState } from './adventure/engine';
+import { type AdventureEvent, type AdventureState, harvestColors, type ItemDef, nextHit, type SlotState } from './adventure/engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
   explainPages, extendStroke, flaggedStumps, formatTime, type Game, type Hint, HINTS, HYPO_STUMP,
@@ -98,12 +98,15 @@ export interface PuzzleOptions {
   readonly adventure?: AdventureView;
 }
 
+/** A tapped part of the adventure strip, whose card shows exact values. */
+export type DetailTarget = { readonly type: 'slot'; readonly index: number } | { readonly type: 'enemy' } | { readonly type: 'character' };
+
 /** What the puzzle screen needs from an adventure. */
 export interface AdventureView {
   /** The run now, read whenever the strip is drawn. */
   readonly state: () => Readonly<AdventureState>;
-  /** Readies or unreadies an equipment slot. */
-  readonly setReady: (slot: number, ready: boolean) => void;
+  /** Opens the card for a tapped item, the enemy, or the character (health, consumables). */
+  readonly onDetails: (target: DetailTarget) => void;
 }
 
 interface Rect {
@@ -1082,7 +1085,7 @@ class PuzzleScene extends Phaser.Scene {
     this.tweens.killTweensOf(strip.parts);
     strip.parts.forEach((part) => part.destroy());
     strip.parts = [];
-    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot'))) {
+    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot') || key === 'enemy' || key === 'character')) {
       this.controls.delete(name);
     }
     const state = view.state();
@@ -1102,6 +1105,12 @@ class PuzzleScene extends Phaser.Scene {
     const block = state.block > 0 ? 34 * u : 0;
     const health = this.healthBar(add, r.x, top, left - block, barH, state.health / state.maxHealth, HEALTH_COLOR,
       `${state.health}/${state.maxHealth}`);
+    const consumables = state.consumables?.length ?? 0;
+    this.detailControl(health, 'character', `Health ${state.health} of ${state.maxHealth}${consumables ? `, ${consumables} consumables` : ''}`,
+      { type: 'character' });
+    if (consumables) {
+      add(this.add.text(r.x + 4 * u, top + barH / 2, `\u2726${consumables}`, this.textStyle(10)).setOrigin(0, 0.5));
+    }
     if (block) {
       const g = add(this.add.graphics());
       this.glyph(g, 'block', r.x + left - block / 2 - 6 * u, top + barH / 2, barH * 1.2, this.theme.cream);
@@ -1121,17 +1130,26 @@ class PuzzleScene extends Phaser.Scene {
     let enemy: Phaser.GameObjects.Rectangle | undefined;
     if (encounter) {
       const won = encounter.phase === 'scavenge';
+      const forage = encounter.type === 'forage';
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      add(this.add.text(ex + 6 * u, top, won && !forage ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      this.detailControl(enemy, 'enemy', `${name}${won ? (forage ? ', harvesting' : ', defeated') : ''}`, { type: 'enemy' });
+      // Harvest colors, known from the start of the fight, in the bottom corner.
+      const harvest = harvestColors(encounter) ?? [];
+      const sw = 9 * u;
+      const hg = add(this.add.graphics());
+      harvest.forEach((color, i) => {
+        hg.fillStyle(this.theme.palette[color]).fillRoundedRect(ex + ew - (harvest.length - i) * (sw + 3 * u) - 3 * u, r.y + r.h - sw - 5 * u, sw, sw, 2 * u);
+      });
       if (won) {
         enemy.setAlpha(0.5);
-        add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
+        add(this.add.text(ex + ew / 2, r.y + r.h * 0.55, 'Harvesting', this.textStyle(12)).setOrigin(0.5));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
         this.healthBar(add, ex + 6 * u, top + 20 * u * k, ew - 12 * u, barH, fill,
           encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
-        const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
+        const hit = encounter.type === 'enemy' ? nextHit(encounter) : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
         const pips = '\u25cf'.repeat(tier) + '\u25cb'.repeat(3 - tier);
         // The last countdown step gets urgent wording: the next reveal still resolves before it lands.
@@ -1277,10 +1295,21 @@ class PuzzleScene extends Phaser.Scene {
     const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
       view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
-      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+      onTap: () => this.options.adventure?.onDetails({ type: 'slot', index }),
     });
     back.setInteractive().on('pointerdown', () => this.activateControl(name));
     return back;
+  }
+
+  /** Makes a strip element open its detail card when tapped. */
+  private detailControl(target: Phaser.GameObjects.Rectangle, name: string, label: string, detail: DetailTarget): void {
+    const { u } = this;
+    const b = target.getBounds();
+    this.controls.set(name, {
+      view: { name, label: `${label}, details`, bounds: [b.x / u, b.y / u, b.width / u, b.height / u], disabled: false },
+      onTap: () => this.options.adventure?.onDetails(detail),
+    });
+    target.setInteractive().on('pointerdown', () => this.activateControl(name));
   }
 
   /** Placeholder art for an item's effect, centered on (x, y). */
