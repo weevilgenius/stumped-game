@@ -164,3 +164,44 @@ export function createAccessiblePuzzle(
     },
   };
 }
+
+/**
+ * Mirrors a canvas screen made only of buttons and text, such as the adventure camp, as semantic buttons.
+ * @param parent the canvas's parent
+ * @param name the button group's accessible name
+ * @param onControl called with a control's name when its button is pressed
+ * @returns render, which places the buttons and sets the text read before them, and destroy
+ */
+export function createAccessibleControls(parent: HTMLElement, name: string, onControl: (name: string) => void): {
+  render: (controls: readonly AccessibleControl[], text: string) => void;
+  destroy: () => void;
+} {
+  const root = document.createElement('div');
+  root.className = 'accessible-puzzle';
+  const text = document.createElement('p');
+  text.className = 'sr-only';
+  const group = document.createElement('div');
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', name);
+  root.append(text, group);
+  parent.append(root);
+  return {
+    render: (controls, description) => {
+      text.textContent = description;
+      const previous = group.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.action : undefined;
+      group.replaceChildren(...controls.map(({ name: action, label, bounds: [left, top, width, height], disabled }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.action = action;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-disabled', String(disabled));
+        button.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px`;
+        button.onclick = () => onControl(action);
+        return button;
+      }));
+      // Keeps keyboard focus on the same control across redraws.
+      group.querySelector<HTMLElement>(`[data-action="${previous}"]`)?.focus();
+    },
+    destroy: () => root.remove(),
+  };
+}

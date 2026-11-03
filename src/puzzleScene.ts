@@ -11,6 +11,7 @@ import {
 } from './game';
 import { cssColor, type Theme } from './theme';
 import { playSound, type Sound } from './sound';
+import { type CampOptions, CampScene } from './campScene';
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
@@ -99,7 +100,10 @@ export interface PuzzleOptions {
 }
 
 /** A tapped part of the adventure strip, whose card shows exact values. */
-export type DetailTarget = { readonly type: 'slot'; readonly index: number } | { readonly type: 'enemy' } | { readonly type: 'character' };
+export type DetailTarget =
+  | { readonly type: 'slot' | 'pack' | 'loot' | 'shop'; readonly index: number }
+  | { readonly type: 'enemy' }
+  | { readonly type: 'character' };
 
 /** What the puzzle screen needs from an adventure. */
 export interface AdventureView {
@@ -1406,6 +1410,28 @@ let phaser: Phaser.Game | undefined;
  * @param options the game to play and the callbacks to report through
  */
 export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
+  openScene(parent, 'puzzle', options.theme.background, options);
+}
+
+/**
+ * Opens the adventure camp, or character select, on the puzzle screen's canvas.
+ * @param parent the element to draw in
+ * @param options what to show and where to report
+ */
+export function openCamp(parent: HTMLElement, options: CampOptions): void {
+  openScene(parent, 'camp', options.theme.background, options);
+}
+
+/** Redraws the camp from the run, if it is showing. */
+export function refreshCamp(): void {
+  const scene = phaser?.scene.getScene('camp') as CampScene | null | undefined;
+  if (scene?.sys.isActive()) {
+    scene.refresh();
+  }
+}
+
+/** Starts one of the screens on the shared canvas, stopping the other. */
+const openScene = (parent: HTMLElement, key: 'puzzle' | 'camp', background: number, options: object): void => {
   const size = (): { width: number; height: number; zoom: number } => {
     const ratio = Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO);
     return {
@@ -1416,19 +1442,23 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
     // While the canvas was hidden the scale manager measured it as empty, and it only looks again
     // twice a second. Measure now, or taps land on no square until it does.
     phaser.scale.refresh();
+    const other = key === 'puzzle' ? 'camp' : 'puzzle';
+    if (phaser.scene.isActive(other)) {
+      phaser.scene.stop(other);
+    }
     // Restart through the scene's own plugin: it queues behind the stop the scene asked for on leaving.
-    const scene = phaser.scene.getScene('puzzle') as Phaser.Scene | null;
+    const scene = phaser.scene.getScene(key) as Phaser.Scene | null;
     if (scene) {
       scene.scene.restart(options);
     } else {
-      phaser.scene.start('puzzle', options);
+      phaser.scene.start(key, options);
     }
     return;
   }
   const game = phaser = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    backgroundColor: options.theme.background,
+    backgroundColor: background,
     banner: false,
     disableContextMenu: true,
     // Effects use sound.ts. Phaser's unused context would still resume on focus,
@@ -1438,7 +1468,8 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
     input: { keyboard: false },
     scale: { mode: Phaser.Scale.NONE, expandParent: false, ...size() },
   });
-  game.scene.add('puzzle', PuzzleScene, true, options);
+  game.scene.add('puzzle', PuzzleScene, key === 'puzzle', options);
+  game.scene.add('camp', CampScene, key === 'camp', options);
   new ResizeObserver(() => {
     const { width, height, zoom } = size();
     // A hidden parent has no size: keep the last one until it is shown again.
@@ -1449,7 +1480,7 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
       game.scale.resize(width, height);
     }
   }).observe(parent);
-}
+};
 
 /**
  * Passes adventure events to the puzzle screen, if it is showing an adventure.

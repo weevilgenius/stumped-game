@@ -835,9 +835,9 @@ describe('adventure', () => {
   it('starts at the map, needs no puzzle until a fight, and refuses moves the map does not allow', async () => {
     const { controller } = setup();
     await controller.startAdventure('knight');
-    expect([controller.screen, controller.adventure!.state.campaign?.at]).toEqual(['menu', null]);
+    expect([controller.screen, controller.adventure!.state.campaign?.at]).toEqual(['camp', null]);
     await controller.playAdventure();
-    expect(controller.screen).toBe('menu');
+    expect(controller.screen).toBe('camp');
     expect(controller.act({ type: 'move', node: 99 })).toBe('bad-node');
   });
 
@@ -985,6 +985,21 @@ describe('adventure', () => {
     vi.unstubAllEnvs();
   });
 
+  it('resumes a run into its round or its camp, and leaves the camp for the menu', async () => {
+    const { controller } = setup();
+    controller.selectAdventure();
+    expect(controller.screen).toBe('select');
+    controller.showCamp();
+    expect(controller.screen).toBe('menu');
+    await begin(controller);
+    controller.showMenu();
+    controller.resumeAdventure();
+    await Promise.resolve();
+    expect(controller.screen).toBe('adventure');
+    controller.showCamp();
+    expect(controller.screen).toBe('camp');
+  });
+
   it('gives up a run in progress after confirming', async () => {
     const { fake, controller } = setup();
     await begin(controller);
@@ -993,7 +1008,7 @@ describe('adventure', () => {
     expect(controller.adventure!.state.phase).toBe('round');
     fake.answer = true;
     await controller.abandonAdventure();
-    expect([savedAdventure(fake.store).state.outcome, controller.screen]).toEqual(['abandoned', 'menu']);
+    expect([savedAdventure(fake.store).state.outcome, controller.screen]).toEqual(['abandoned', 'camp']);
   });
 
   it('keeps the run between rounds when its puzzle fails to generate', async () => {
@@ -1005,7 +1020,7 @@ describe('adventure', () => {
     fake.pending[0].reject();
     await start;
     expect([controller.adventure!.state.phase, controller.screen, controller.generationError !== null])
-      .toEqual(['between', 'menu', true]);
+      .toEqual(['between', 'camp', true]);
     const again = controller.playAdventure();
     fake.pending[1].resolve();
     await again;

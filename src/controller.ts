@@ -33,8 +33,8 @@ export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'size
   adventure?: boolean;
 }
 
-/** The screen that is up: the main screen, an ordinary puzzle, or the adventure's puzzle. */
-export type Screen = 'menu' | 'puzzle' | 'adventure';
+/** The screen that is up: the main screen, an ordinary puzzle, the adventure's puzzle, its camp between puzzles, or character select. */
+export type Screen = 'menu' | 'puzzle' | 'adventure' | 'camp' | 'select';
 
 /** What the controller reaches the outside world through. Tests pass fakes. */
 export interface ControllerDeps {
@@ -123,6 +123,12 @@ export interface Controller {
   readonly startAdventure: (starterId: string) => Promise<void>;
   /** Returns to the adventure's puzzle, or starts its next one. Ignored when the run needs no puzzle. */
   readonly playAdventure: () => Promise<void>;
+  /** Shows the run: its puzzle if one is under way, otherwise its camp. */
+  readonly resumeAdventure: () => void;
+  /** Shows character select for a new run. */
+  readonly selectAdventure: () => void;
+  /** Shows the run's camp, even mid-puzzle. */
+  readonly showCamp: () => void;
   /**
    * Applies a run command between puzzles, or a consumable mid-puzzle, and saves.
    * @returns why it was refused, or null if it was applied
@@ -300,7 +306,7 @@ export function createController(deps: ControllerDeps): Controller {
   const emit = (): void => listeners.forEach((listener) => listener());
 
   /** The game on screen, whose play time is running. */
-  const active = (): Game | null => (screen === 'adventure' ? adventure?.game ?? null : game);
+  const active = (): Game | null => (screen === 'adventure' ? adventure?.game ?? null : screen === 'puzzle' ? game : null);
 
   /* ------------------------------------------------------- *\
    *  Play time: runs only while a game in progress is on    *
@@ -684,10 +690,18 @@ export function createController(deps: ControllerDeps): Controller {
       }
       adventure = next;
       adventureSaved = true;
-      persist();
-      emit();
+      show('camp');
     },
     playAdventure,
+    resumeAdventure: () => {
+      if (adventure?.state.phase === 'round') {
+        void playAdventure();
+      } else if (adventure) {
+        show('camp');
+      }
+    },
+    selectAdventure: () => show('select'),
+    showCamp: () => show(adventure ? 'camp' : 'menu'),
     act: (run) => {
       if (!adventure || starting || confirming) {
         return 'busy';
@@ -719,7 +733,7 @@ export function createController(deps: ControllerDeps): Controller {
       }
       catchUp();
       report(command(adventure, adventure.state.phase === 'round' ? { type: 'end-round', outcome: 'abandoned' } : { type: 'abandon' }, deps.date()));
-      show('menu');
+      show('camp');
     },
     tick: () => {
       syncClock();

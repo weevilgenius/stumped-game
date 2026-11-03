@@ -4,6 +4,7 @@
 - Adventure playtest becomes a full run: pick the Knight or Scout, travel a branching map of fights, elites, shops, rests, events, and forage stops, and face the Old Oak at the end. Winning a run unlocks the Herbalist.
 - Beaten enemies drop loot and supplies. Their harvest colors, shown from the start of the fight, level up readied items after the kill.
 - Between puzzles, rearrange gear between four slots and a three-item pack, use potions and bombs, or flee a fight. Lingering enemies enrage or run off with their loot.
+- Adventure runs get their own screens: a character select and a camp screen with Here, Gear, and Map tabs between puzzles. The home screen keeps just Resume adventure and Start adventure.
 - Tap an item, the enemy, or your health bar during a puzzle for exact numbers, readiness, and consumables.
 
 ## 0.16.0

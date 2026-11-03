@@ -366,12 +366,6 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
-#adventureInfo {
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted);
-}
-
 #thumb {
   flex: none;
   display: grid;
@@ -1332,62 +1326,13 @@ fieldset label + label {
   opacity: 0.85;
 }
 
-/* Keep the playtest's equipment preview compact on phones. */
-#adventureLoadoutDescription,
-#adventureLoadoutInfo {
-  margin: 4px 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-
 #adventure .actions {
   flex-wrap: wrap;
 }
 
-/* Adventure playtest: the stop here, gear, and the map between puzzles. */
-#adventurePanel p {
-  margin: 10px 0 4px;
-  font-size: 14px;
-}
-
-#adventurePanel .detail,
-#adventureStatus {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-#adventureStatus:empty {
-  display: none;
-}
-
-#adventure .goods {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 14px;
-}
-
-#adventure .goods li {
-  margin: 4px 0;
-}
-
-#adventure .goods small {
-  display: block;
-  color: var(--muted);
-}
-
-#adventure .goods .text-button,
+/* Adventure detail cards: color swatches and action buttons. */
 #adventureCard .text-button {
   margin-right: 10px;
-}
-
-#adventure .goods .unready,
-#adventure .goods .sold {
-  opacity: 0.55;
-}
-
-#adventure .goods .moving {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
 }
 
 .swatches {
@@ -1400,56 +1345,4 @@ fieldset label + label {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-}
-
-#adventure .map {
-  position: relative;
-  margin: 4px 16px;
-}
-
-#adventure .map svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-#adventure .map line {
-  stroke: var(--line);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-}
-
-#adventure .map .node {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  transform: translate(-50%, -50%);
-  border: 2px solid var(--line);
-  border-radius: 50%;
-  background: var(--paper);
-  color: var(--muted);
-  min-width: 0;
-  font: 600 13px/1 inherit;
-}
-
-#adventure .map .node sub {
-  font-size: 9px;
-}
-
-#adventure .map .visited {
-  background: var(--line);
-}
-
-#adventure .map .here {
-  border-color: currentColor;
-  color: inherit;
-}
-
-#adventure .map .go {
-  border-color: var(--accent, currentColor);
-  color: inherit;
-  cursor: pointer;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
 }

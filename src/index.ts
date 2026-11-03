@@ -3,7 +3,7 @@ import type { Tier } from './engine';
 import type { SilverMode } from './settings';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { type DetailTarget, openPuzzle, showAdventureEvents } from './puzzleScene';
+import { type DetailTarget, openCamp, openPuzzle, refreshCamp, showAdventureEvents } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
@@ -12,9 +12,9 @@ import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
 import { type Starter, STARTERS } from './adventure/content/campaign';
 import type { RunCommand } from './adventure/campaign';
-import { harvestColors, type ItemPlace } from './adventure/engine';
+import { harvestColors } from './adventure/engine';
 import { needsPuzzle } from './adventurePlay';
-import { button, consumableDetails, encounterDetails, itemDetails, panelHtml, swatches, titleOf } from './adventurePanel';
+import { button, consumableDetails, encounterDetails, itemDetails, swatches, titleOf } from './adventureText';
 import { solvesCsv } from './solves';
 import { createConfirmDialog } from './confirm';
 
@@ -194,6 +194,8 @@ const renderMenu = (): void => {
 
 /** The game the puzzle screen was last opened on. */
 let opened: Game | null = null;
+/** The camp screen last opened, so a change redraws it instead of reopening it. */
+let openedCamp: 'camp' | 'select' | null = null;
 
 /** Shows whichever screen the controller is on. */
 const render = (): void => {
@@ -203,6 +205,32 @@ const render = (): void => {
   menu.classList.toggle('busy', controller.busy);
   menu.inert = controller.busy;
   const { screen } = controller;
+  if (screen === 'camp' || screen === 'select') {
+    if (stage.hidden || openedCamp !== screen) {
+      openedCamp = screen;
+      opened = null;
+      menu.hidden = true;
+      stage.hidden = false;
+      openCamp(stage, {
+        mode: screen,
+        theme,
+        state: () => controller.adventure?.state ?? null,
+        wins: () => controller.unlocks.wins,
+        needsPuzzle: () => !!controller.adventure && needsPuzzle(controller.adventure.state),
+        act: controller.act,
+        onStart: (id) => void controller.startAdventure(id),
+        onPlay: () => void controller.playAdventure(),
+        onAbandon: () => void controller.abandonAdventure(),
+        onSelect: controller.selectAdventure,
+        onExit: controller.showMenu,
+        onDetails: openCard,
+      });
+    } else {
+      refreshCamp();
+    }
+    return;
+  }
+  openedCamp = null;
   const game = screen === 'adventure' ? controller.adventure?.game : controller.game;
   if (screen !== 'menu' && game) {
     if (stage.hidden || opened !== game) {
@@ -216,7 +244,8 @@ const render = (): void => {
         showTimer: controller.settings.timer,
         onChange: controller.changed,
         elapsed: controller.tick,
-        onExit: controller.showMenu,
+        // An adventure puzzle returns to its camp.
+        onExit: screen === 'adventure' ? controller.showCamp : controller.showMenu,
         onHelp: openHelp,
         theme,
         adventure: screen === 'adventure' ? {
@@ -246,9 +275,6 @@ $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
 $('retry').onclick = (): void => void controller.retry();
 
-/** How a run ended, for the main screen. */
-const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up', victory: 'Victory! You won' } as const;
-
 /** Why a run command was refused, for the player. */
 const REFUSALS: Readonly<Record<string, string>> = {
   'no-room': 'No room: drop, sell, or move an item first.',
@@ -256,104 +282,53 @@ const REFUSALS: Readonly<Record<string, string>> = {
   'no-target': 'There is nothing to use that on.',
 };
 
-const loadoutSelect = $<HTMLSelectElement>('adventureLoadout');
-const starterOf = (id: string): Starter | undefined => STARTERS.find((starter) => starter.id === id);
-const renderLoadout = (): void => {
-  const starter = starterOf(loadoutSelect.value) ?? STARTERS[0];
-  $('adventureLoadoutDescription').textContent = starter.description;
-  $('adventureLoadoutInfo').textContent = `${starter.health} health · ${starter.loadout.map((item) => titleOf(item.id)).join(' → ')} (priority order)`;
-  $<HTMLButtonElement>('adventureStart').disabled = starter.unlockWins > controller.unlocks.wins;
-};
-const renderStarters = (): void => {
-  const chosen = loadoutSelect.value;
-  loadoutSelect.replaceChildren(...STARTERS.map((starter) => new Option(
-    starter.unlockWins > controller.unlocks.wins ? `${starter.name} (win a run to unlock)` : starter.name, starter.id,
-  )));
-  loadoutSelect.value = chosen || STARTERS[0].id;
-  renderLoadout();
-};
-loadoutSelect.onchange = renderLoadout;
-
-/** The item picked up to move between slots and the pack. */
-let moving: ItemPlace | null = null;
 const paletteColor = (c: number): string => cssColor(theme.palette[c]);
+const starterOf = (id: string): Starter | undefined => STARTERS.find((starter) => starter.id === id);
 
-/** Adventure mode while it is playtested: shown from Settings, with the map and stops between puzzles. */
+/** Adventure mode while it is playtested: shown from Settings, with only Resume and Start here. */
 const renderAdventure = (): void => {
-  const { adventure } = controller;
-  const state = adventure?.state;
+  const state = controller.adventure?.state;
   $('adventure').hidden = !controller.settings.adventure;
-  renderStarters();
-  const outcome = state?.outcome;
-  const campaign = state?.campaign;
-  const where = campaign?.at != null ? ` · Column ${campaign.nodes[campaign.at].column + 1} of ${campaign.nodes.at(-1)!.column + 1}` : '';
-  $('adventureInfo').textContent = !state ? 'No adventure yet.'
-    : `${starterOf(state.character)?.name ?? titleOf(state.character)} · ${state.phase === 'ended' && outcome
-      ? `${RUN_OUTCOMES[outcome]} after ${state.rounds} ${state.rounds === 1 ? 'puzzle' : 'puzzles'}.`
-      : `Health ${state.health}/${state.maxHealth} · Supplies ${state.resources.supplies ?? 0}${state.block ? ` · Block ${state.block}` : ''}${where}`}`;
-  $('adventureContinue').hidden = !state || !needsPuzzle(state);
-  $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
-  $('adventureAbandon').hidden = !state || state.phase === 'ended';
-  $('adventurePanel').innerHTML = state ? panelHtml({ state, color: paletteColor, moving }) : '';
+  $('adventureResume').hidden = !state || state.phase === 'ended';
 };
-$('adventureStart').onclick = (): void => {
-  moving = null;
-  void controller.startAdventure(loadoutSelect.value);
-};
-$('adventureContinue').onclick = (): void => void controller.playAdventure();
-$('adventureAbandon').onclick = (): void => void controller.abandonAdventure();
+$('adventureResume').onclick = controller.resumeAdventure;
+$('adventureStart').onclick = controller.selectAdventure;
 
-/** Sends a button's run command, if it has one, and reports a refusal. */
-const runButton = (target: EventTarget | null, status: HTMLElement): boolean => {
-  const command = (target as HTMLElement | null)?.closest<HTMLElement>('[data-command]')?.dataset.command;
-  if (!command) {
-    return false;
-  }
-  moving = null;
-  const refused = controller.act(JSON.parse(command) as RunCommand);
-  status.textContent = refused ? REFUSALS[refused] ?? 'That cannot be done now.' : '';
-  return true;
-};
-$('adventurePanel').onclick = (event): void => {
-  if (runButton(event.target, $('adventureStatus'))) {
-    renderAdventure();
-    return;
-  }
-  const move = (event.target as HTMLElement).closest<HTMLElement>('[data-move]')?.dataset.move;
-  if (move) {
-    const [area, index] = move.split(':');
-    moving = move === 'cancel' ? null : { area: area as ItemPlace['area'], index: Number(index) };
-    renderAdventure();
-  }
-};
-
-/* ========================================================= * *  Adventure detail cards, opened by tapping the strip      *
+/* ========================================================= *\
+ *  Adventure detail cards, opened by tapping the puzzle     *
+ *  strip or a row in the camp                               *
 \* ========================================================= */
 
 const card = $<HTMLDialogElement>('adventureCard');
 let cardTarget: DetailTarget | null = null;
+const lines = (texts: readonly string[]): string => texts.map((line) => `<p>${line}</p>`).join('');
 const renderCard = (): void => {
   const state = controller.adventure?.state;
   if (!state || !cardTarget) {
     return;
   }
-  let title: string;
-  let body: string;
-  if (cardTarget.type === 'slot') {
-    const slot = state.slots[cardTarget.index];
-    if (!slot) {
-      return;
+  let title = '';
+  let body = '';
+  const { type } = cardTarget;
+  if (type === 'slot' || type === 'pack') {
+    const slot = (type === 'slot' ? state.slots : state.pack ?? [])[cardTarget.index];
+    if (slot) {
+      title = `${titleOf(slot.item.id)}${slot.level ? ` +${slot.level}` : ''}`;
+      body = `<p>${swatches(slot.item.colors, paletteColor)}</p>${lines(itemDetails(slot.item, slot))}`
+        + (type === 'slot' ? `<p>${button(slot.ready ? 'Unready' : 'Ready', { type: 'set-ready', slot: cardTarget.index, ready: !slot.ready })}</p>` : '');
     }
-    title = `${titleOf(slot.item.id)}${slot.level ? ` +${slot.level}` : ''}`;
-    body = `<p>${swatches(slot.item.colors, paletteColor)}</p>${itemDetails(slot.item, slot).map((line) => `<p>${line}</p>`).join('')}`
-      + `<p>${button(slot.ready ? 'Unready' : 'Ready', { type: 'set-ready', slot: cardTarget.index, ready: !slot.ready })}</p>`;
-  } else if (cardTarget.type === 'enemy' && state.encounter) {
+  } else if (type === 'loot' || type === 'shop') {
+    const goods = type === 'loot' ? state.campaign?.loot[cardTarget.index] : state.campaign?.shop?.stock[cardTarget.index]?.goods;
+    if (goods) {
+      title = titleOf(goods.item.id);
+      body = goods.kind === 'gear' ? `<p>${swatches(goods.item.colors, paletteColor)}</p>${lines(itemDetails(goods.item))}` : lines([consumableDetails(goods.item)]);
+    }
+  } else if (type === 'enemy' && state.encounter) {
     const { encounter } = state;
     title = encounter.type === 'forage' ? 'Forage' : titleOf(encounter.def.id);
     const harvest = harvestColors(encounter);
-    body = encounterDetails(encounter).map((line) => `<p>${line}</p>`).join('')
-      + (harvest ? `<p>Harvest colors: ${swatches(harvest, paletteColor)}</p>` : '');
-  } else {
+    body = lines(encounterDetails(encounter)) + (harvest ? `<p>Harvest colors: ${swatches(harvest, paletteColor)}</p>` : '');
+  } else if (type === 'character') {
     title = starterOf(state.character)?.name ?? titleOf(state.character);
     const consumables = state.consumables ?? [];
     body = `<p>Health ${state.health}/${state.maxHealth}${state.block ? `, block ${state.block}` : ''}. Supplies ${state.resources.supplies ?? 0}.</p>`
@@ -363,18 +338,18 @@ const renderCard = (): void => {
   $('adventureCardTitle').textContent = title;
   $('adventureCardBody').innerHTML = `${body}<p id="adventureCardStatus" role="status"></p>`;
 };
-/** Opens the card for a tapped strip element. */
+/** Opens the card for a tapped strip element or camp row. */
 const openCard = (target: DetailTarget): void => {
   cardTarget = target;
   renderCard();
   card.showModal();
 };
 $('adventureCardBody').onclick = (event): void => {
-  const status = $('adventureCardStatus');
-  if (runButton(event.target, status)) {
-    const message = status.textContent;
+  const command = (event.target as HTMLElement).closest<HTMLElement>('[data-command]')?.dataset.command;
+  if (command) {
+    const refused = controller.act(JSON.parse(command) as RunCommand);
     renderCard();
-    $('adventureCardStatus').textContent = message;
+    $('adventureCardStatus').textContent = refused ? REFUSALS[refused] ?? 'That cannot be done now.' : '';
   }
 };
 card.onclose = (): void => {
