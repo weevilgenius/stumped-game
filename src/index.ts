@@ -251,6 +251,7 @@ const render = (): void => {
         adventure: screen === 'adventure' ? {
           state: () => controller.adventure!.state,
           onDetails: openCard,
+          onReady: controller.setReady,
         } : undefined,
       });
     }

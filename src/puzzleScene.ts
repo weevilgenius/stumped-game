@@ -21,6 +21,8 @@ const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 /** Longest gap between two taps on a square that still counts as a double tap. */
 const DOUBLE_TAP_MS = 350;
+/** How long a strip item is held before its card opens instead of toggling readiness. */
+const HOLD_MS = 450;
 
 /**
  * Fraction of a square, at each corner, that a drag passes through without
@@ -111,6 +113,8 @@ export interface AdventureView {
   readonly state: () => Readonly<AdventureState>;
   /** Opens the card for a tapped item, the enemy, or the character (health, consumables). */
   readonly onDetails: (target: DetailTarget) => void;
+  /** Readies or unreadies an equipped item, from a tap on its strip chip. */
+  readonly onReady: (slot: number, ready: boolean) => void;
 }
 
 interface Rect {
@@ -173,6 +177,8 @@ class PuzzleScene extends Phaser.Scene {
 
   private stroke: { id: number; mode: StrokeMode; cell: number; x: number; y: number } | null = null;
   private lastTap: { cell: number; time: number; changed: boolean } | null = null;
+  /** A strip item held down: released early it is a tap, held past HOLD_MS it opens its card. */
+  private hold: { id: number; name: string; timer: Phaser.Time.TimerEvent } | null = null;
   private busyUntil = 0;
   private buttonsFrom = 0;
   private ended = false;
@@ -942,6 +948,12 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (this.hold?.id === pointer.id) {
+      const { name, timer } = this.hold;
+      timer.remove();
+      this.hold = null;
+      this.activateControl(name);
+    }
     if (this.stroke?.id === pointer.id) {
       this.stroke = null;
     }
@@ -1299,9 +1311,22 @@ class PuzzleScene extends Phaser.Scene {
     const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
       view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
+      onTap: () => this.options.adventure?.onReady(index, !slot.ready),
+    });
+    const canvas = this.game.canvas.getBoundingClientRect();
+    this.spots[name] = { x: canvas.x + (x + w / 2) / u, y: canvas.y + (y + h / 2) / u };
+    // Screen readers get the card as its own button, since they cannot long press.
+    this.controls.set(`${name}-details`, {
+      view: { name: `${name}-details`, label: `${label}, details`, bounds: [x / u, y / u, w / u, h / u], disabled: false },
       onTap: () => this.options.adventure?.onDetails({ type: 'slot', index }),
     });
-    back.setInteractive().on('pointerdown', () => this.activateControl(name));
+    back.setInteractive().on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.hold?.timer.remove();
+      this.hold = { id: pointer.id, name, timer: this.time.delayedCall(HOLD_MS, () => {
+        this.hold = null;
+        this.activateControl(`${name}-details`);
+      }) };
+    });
     return back;
   }
 

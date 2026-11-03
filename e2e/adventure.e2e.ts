@@ -30,6 +30,18 @@ test('starts a campaign run on its own screen, travels to a fight, and resumes i
   await expect(page.getByRole('button', { name: 'Flee' })).toBeAttached();
   await tap(page, /Next puzzle/);
   await expect(page.locator('#game canvas')).toBeVisible();
+  // A tap on a strip item toggles readiness; a long press opens its card.
+  await page.waitForFunction(() => (window as unknown as { stumped?: { spots: Record<string, unknown> } }).stumped?.spots.slot0);
+  const slot = await page.evaluate(() => (window as unknown as { stumped: { spots: Record<string, { x: number; y: number }> } }).stumped.spots.slot0);
+  const ready = (await readSave()).state.slots[0].ready;
+  await page.mouse.click(slot.x, slot.y);
+  await expect.poll(async () => (await readSave()).state.slots[0].ready).toBe(!ready);
+  await page.mouse.move(slot.x, slot.y);
+  await page.mouse.down();
+  await expect(page.locator('#adventureCard')).toBeVisible();
+  await page.mouse.up();
+  expect((await readSave()).state.slots[0].ready).toBe(!ready);
+  await page.getByRole('button', { name: 'Close' }).click();
   await page.reload();
   await expect(page.locator('#game canvas')).toBeVisible();
   expect((await readSave()).state.phase).toBe('round');
