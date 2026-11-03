@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.2
+- Export adventure data saves a file: phones and tablets open the share sheet, other browsers download it.
+
 ## 0.15.1
 - Adventure playtest: the shield blocks more than herbs heal for the same color size, and items that take every color show a color wheel.
 - Adventure playtest: choose Wanderer, Coverage, Overlap, Specialist, or Hunter before a new run, with a short description and equipment preview.
