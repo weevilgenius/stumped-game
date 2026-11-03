@@ -952,7 +952,7 @@ describe('adventure', () => {
     expect(controller.adventure!.state.phase).toBe('round');
     fake.answer = true;
     await controller.abandonAdventure();
-    expect([savedAdventure(fake.store).state.outcome, controller.screen]).toEqual(['abandoned', 'menu']);
+    expect([savedAdventure(fake.store).state.outcome, controller.screen]).toEqual(['abandoned', 'campaign']);
   });
 
   it('keeps the run between rounds when its puzzle fails to generate', async () => {
@@ -1040,7 +1040,7 @@ describe('bounded campaign controller', () => {
   it('starts at the route map, saves travel before generation, and resumes its own puzzle', async () => {
     const { fake, controller } = setup(savedStore(false));
     await controller.startAdventure();
-    expect([controller.screen, controller.adventure!.state.character, controller.adventure!.game]).toEqual(['menu', 'ranger', null]);
+    expect([controller.screen, controller.adventure!.state.character, controller.adventure!.game]).toEqual(['campaign', 'ranger', null]);
     controller.adventureCommand({ type: 'travel', node: '0-0' });
     expect(parseAdventure(fake.store.get('adventure')!)!.state.campaign!.node).toBe('0-0');
     const restored = setup(fake.store).controller;
@@ -1119,9 +1119,52 @@ describe('campaign round boundary reload', () => {
     const restored = setup(fake.store).controller;
     restored.boot(null);
     await flush();
-    expect(restored.screen).toBe('menu');
+    expect(restored.screen).toBe('campaign');
     expect(restored.adventure!.state.phase).toBe('between');
     expect(restored.adventure!.game!.id).toBe(saved.game!.id);
-    expect(parseAdventure(fake.store.get('adventure')!)!.open).toBe(false);
+    expect(parseAdventure(fake.store.get('adventure')!)!.open).toBe(true);
+  });
+});
+
+describe('dedicated adventure screens', () => {
+  it('keeps selection reversible and does not advance either puzzle clock in campaign screens', async () => {
+    const { fake, controller } = setup(savedStore(false));
+    const ordinary = controller.game!;
+    await controller.startAdventure();
+    controller.adventureCommand({ type: 'travel', node: '0-0' });
+    await controller.playAdventure();
+    fake.time += 1000;
+    controller.showAdventure();
+    const adventure = controller.adventure!.game!;
+    const times = [ordinary.elapsed, adventure.elapsed];
+    fake.time += 5000;
+    controller.tick();
+    expect([ordinary.elapsed, adventure.elapsed]).toEqual(times);
+    controller.selectAdventure();
+    expect(controller.screen).toBe('campaign-select');
+    expect(controller.adventure!.game!.id).toBe(adventure.id);
+    fake.time += 5000;
+    controller.tick();
+    expect([ordinary.elapsed, adventure.elapsed]).toEqual(times);
+    await controller.resumeAdventure();
+    expect(controller.screen).toBe('adventure');
+    fake.time += 1000; controller.tick();
+    expect(adventure.elapsed).toBe(times[1] + 1000);
+  });
+
+  it('remembers preparation during an unfinished puzzle and resumes it through the home button', async () => {
+    const { fake, controller } = setup();
+    await controller.startAdventure();
+    controller.adventureCommand({ type: 'travel', node: '0-0' });
+    await controller.playAdventure();
+    controller.showAdventure();
+    expect(parseAdventure(fake.store.get('adventure')!)!.view).toBe('campaign');
+    const restored = setup(fake.store).controller;
+    restored.boot(null);
+    expect(restored.screen).toBe('campaign');
+    restored.showMenu();
+    await restored.resumeAdventure();
+    expect(restored.screen).toBe('adventure');
+    expect(restored.adventure!.game!.id).toBe(controller.adventure!.game!.id);
   });
 });

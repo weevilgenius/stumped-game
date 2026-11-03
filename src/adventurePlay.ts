@@ -40,7 +40,9 @@ export interface AdventureSave {
   game: Game | null;
   /** Reveals of `game` already played as turns, counting wrong ones but not givens. */
   played: number;
-  /** True while the adventure's puzzle is on screen, so a relaunch returns to it. */
+  /** Last open adventure screen; missing in legacy saves. */
+  view?: 'campaign' | 'adventure';
+  /** True while an adventure screen is open, so a relaunch returns to it. */
   open: boolean;
 }
 

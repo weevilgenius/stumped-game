@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { AdventureScene } from './adventureScene';
+import type { AdventureSceneOptions } from './adventureScene';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
@@ -1392,50 +1394,54 @@ let phaser: Phaser.Game | undefined;
  * @param options the game to play and the callbacks to report through
  */
 export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
+  const game = canvasGame(parent, options.theme);
+  game.scene.stop('adventure-menu');
+  const scene = game.scene.getScene('puzzle') as Phaser.Scene | null;
+  if (scene) scene.scene.restart(options);
+  else game.scene.add('puzzle', PuzzleScene, true, options);
+}
+
+/** Show the adventure selection or preparation scene on the same Phaser canvas. */
+export function openAdventureScreen(parent: HTMLElement, options: AdventureSceneOptions): void {
+  const game = canvasGame(parent, options.theme);
+  game.scene.stop('puzzle');
+  const scene = game.scene.getScene('adventure-menu') as AdventureScene | null;
+  if (!scene) game.scene.add('adventure-menu', AdventureScene, true, options);
+  else if (scene.sys.isActive()) scene.configure(options);
+  else scene.scene.restart(options);
+}
+
+/** Stop canvas scenes when returning to the DOM home screen. */
+export function closeCanvasScreens(): void {
+  phaser?.scene.stop('puzzle');
+  phaser?.scene.stop('adventure-menu');
+}
+
+/** Create one shared renderer and preserve its resolution while its host is hidden. */
+const canvasGame = (parent: HTMLElement, theme: Theme): Phaser.Game => {
   const size = (): { width: number; height: number; zoom: number } => {
     const ratio = Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO);
-    return {
-      width: Math.floor(parent.clientWidth * ratio), height: Math.floor(parent.clientHeight * ratio), zoom: 1 / ratio,
-    };
+    return { width: Math.floor(parent.clientWidth * ratio), height: Math.floor(parent.clientHeight * ratio), zoom: 1 / ratio };
   };
   if (phaser) {
-    // While the canvas was hidden the scale manager measured it as empty, and it only looks again
-    // twice a second. Measure now, or taps land on no square until it does.
+    // Re-measure immediately after showing a hidden host so pointer coordinates stay accurate.
     phaser.scale.refresh();
-    // Restart through the scene's own plugin: it queues behind the stop the scene asked for on leaving.
-    const scene = phaser.scene.getScene('puzzle') as Phaser.Scene | null;
-    if (scene) {
-      scene.scene.restart(options);
-    } else {
-      phaser.scene.start('puzzle', options);
-    }
-    return;
+    return phaser;
   }
   const game = phaser = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent,
-    backgroundColor: options.theme.background,
-    banner: false,
-    disableContextMenu: true,
-    // Effects use sound.ts. Phaser's unused context would still resume on focus,
-    // interrupting other iOS audio even while our effects are muted.
-    audio: { noAudio: true },
-    // Unused, and off so Phaser never listens for keys typed into the seed code box.
-    input: { keyboard: false },
+    type: Phaser.AUTO, parent, backgroundColor: theme.background, banner: false, disableContextMenu: true,
+    audio: { noAudio: true }, input: { keyboard: false },
     scale: { mode: Phaser.Scale.NONE, expandParent: false, ...size() },
   });
-  game.scene.add('puzzle', PuzzleScene, true, options);
   new ResizeObserver(() => {
     const { width, height, zoom } = size();
-    // A hidden parent has no size: keep the last one until it is shown again.
     if (width > 0 && height > 0 && (width !== game.scale.width || height !== game.scale.height)) {
-      if (zoom !== game.scale.zoom) {
-        game.scale.setZoom(zoom);
-      }
+      if (zoom !== game.scale.zoom) game.scale.setZoom(zoom);
       game.scale.resize(width, height);
     }
   }).observe(parent);
-}
+  return game;
+};
 
 /**
  * Passes adventure events to the puzzle screen, if it is showing an adventure.

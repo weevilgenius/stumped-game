@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.16.0
+- Adventure selection, routes, equipment, loot and camp choices have their own full-screen scenes; home offers only Start and Resume for adventures.
 - Adventure campaign: choose a starter, follow a branching trail through fights, shops, rests and treasure, and defeat the Warden.
 - Collect gear and potions, manage four equipment slots and a reserve pack, and level gear with postcombat colors or rest stops.
 - Inspect equipment and enemy cards for exact effects and timing. Completing a campaign unlocks the Herbalist for future runs.

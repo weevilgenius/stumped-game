@@ -1,130 +1,151 @@
 import { expect, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { Game } from '../src/game';
 import type { AdventureSave } from '../src/adventurePlay';
-import { LOADOUT_DESCRIPTIONS, LOADOUTS } from '../src/adventure/content/loadouts';
+import { createCampaign, startRun, step } from '../src/adventure/engine';
+import { STARTERS } from '../src/adventure/content/campaign';
 
-test('selects simulator loadouts, describes them, and preserves each run through reload and replacement', async ({ page }, testInfo) => {
+/** Wait for the current scene to finish its redraw and navigation double-tap guard. */
+const ready = async (page: Page): Promise<void> => {
+  await page.waitForFunction(() => {
+    const scene = (window as unknown as { adventureScene?: { sys: { isActive: () => boolean }; dirty: boolean; blockedUntil: number } }).adventureScene;
+    return scene?.sys.isActive() && !scene.dirty && performance.now() >= scene.blockedUntil;
+  });
+};
+const activate = async (page: Page, button: string | RegExp | Locator): Promise<void> => {
+  await ready(page);
+  const target = typeof button === 'string' || button instanceof RegExp ? page.getByRole('button', { name: button, exact: typeof button === 'string' }) : button;
+  await target.focus(); await page.keyboard.press('Enter');
+};
+const enable = async (page: Page): Promise<void> => {
   page.on('pageerror', (error) => { throw error; });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Show adventure mode').check();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
-  const selector = page.getByRole('combobox', { name: 'New run loadout' });
-  await expect(selector.locator('option')).toHaveCount(LOADOUTS.length + 3);
-  for (const definition of LOADOUTS) {
-    await selector.selectOption(definition.id);
-    await expect(page.locator('#adventureLoadoutDescription')).toHaveText(LOADOUT_DESCRIPTIONS[definition.id]);
-    if (definition.id === 'specialist') {
-      await page.screenshot({ path: `screenshots/adventure-${testInfo.project.name}.png`, fullPage: true });
-    }
-    await page.getByRole('button', { name: 'New run', exact: true }).click();
-    if (definition !== LOADOUTS[0]) {
-      await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
-    }
-    await expect(page.locator('#game canvas')).toBeVisible();
-    const readSave = (): Promise<AdventureSave> => page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
-    expect((await readSave()).loadout).toEqual(definition);
-    expect((await readSave()).state.slots.map((slot) => slot.item)).toEqual(definition.loadout);
-    await page.reload();
-    await expect(page.locator('#game canvas')).toBeVisible();
-    expect((await readSave()).loadout).toEqual(definition);
-    await page.waitForFunction(() => (window as unknown as { stumped?: { spots: { back?: unknown } } }).stumped?.spots.back);
-    const { x, y } = await page.evaluate(() => (window as unknown as { stumped: { spots: { back: { x: number; y: number } } } }).stumped.spots.back);
-    await page.mouse.click(x, y);
-    await expect(page.locator('#adventureInfo')).toContainText(definition.id[0].toUpperCase() + definition.id.slice(1));
-    // Selecting the next run's equipment must not change the run being continued.
-    await selector.selectOption('wanderer');
-    expect((await readSave()).loadout).toEqual(definition);
-  }
-  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventureRuns')!) as AdventureSave[]);
-  expect(history.map((run) => run.loadout?.id)).toEqual(LOADOUTS.slice(0, -1).map((loadout) => loadout.id));
+};
+const readSave = (page: Page): Promise<AdventureSave> => page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
+const start = async (page: Page, character = 'Ranger'): Promise<void> => {
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await activate(page, `Choose ${character}`);
+  await activate(page, 'Start campaign');
+  await expect(page.getByRole('heading', { name: character, exact: true })).toBeAttached();
+};
+
+test('home has only start/resume; Phaser selection preserves the old run until replacement is confirmed', async ({ page }, info) => {
+  await enable(page);
+  await expect(page.locator('#adventure button')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Resume adventure' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await expect(page.locator('#menu')).toBeHidden();
+  await expect(page.locator('#game canvas')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Start an adventure' })).toBeAttached();
+  await page.screenshot({ path: `screenshots/adventure-select-${info.project.name}.png` });
+  await activate(page, 'Choose Sentinel');
+  await activate(page, 'Start campaign');
+  expect((await readSave(page)).state.character).toBe('sentinel');
+  await activate(page, 'Home');
+  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#adventure button')).toHaveCount(2);
+  await expect(page.locator('.accessible-adventure')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await activate(page, 'Choose Ranger');
+  expect((await readSave(page)).state.character).toBe('sentinel');
+  await activate(page, 'Start campaign');
+  await page.locator('#confirmation').getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await readSave(page)).state.character).toBe('sentinel');
+  await activate(page, 'Home');
+  await page.getByRole('button', { name: 'Resume adventure' }).click();
+  await expect(page.getByRole('heading', { name: 'Sentinel', exact: true })).toBeAttached();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Sentinel', exact: true })).toBeAttached();
 });
 
-test('campaign route, tactical cards, and free readiness survive reload', async ({ page }, testInfo) => {
-  page.on('pageerror', (error) => { throw error; });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByLabel('Show adventure mode').check();
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.getByRole('combobox', { name: 'New run loadout' }).selectOption('ranger');
-  await page.getByRole('button', { name: 'New run', exact: true }).click();
-  await expect(page.locator('#campaign')).toContainText("The Warden's trail");
-  await expect(page.locator('#adventureContinue')).toBeHidden();
-  await expect(page.locator('#campaign .campaign-column')).toHaveCount(15);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
-  await page.screenshot({ path: `screenshots/campaign-map-${testInfo.project.name}.png`, fullPage: true });
-  await page.locator('#campaign .campaign-map button:enabled').first().click();
-  await expect(page.locator('#campaign')).toContainText('Your pulse lands first.');
-  await page.getByRole('button', { name: 'Next puzzle', exact: false }).click();
-  await expect(page.locator('#game canvas')).toBeVisible();
-  const item = page.getByRole('button', { name: /^Shortbow, ready/ });
-  await item.focus();
-  await page.keyboard.press('Enter');
+test('route, equipment and an unfinished puzzle resume through separate canvas screens', async ({ page }, info) => {
+  await enable(page); await start(page);
+  await ready(page);
+  const route = page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first();
+  const bounds = await route.boundingBox();
+  await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await activate(page, 'Next puzzle');
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  await page.getByRole('button', { name: /^Shortbow, ready/ }).focus(); await page.keyboard.press('Enter');
   const card = page.getByRole('dialog', { name: 'Adventure details' });
   await expect(card).toContainText('1–3 squares: 2');
-  await expect(card).toContainText('4–7 squares: 3');
   await card.getByRole('button', { name: 'Unready', exact: true }).click();
-  await expect(card).toBeHidden();
-  await expect(page.getByRole('button', { name: /^Shortbow, not ready/ })).toBeAttached();
-  await page.getByRole('button', { name: 'Inspect encounter and consumables' }).focus();
-  await page.keyboard.press('Enter');
-  await expect(card).toContainText('Harvest colors');
-  await expect(card).toContainText('Your pulse lands first');
-  await page.screenshot({ path: `screenshots/campaign-card-${testInfo.project.name}.png`, fullPage: true });
-  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Menu', exact: true }).focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('.accessible-puzzle')).toHaveCount(0);
+  await activate(page, 'Gear');
+  await activate(page, page.locator('.accessible-adventure [data-action="inspect-slot-0"]'));
+  await expect(page.getByRole('heading', { name: 'Shortbow', exact: true })).toBeAttached();
+  await page.screenshot({ path: `screenshots/adventure-gear-${info.project.name}.png` });
   await page.reload();
-  await expect(page.locator('#game canvas')).toBeVisible();
-  const save = await page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
-  expect(save.state.campaign?.node).toMatch(/^0-/);
-  expect(save.state.slots[0].ready).toBe(false);
-  expect(save.puzzles?.[0].settings).toMatchObject({ size: 9, tier: 'medium', freebies: 0 });
-  expect(save.puzzles?.[0].code).toBe(save.game?.puzzle.code);
-  await page.getByRole('button', { name: 'Menu', exact: true }).focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: /^Flee/ })).toHaveCount(0);
-  await expect(page.locator('#campaign .campaign-map button:enabled')).toHaveCount(0); // Cannot flee mid-puzzle.
-  await page.getByRole('button', { name: 'Give up', exact: true }).click();
-  await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.locator('#adventureInfo')).toContainText('You gave up');
+  await expect(page.locator('.accessible-adventure')).toBeAttached();
+  expect((await readSave(page)).state.slots[0].ready).toBe(false);
+  expect((await readSave(page)).view).toBe('campaign');
+  await activate(page, 'Home');
+  await page.getByRole('button', { name: 'Resume adventure' }).click();
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  await expect(page.locator('#game canvas')).toHaveCount(1);
 });
 
-test('campaign loot, equipment, and forward travel work after an actual fight', async ({ page }) => {
-  page.on('pageerror', (error) => { throw error; });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByLabel('Show adventure mode').check();
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.getByRole('combobox', { name: 'New run loadout' }).selectOption('ranger');
-  await page.getByRole('button', { name: 'New run', exact: true }).click();
-  await page.locator('#campaign .campaign-map button:enabled').first().click();
+test('loot and forward travel follow an actual fight, with new preparation screens after each puzzle', async ({ page }) => {
+  await enable(page); await start(page);
+  await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
   for (let puzzle = 0; puzzle < 2; puzzle++) {
-    await page.locator('#adventureContinue').click();
-    await expect(page.getByRole('gridcell')).toHaveCount(81);
+    await activate(page, 'Next puzzle');
     await page.waitForFunction(() => {
-      const current = window as unknown as { stumped?: { model: Game }; controller: { adventure: { game: Game } } };
-      return current.stumped?.model.id === current.controller.adventure.game.id && current.stumped.model.status === 'playing';
+      const w = window as unknown as { stumped?: { model: Game; sys: { isActive: () => boolean } }; controller: { adventure: { game: Game } } };
+      return w.stumped?.sys.isActive() && w.stumped.model.id === w.controller.adventure.game.id && w.stumped.model.status === 'playing';
     });
     const cells = await page.evaluate(() => {
       const { model } = (window as unknown as { stumped: { model: Game } }).stumped;
       return [...model.puzzle.solution].sort((a, b) => model.puzzle.colors[model.puzzle.regions[a]] - model.puzzle.colors[model.puzzle.regions[b]]);
     });
-    for (const cell of cells) {
-      await page.getByRole('gridcell').nth(cell).focus();
-      await page.keyboard.press('Enter');
-    }
-    await expect(page.locator('#game')).toBeHidden({ timeout: 15000 });
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
-    if (!save.state.encounter) break;
+    for (const cell of cells) { await page.getByRole('gridcell').nth(cell).focus(); await page.keyboard.press('Enter'); }
+    await expect(page.locator('.accessible-adventure')).toBeAttached({ timeout: 20000 });
+    if (!(await readSave(page)).state.encounter) break;
   }
-  await expect(page.locator('#campaign')).toContainText('Loot · take what fits');
-  const loot = page.locator('#campaign details').filter({ has: page.getByRole('button', { name: /^Take /, includeHidden: true }) }).first();
-  await loot.locator('summary').click();
-  await loot.getByRole('button', { name: /^Take / }).click();
-  const save = await page.evaluate(() => JSON.parse(localStorage.getItem('stumped-main.adventure')!) as AdventureSave);
-  expect(save.state.slots).toHaveLength(3);
-  expect(save.state.campaign!.gear).toBe(1);
+  await activate(page, 'Loot');
+  await activate(page, page.locator('.accessible-adventure [data-action^="take-"]:enabled').first());
+  expect((await readSave(page)).state.slots).toHaveLength(3);
+  await activate(page, 'Route');
+  await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
+  expect((await readSave(page)).state.campaign!.loot).toHaveLength(0);
+});
+
+test('quiet locations, shops and reserves use Phaser controls and survive reload', async ({ page }, info) => {
+  await enable(page);
+  const state = startRun(STARTERS[0]); state.campaign = createCampaign(7); state.campaign.node = '2-0'; state.resources.supplies = 100; state.health = 10;
+  const moved = step(state, { type: 'travel', node: '3-0' }).state;
+  const save: AdventureSave = { version: 1, loadout: STARTERS[0], start: state, state: moved, log: [{ type: 'travel', node: '3-0' }], times: [0], game: null, played: 0, open: true, view: 'campaign' };
+  await page.evaluate((value) => localStorage.setItem('stumped-main.adventure', JSON.stringify(value)), save);
   await page.reload();
-  await expect(page.locator('#campaign')).toContainText('1 gear found');
-  await page.locator('#campaign .campaign-map button:enabled').first().click();
-  await expect(page.locator('#campaign')).not.toContainText('Loot · take what fits');
+  await expect(page.getByRole('heading', { name: 'Shop', exact: true })).toBeAttached();
+  await activate(page, 'Heal · 2 per health');
+  expect((await readSave(page)).state.health).toBe(24);
+  await activate(page, page.locator('.accessible-adventure [data-action^="take-"]:enabled').first());
+  expect((await readSave(page)).state.slots).toHaveLength(3);
+  await page.screenshot({ path: `screenshots/adventure-shop-${info.project.name}.png` });
+  await page.reload();
+  expect((await readSave(page)).state.slots).toHaveLength(3);
+  await activate(page, 'Leave shop');
+  await activate(page, 'Route');
+  await ready(page);
+  await expect(page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first()).toBeAttached();
+});
+
+test('legacy sandbox selection still starts its exact loadout and returns to its own screen', async ({ page }) => {
+  await enable(page);
+  await page.getByRole('button', { name: 'Start adventure', exact: true }).click();
+  await activate(page, 'Sandbox');
+  await activate(page, 'Choose Wanderer');
+  await activate(page, 'Start sandbox');
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  expect((await readSave(page)).state.character).toBe('wanderer');
+  await page.getByRole('button', { name: 'Menu', exact: true }).focus(); await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Wanderer', exact: true })).toBeAttached();
+  await activate(page, 'Give up');
+  await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Run summary', exact: true })).toBeAttached();
 });

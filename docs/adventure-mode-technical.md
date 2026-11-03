@@ -166,7 +166,7 @@ Responsibilities:
 - Maps, inventory, shops, and choices.
 - Animation sequencing and sound.
 
-The strip and readiness controls sit beside the board, so they belong in the Phaser puzzle scene (`src/puzzleScene.ts`), which already lays out the board and its buttons for phone, tablet, and desktop. Between-round screens (map, shop, inventory) are DOM screens like the menu in `src/index.ts`. Sounds go through `src/sound.ts`.
+The strip and readiness controls sit beside the board, so they belong in the Phaser puzzle scene (`src/puzzleScene.ts`), which already lays out the board and its buttons for phone, tablet, and desktop. Campaign selection and between-round screens (map, shop, inventory, loot, recovery, and summaries) use `AdventureScene` on the same Phaser renderer as the puzzle. A semantic HTML companion mirrors its controls for keyboard and screen-reader access. The DOM home menu offers only Start and Resume for adventure mode. Sounds go through `src/sound.ts`.
 
 Animations never determine game outcomes. The engine resolves actions immediately; the presenter may queue, shorten, or skip animations without changing state. The scene already holds input briefly after a wrong reveal (`busyUntil`); adventure animations must never extend that hold.
 

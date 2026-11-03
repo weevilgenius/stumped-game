@@ -3,16 +3,14 @@ import type { Tier } from './engine';
 import type { SilverMode } from './settings';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { openPuzzle, showAdventureEvents } from './puzzleScene';
+import { closeCanvasScreens, openAdventureScreen, openPuzzle, showAdventureEvents } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
 import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
-import { STARTERS } from './adventure/content/campaign';
-import { inspectAdventure, renderCampaign } from './adventureMenu';
-import { LOADOUT_DESCRIPTIONS, LOADOUTS } from './adventure/content/loadouts';
+import { inspectAdventure } from './adventureMenu';
 import { solvesCsv } from './solves';
 import { createConfirmDialog } from './confirm';
 
@@ -200,6 +198,11 @@ const render = (): void => {
   menu.classList.toggle('busy', controller.busy);
   menu.inert = controller.busy;
   const { screen } = controller;
+  if (screen === 'campaign' || screen === 'campaign-select') {
+    opened = null; menu.hidden = true; stage.hidden = false;
+    openAdventureScreen(stage, { controller, selection: screen === 'campaign-select', theme });
+    return;
+  }
   const game = screen === 'adventure' ? controller.adventure?.game : controller.game;
   if (screen !== 'menu' && game) {
     if (stage.hidden || opened !== game) {
@@ -213,7 +216,7 @@ const render = (): void => {
         showTimer: controller.settings.timer,
         onChange: controller.changed,
         elapsed: controller.tick,
-        onExit: controller.showMenu,
+        onExit: screen === 'adventure' ? controller.showAdventure : controller.showMenu,
         onHelp: openHelp,
         theme,
         adventure: screen === 'adventure' ? {
@@ -226,6 +229,7 @@ const render = (): void => {
   } else {
     const leavingPuzzle = !stage.hidden;
     opened = null;
+    closeCanvasScreens();
     stage.hidden = true;
     menu.hidden = false;
     renderMenu();
@@ -244,51 +248,13 @@ $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
 $('retry').onclick = (): void => void controller.retry();
 
-/** How a run ended, for the main screen. */
-const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up', victory: 'The Warden is defeated — victory!' } as const;
-
-const loadoutSelect = $<HTMLSelectElement>('adventureLoadout');
-const loadoutName = (id: string): string => `${id[0].toUpperCase()}${id.slice(1)}`;
-const ADVENTURE_LOADOUTS = [...STARTERS, ...LOADOUTS];
-for (const loadout of ADVENTURE_LOADOUTS) {
-  loadoutSelect.add(new Option(`${loadoutName(loadout.id)}${STARTERS.includes(loadout) ? '' : ' (sandbox)'}`, loadout.id));
-}
-const renderLoadout = (): void => {
-  const loadout = ADVENTURE_LOADOUTS.find((entry) => entry.id === loadoutSelect.value)!;
-  $('adventureLoadoutDescription').textContent = LOADOUT_DESCRIPTIONS[loadout.id] ?? (loadout.id === 'herbalist' ? 'Victory unlock: healing replaces defense.' : 'Campaign starter: two abilities. Find gear and reach the Warden.');
-  $('adventureLoadoutInfo').textContent = `${loadout.health} health · ${loadout.loadout.map((item) => loadoutName(item.id)).join(' → ')} (priority order)`;
-};
-loadoutSelect.onchange = renderLoadout;
-renderLoadout();
-
-/** Adventure mode while it is playtested: shown from Settings, and doubles as the between-round summary. */
+/** Adventure home controls lead into dedicated Phaser screens. */
 const renderAdventure = (): void => {
-  for (const option of loadoutSelect.options) {
-    option.disabled = STARTERS.some((starter) => starter.id === option.value) && !controller.adventureUnlocks.includes(option.value);
-    if (option.value === 'herbalist') option.text = `Herbalist${option.disabled ? ' (win a campaign to unlock)' : ''}`;
-  }
-  const { adventure } = controller;
-  const state = adventure?.state;
   $('adventure').hidden = !controller.settings.adventure;
-  const encounter = state?.encounter;
-  const name = encounter ? `${encounter.def.id[0].toUpperCase()}${encounter.def.id.slice(1)}` : '';
-  const ahead = !encounter ? 'A new foe awaits.'
-    : encounter.type === 'enemy' && encounter.health < encounter.def.health ? `The fight continues: ${name}, ${encounter.health}/${encounter.def.health} health.`
-      : `${name} ahead.`;
-  const outcome = state?.outcome;
-  $('adventureInfo').textContent = !state ? 'No adventure yet.'
-    : outcome ? `${RUN_OUTCOMES[outcome]} after ${state.rounds} ${state.rounds === 1 ? 'puzzle' : 'puzzles'}.`
-      : `Health ${state.health}/${state.maxHealth} · Supplies ${state.resources.supplies ?? 0} · ${ahead}`;
-  if (adventure) $('adventureInfo').textContent = `${loadoutName(adventure.state.character)} · ${$('adventureInfo').textContent}`;
-  $('adventureContinue').hidden = !state || state.phase === 'ended';
-  $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
-  if (state?.campaign && state.phase === 'between' && !state.encounter) $('adventureContinue').hidden = true;
-  renderCampaign($('campaign'), controller, theme.palette);
-  $('adventureAbandon').hidden = !state || state.phase === 'ended';
+  $<HTMLButtonElement>('adventureContinue').disabled = !controller.adventure;
 };
-$('adventureStart').onclick = (): void => void controller.startAdventure(loadoutSelect.value);
-$('adventureContinue').onclick = (): void => void controller.playAdventure();
-$('adventureAbandon').onclick = (): void => void controller.abandonAdventure();
+$('adventureStart').onclick = controller.selectAdventure;
+$('adventureContinue').onclick = (): void => void controller.resumeAdventure();
 
 $('share').onclick = (): void => {
   if (!controller.game) {

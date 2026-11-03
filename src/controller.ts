@@ -32,8 +32,8 @@ export interface Settings extends Choices, Partial<Pick<GeneratorSettings, 'size
   adventure?: boolean;
 }
 
-/** The screen that is up: the main screen, an ordinary puzzle, or the adventure's puzzle. */
-export type Screen = 'menu' | 'puzzle' | 'adventure';
+/** The home, puzzle, campaign management, or campaign selection screen. */
+export type Screen = 'menu' | 'puzzle' | 'adventure' | 'campaign' | 'campaign-select';
 
 /** What the controller reaches the outside world through. Tests pass fakes. */
 export interface ControllerDeps {
@@ -104,6 +104,12 @@ export interface Controller {
   readonly resume: () => void;
   /** Leaves the puzzle for the main screen. */
   readonly showMenu: () => void;
+  /** Open campaign selection without replacing the current run. */
+  readonly selectAdventure: () => void;
+  /** Open the current run's preparation or summary screen. */
+  readonly showAdventure: () => void;
+  /** Resume a puzzle in progress, or return to preparation. */
+  readonly resumeAdventure: () => Promise<void>;
   /** Replaces the settings and prepares a puzzle to match. Drops a pending start made under the old settings. */
   readonly updateSettings: (settings: Settings) => void;
   /** Saves after a change to the game on screen, records a win the first time it happens, and plays adventure turns. */
@@ -295,7 +301,7 @@ export function createController(deps: ControllerDeps): Controller {
   const emit = (): void => listeners.forEach((listener) => listener());
 
   /** The game on screen, whose play time is running. */
-  const active = (): Game | null => (screen === 'adventure' ? adventure?.game ?? null : game);
+  const active = (): Game | null => (screen === 'adventure' ? adventure?.game ?? null : screen === 'puzzle' ? game : null);
 
   /* ------------------------------------------------------- *\
    *  Play time: runs only while a game in progress is on    *
@@ -428,7 +434,8 @@ export function createController(deps: ControllerDeps): Controller {
     // Remembered so a relaunch mid-puzzle lands back on the puzzle.
     data.open = next === 'puzzle';
     if (adventure) {
-      adventure.open = next === 'adventure';
+      adventure.open = next === 'adventure' || next === 'campaign';
+      adventure.view = next === 'campaign' ? 'campaign' : next === 'adventure' ? 'adventure' : undefined;
     }
     persist();
     emit();
@@ -607,8 +614,8 @@ export function createController(deps: ControllerDeps): Controller {
       if (code) {
         void playCode(code);
       } else if (adventure?.open) {
-        if (adventure.state.phase === 'round') void playAdventure();
-        else show('menu');
+        if (adventure.view !== 'campaign' && adventure.state.phase === 'round') void playAdventure();
+        else show('campaign');
       } else if (data.open) {
         resume();
       }
@@ -636,6 +643,13 @@ export function createController(deps: ControllerDeps): Controller {
     playCode,
     resume,
     showMenu: () => show('menu'),
+    selectAdventure: () => show('campaign-select'),
+    showAdventure: () => { if (adventure) show('campaign'); },
+    resumeAdventure: async () => {
+      if (!adventure) return;
+      if (adventure.state.phase === 'round') await playAdventure();
+      else show('campaign');
+    },
     updateSettings: (next) => {
       settings = next;
       if (starting || confirming) {
@@ -667,7 +681,7 @@ export function createController(deps: ControllerDeps): Controller {
       adventure = next;
       adventureSaved = true;
       persist();
-      if (next.state.campaign) show('menu');
+      if (next.state.campaign) show('campaign');
       else await playAdventure();
     },
     playAdventure,
@@ -695,7 +709,7 @@ export function createController(deps: ControllerDeps): Controller {
       }
       catchUp();
       report(command(adventure, { type: 'abandon' }, deps.date()));
-      show('menu');
+      show('campaign');
     },
     tick: () => {
       syncClock();

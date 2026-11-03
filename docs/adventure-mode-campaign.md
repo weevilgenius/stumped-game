@@ -2,7 +2,7 @@
 
 The campaign is an experimental, complete run using the same `step()` rules in
 the browser and command-line simulator. Turn on **Show adventure mode** in
-Settings, choose Ranger or Sentinel, and start a run. The earlier five simulator
+Settings, press **Start adventure**, choose Ranger or Sentinel on the campaign selection screen, and start a run. The earlier five simulator
 loadouts remain explicitly labeled sandbox probes and continue their endless
 wolf experiments; they are not campaign starters.
 
@@ -27,6 +27,8 @@ charge/cooldown, level, and free readiness control. Tap the enemy for exact heal
 next damage and countdown, enrage/escape, and harvest colors. These cards also
 expose instant consumables. All have keyboard-accessible controls and Escape
 closes the card. Harvest colors are visible on the strip before the kill.
+
+The home screen contains only **Start adventure** and **Resume adventure** for this mode. Selection and run management use the shared Phaser canvas. **Route**, **Gear**, **Loot**, **Camp/Shop**, and **Potions** have separate views with touch and keyboard controls; inspections and equipment swaps have their own detail views. Returning from a puzzle opens run management, and **Home** returns to ordinary play. Starting selection does not replace a saved run until confirmed. Both puzzle clocks pause in these views, and reloading restores preparation or the open puzzle.
 
 Between completed puzzles, including unfinished fights, gear can move freely
 between four ordered equipment slots and three pack slots. Swaps move the whole
