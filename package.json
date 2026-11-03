@@ -17,7 +17,8 @@
     "screenshot": "node scripts/screenshot.ts",
     "simulate": "node --import jiti/register scripts/simulate.ts",
     "traces": "node --import jiti/register scripts/traces.ts",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "campaign": "node --import jiti/register scripts/campaign.ts"
   },
   "packageManager": "pnpm@12.16.1",
   "private": true,

@@ -338,6 +338,10 @@ Add enough progression to support a real start-to-finish run: route choices, enc
 
 Use one character, 9×9 medium puzzles, and a small branching adventure. Start with two abilities consuming two to four colors, and make finding gear with wider coverage the immediate survival pressure. Add enough loot, recovery, and spending to test that progression together. Keep the existing samples as concept probes; choose equipment and enemy values for the new progression rather than treating the samples as balanced targets. Defer permanent unlocks and historical world changes unless they are essential to the first release's appeal.
 
+### Implementation
+
+Phase 7 is implemented in the pure campaign engine, the between-puzzle map/inventory/shop controls, tactical inspection cards, persistent character unlocks, and `pnpm campaign` complete-run experiments. [Campaign rules and evaluation](adventure-mode-campaign.md) documents provisional values, reproduction, provenance, compatibility, and the human review still needed before phase 8. Legacy simulator loadouts remain separate sandbox probes.
+
 ### Completion criteria
 
 Both the simulator and interactive game can complete whole runs using identical rules. All routes reach valid outcomes, rewards and recovery opportunities are bounded, and saved runs resume throughout progression. Reports distinguish survival from encounter completion and show the opening gear race, health across encounters, equipment growth, resources earned and spent, and unresolved runs. Compare actual starters and equipment paths under both ordinary reveal behavior and deliberate planning, with original definitions and any counterfactual substitutions labeled. Independent playtesting checks whether the loop is understandable without developer explanation; final balance and victory-rate tuning remain in phase 8.

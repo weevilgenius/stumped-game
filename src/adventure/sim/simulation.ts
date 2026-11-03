@@ -101,15 +101,17 @@ const chargeValue = (state: AdventureState): number => state.slots.reduce((total
 }, 0);
 
 /** A deliberately simple, one-turn heuristic; no future order, search, or hidden solution. */
-const valueOf = (state: AdventureState): number => {
+/** Shared visible-state heuristic; bounded planning is not an optimal oracle. */
+export function valueOf(state: AdventureState): number {
   const enemy = state.encounter?.phase === 'active' && state.encounter.type === 'enemy' ? state.encounter : null;
   const progress = state.encounter?.type === 'objective' ? state.encounter.progress : 0;
   const damage = enemy?.def.intents[enemy.intent].damage ?? 0;
   return Math.max(0, state.health) * 3 - (state.phase === 'ended' ? 1000 : 0)
     - Math.max(0, enemy?.health ?? 0) * 2 + progress * 2
     + Math.min(state.block, damage) * 1.5 + chargeValue(state) * 2
-    + Object.values(state.resources).reduce((sum, n) => sum + n, 0) * 0.25;
-};
+    + Object.values(state.resources).reduce((sum, n) => sum + n, 0) * 0.25
+    + state.slots.reduce((sum, slot) => sum + (slot.experience ?? 0) * 0.08 + (slot.level ?? 0), 0);
+}
 
 /** Best slot for a visible pulse, allowing no item (scavenge/discard); ties are stable. */
 export function reactiveChoice(state: AdventureState, collect: Collection): { slot: number; value: number } {

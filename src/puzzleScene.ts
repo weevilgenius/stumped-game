@@ -104,6 +104,8 @@ export interface AdventureView {
   readonly state: () => Readonly<AdventureState>;
   /** Readies or unreadies an equipment slot. */
   readonly setReady: (slot: number, ready: boolean) => void;
+  /** Inspect exact equipment or enemy values in a DOM card. */
+  readonly inspect?: (slot?: number) => void;
 }
 
 interface Rect {
@@ -1082,7 +1084,7 @@ class PuzzleScene extends Phaser.Scene {
     this.tweens.killTweensOf(strip.parts);
     strip.parts.forEach((part) => part.destroy());
     strip.parts = [];
-    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot'))) {
+    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot') || key === 'enemy')) {
       this.controls.delete(name);
     }
     const state = view.state();
@@ -1124,6 +1126,16 @@ class PuzzleScene extends Phaser.Scene {
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
       add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      if (state.campaign) {
+        this.controls.set('enemy', {
+          view: { name: 'enemy', label: 'Inspect encounter and consumables', bounds: [ex / u, r.y / u, ew / u, r.h / u], disabled: false },
+          onTap: () => view.inspect?.(),
+        });
+        enemy.setInteractive().on('pointerdown', () => this.activateControl('enemy'));
+        const harvest = encounter.def.scavenge.flatMap((rule) => rule.colors);
+        const dots = add(this.add.graphics());
+        harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color]).fillCircle(ex + ew - (i * 9 + 7) * u, top + 9 * u, 3 * u));
+      }
       if (won) {
         enemy.setAlpha(0.5);
         add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
@@ -1277,7 +1289,10 @@ class PuzzleScene extends Phaser.Scene {
     const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
       view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
-      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+      onTap: () => {
+        if (state.campaign) this.options.adventure?.inspect?.(index);
+        else this.options.adventure?.setReady(index, !slot.ready);
+      },
     });
     back.setInteractive().on('pointerdown', () => this.activateControl(name));
     return back;

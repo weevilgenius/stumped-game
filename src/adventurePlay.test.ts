@@ -43,7 +43,7 @@ describe('turnsOf', () => {
 
 describe('sync', () => {
   it('plays each reveal once, ends the round on a win, and the log replays the run exactly', () => {
-    const save = newAdventure();
+    const save = newAdventure('wanderer');
     const game = newGame(PUZZLE, false, 'play', true);
     beginRound(save, game, 1);
     tap(game, open(game)[0]);
@@ -65,7 +65,7 @@ describe('sync', () => {
   });
 
   it('does not log rejected commands', () => {
-    const save = newAdventure();
+    const save = newAdventure('wanderer');
     expect(command(save, { type: 'set-ready', slot: 9, ready: false }, 1)[0].type).toBe('command-rejected');
     expect(save.log).toEqual([]);
   });
@@ -73,7 +73,7 @@ describe('sync', () => {
 
 describe('parseAdventure', () => {
   it('reads its own format, treats null as no adventure, and rejects anything else', () => {
-    const save = newAdventure();
+    const save = newAdventure('wanderer');
     expect(parseAdventure(JSON.stringify(save))).toEqual(save);
     expect(parseAdventure('null')).toBeNull();
     expect(parseAdventure('not json')).toBeUndefined();
@@ -98,7 +98,7 @@ describe('loadouts', () => {
   });
 
   it('still reads older saves without explicit loadout metadata', () => {
-    const save = newAdventure();
+    const save = newAdventure('wanderer');
     delete save.loadout;
     const restored = parseAdventure(JSON.stringify(save))!;
     expect(restored.start.character).toBe('wanderer');

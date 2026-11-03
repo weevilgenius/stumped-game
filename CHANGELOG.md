@@ -1,6 +1,12 @@
 # Changelog
 
 ## 0.16.0
+- Adventure campaign: choose a starter, follow a branching trail through fights, shops, rests and treasure, and defeat the Warden.
+- Collect gear and potions, manage four equipment slots and a reserve pack, and level gear with postcombat colors or rest stops.
+- Inspect equipment and enemy cards for exact effects and timing. Completing a campaign unlocks the Herbalist for future runs.
+- Adventure exports retain earlier puzzle codes, settings, active time, hints and What if? history.
+
+## 0.16.0
 - Add optional 11×11 and 12×12 puzzles, with new region colors in both themes. New installs start with sizes 5×5 through 10×10 selected.
 - Puzzles generate faster, especially larger hard puzzles.
 

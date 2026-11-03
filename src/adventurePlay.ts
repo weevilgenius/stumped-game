@@ -2,6 +2,11 @@ import {
   type AdventureCommand, type AdventureEvent, type AdventureState, type CharacterDef, type Collection, type RoundManifest, startRun, step,
 } from './adventure/engine';
 import { WOLF } from './adventure/content/sandbox';
+import { CONTENT_VERSION, STARTERS } from './adventure/content/campaign';
+import { createCampaign, refreshCampaignContent } from './adventure/engine/campaign';
+import { decodeSeedCode } from './engine';
+import type { GeneratorSettings } from './engine';
+import { version as APP_VERSION } from '../package.json';
 import { LOADOUTS } from './adventure/content/loadouts';
 import type { Game } from './game';
 
@@ -19,6 +24,8 @@ export const ADVENTURE_VERSION = 1;
 export interface AdventureSave {
   /** Save format. */
   version: typeof ADVENTURE_VERSION;
+  /** Reconstructible puzzle history, including deaths and unfinished puzzles. */
+  puzzles?: AdventurePuzzleRecord[];
   /** Selected simulator loadout, including its exact definitions. Missing in older saves; use `start` there. */
   loadout?: CharacterDef;
   /** The run as it began, so the log can replay it. */
@@ -37,17 +44,66 @@ export interface AdventureSave {
   open: boolean;
 }
 
+/** Puzzle context retained after moving on, independently of solve-data settings. */
+export interface AdventurePuzzleRecord {
+  /** Stable play identifier. */
+  id: string;
+  /** Application version that last observed this puzzle. */
+  app: string;
+  /** Campaign content revision at observation. */
+  content: number;
+  /** Puzzle seed code, including generator version. */
+  code: string;
+  /** Exact generation settings. */
+  settings: GeneratorSettings | null;
+  /** Explicit palette mapping, for future permutations. */
+  colors: readonly number[];
+  /** Active solve time in milliseconds. */
+  elapsed: number;
+  /** Hint history. */
+  hints: Game['hints'];
+  /** Hypothesis entry times. */
+  whatIfs: number[];
+  /** Reveal history, including source and active time. */
+  found: NonNullable<Game['found']>;
+  /** Exact wrong reveal history. */
+  misses: NonNullable<Game['misses']>;
+  /** Application versions that touched this puzzle. */
+  versions: string[];
+  /** App/content pairs observed, so mixed-version puzzles stay identifiable. */
+  rules: string[];
+}
+
+/** Refresh the current puzzle's trace without losing earlier puzzles. */
+export function recordPuzzle(save: AdventureSave): void {
+  const game = save.game;
+  if (!game) return;
+  save.puzzles ??= [];
+  const old = save.puzzles.findIndex((record) => record.id === game.id);
+  const previous = save.puzzles[old];
+  const record: AdventurePuzzleRecord = {
+    id: game.id, app: APP_VERSION, content: CONTENT_VERSION, code: game.puzzle.code,
+    settings: decodeSeedCode(game.puzzle.code)?.settings ?? null, colors: [...game.puzzle.colors], elapsed: game.elapsed,
+    hints: [...game.hints], whatIfs: [...game.whatIfs ?? []], found: structuredClone(game.found ?? []),
+    misses: structuredClone(game.misses ?? []), rules: [...new Set([...previous?.rules ?? [], `${APP_VERSION}/content-${CONTENT_VERSION}`])], versions: [...new Set([...previous?.versions ?? [], APP_VERSION])],
+  };
+  if (old < 0) save.puzzles.push(record);
+  else save.puzzles[old] = record;
+}
+
 /**
- * Starts a sandbox run with a simulator loadout against a wolf.
- * @param loadoutId simulator loadout identifier; defaults to Wanderer
+ * Starts a bounded campaign or an explicitly selected legacy sandbox.
+ * @param loadoutId starter or sandbox identifier; defaults to Ranger
+ * @param seed campaign map and loot seed
  * @returns the new adventure, between rounds with no puzzle yet
  */
-export function newAdventure(loadoutId = 'wanderer'): AdventureSave {
-  const definition = LOADOUTS.find((loadout) => loadout.id === loadoutId);
+export function newAdventure(loadoutId = 'ranger', seed = 1): AdventureSave {
+  const definition = [...STARTERS, ...LOADOUTS].find((loadout) => loadout.id === loadoutId);
   if (!definition) throw new Error(`Unknown adventure loadout: ${loadoutId}`);
   const loadout = structuredClone(definition);
   const state = startRun(loadout);
-  return { version: ADVENTURE_VERSION, loadout, start: state, log: [], times: [], state, game: null, played: 0, open: false };
+  if (STARTERS.some((starter) => starter.id === loadoutId)) state.campaign = createCampaign(seed);
+  return { version: ADVENTURE_VERSION, loadout, start: state, log: [], times: [], state, game: null, played: 0, open: false, puzzles: [] };
 }
 
 /**
@@ -142,10 +198,13 @@ export function sync(save: AdventureSave, at: number): AdventureEvent[] {
  * @returns the engine's events
  */
 export function beginRound(save: AdventureSave, game: Game, at: number): AdventureEvent[] {
-  const events = save.state.encounter ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF }, at)];
+  const events = save.state.encounter || save.state.campaign ? [] : [...command(save, { type: 'begin-encounter', encounter: WOLF }, at)];
   events.push(...command(save, { type: 'begin-round', round: manifestOf(game) }, at));
+  if (save.state.phase !== 'round') return events;
+  recordPuzzle(save);
   save.game = game;
   save.played = 0;
+  recordPuzzle(save);
   return events;
 }
 
@@ -163,7 +222,17 @@ export function parseAdventure(raw: string): AdventureSave | null | undefined {
     const valid = value.version === ADVENTURE_VERSION && typeof value.state === 'object' && value.state !== null
       && typeof value.start === 'object' && Array.isArray(value.log) && Number.isInteger(value.played)
       && typeof value.open === 'boolean' && (value.game === null || typeof value.game === 'object');
-    return valid ? value as AdventureSave : undefined;
+    if (!valid) return undefined;
+    const save = value as AdventureSave;
+    const state = save.state;
+    if (!['between', 'round', 'ended'].includes(state.phase) || !Number.isFinite(state.health)
+      || !Array.isArray(state.slots) || !state.slots.every((slot) => slot?.item && Array.isArray(slot.item.bands) && Array.isArray(slot.item.colors))) return undefined;
+    const campaign = state.campaign;
+    if (campaign && (!Array.isArray(campaign.map) || !Array.isArray(campaign.visited) || !Array.isArray(campaign.pack)
+      || !Array.isArray(campaign.potions) || !Array.isArray(campaign.loot) || !Array.isArray(campaign.stock)
+      || typeof campaign.active !== 'boolean' || !Number.isInteger(campaign.seed) || !Number.isInteger(campaign.rng))) return undefined;
+    refreshCampaignContent(state);
+    return save;
   } catch {
     return undefined;
   }

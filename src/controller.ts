@@ -6,8 +6,9 @@ import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseS
 import type { Generate } from './generator';
 import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
-import type { AdventureEvent, AdventureState } from './adventure/engine';
-import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, sync } from './adventurePlay';
+import { STARTERS } from './adventure/content/campaign';
+import type { AdventureCommand, AdventureEvent, AdventureState } from './adventure/engine';
+import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, recordPuzzle, sync } from './adventurePlay';
 
 /** Most earlier adventure runs kept for export. The oldest are dropped first. */
 const MAX_RUNS = 10;
@@ -107,7 +108,11 @@ export interface Controller {
   readonly updateSettings: (settings: Settings) => void;
   /** Saves after a change to the game on screen, records a win the first time it happens, and plays adventure turns. */
   readonly changed: () => void;
-  /** Starts a new adventure run, after confirming if one is under way, and plays its first puzzle. */
+  /** Characters available across runs, stored separately from run history. */
+  readonly adventureUnlocks: readonly string[];
+  /** Apply a progression choice and save it atomically with the run. */
+  readonly adventureCommand: (command: AdventureCommand) => void;
+  /** Start a campaign at its map, or a legacy sandbox at its first puzzle, after confirming replacement. */
   readonly startAdventure: (loadoutId?: string) => Promise<void>;
   /** Returns to the adventure's puzzle, or starts its next one. Ignored once the run has ended. */
   readonly playAdventure: () => Promise<void>;
@@ -222,6 +227,12 @@ export function createController(deps: ControllerDeps): Controller {
   \* ------------------------------------------------------- */
 
   let adventure: AdventureSave | null = null;
+  const adventureUnlocks = ['ranger', 'sentinel'];
+  try {
+    const unlocked: unknown = JSON.parse(deps.storage.getItem('adventureUnlocks') ?? '[]');
+    if (Array.isArray(unlocked) && unlocked.includes('herbalist')) adventureUnlocks.push('herbalist');
+  } catch { /* An unreadable unlock record never prevents ordinary play. */ }
+
   /** True once there is an adventure on this device, so giving one up is saved too. */
   let adventureSaved = false;
   if (writable) {
@@ -235,6 +246,7 @@ export function createController(deps: ControllerDeps): Controller {
       } else {
         adventure = parsed;
         adventureSaved = parsed !== null;
+        if (parsed?.state.campaign?.victory && !adventureUnlocks.includes('herbalist')) adventureUnlocks.push('herbalist');
       }
     } catch {
       writable = false;
@@ -333,6 +345,11 @@ export function createController(deps: ControllerDeps): Controller {
     const before = storageError;
     try {
       deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, stats, played, open: data.open }));
+      if (adventure) recordPuzzle(adventure);
+      if (adventure?.state.outcome === 'victory' || adventure?.state.campaign?.victory) {
+        if (!adventureUnlocks.includes('herbalist')) adventureUnlocks.push('herbalist');
+        deps.storage.setItem('adventureUnlocks', JSON.stringify(adventureUnlocks));
+      }
       if (adventureSaved) {
         deps.storage.setItem('adventure', JSON.stringify(adventure));
       }
@@ -537,6 +554,7 @@ export function createController(deps: ControllerDeps): Controller {
       show('adventure');
       return;
     }
+    if (adventure.state.campaign && !adventure.state.encounter) return;
     const puzzle = prepareAdventure();
     adventurePrepared = null;
     await generating({ puzzle, abort: new AbortController() }, (result) => {
@@ -589,7 +607,8 @@ export function createController(deps: ControllerDeps): Controller {
       if (code) {
         void playCode(code);
       } else if (adventure?.open) {
-        void playAdventure();
+        if (adventure.state.phase === 'round') void playAdventure();
+        else show('menu');
       } else if (data.open) {
         resume();
       }
@@ -639,16 +658,26 @@ export function createController(deps: ControllerDeps): Controller {
       if (adventure && adventure.state.phase !== 'ended' && !await ask('Abandon the adventure under way and start a new one?')) {
         return;
       }
-      const next = newAdventure(loadoutId);
+      if (STARTERS.some((starter) => starter.id === loadoutId) && !adventureUnlocks.includes(loadoutId!)) return;
+      const next = newAdventure(loadoutId, Math.floor(deps.random() * 2 ** 32));
       if (adventure) {
+        if (adventure.state.phase !== 'ended') command(adventure, { type: 'abandon' }, deps.date());
         archive(adventure);
       }
       adventure = next;
       adventureSaved = true;
       persist();
-      await playAdventure();
+      if (next.state.campaign) show('menu');
+      else await playAdventure();
     },
     playAdventure,
+    get adventureUnlocks() { return adventureUnlocks; },
+    adventureCommand: (next) => {
+      if (!adventure || starting || confirming) return;
+      report(command(adventure, next, deps.date()));
+      persist();
+      emit();
+    },
     adventureData: () => JSON.stringify({ current: adventure, past: pastRuns }),
     setReady: (slot, ready) => {
       if (adventure) {
@@ -665,18 +694,12 @@ export function createController(deps: ControllerDeps): Controller {
         return;
       }
       catchUp();
-      if (adventure.state.phase === 'round') {
-        report(command(adventure, { type: 'end-round', outcome: 'abandoned' }, deps.date()));
-      } else {
-        // shortcut: between rounds the engine has no way to end a run, so it is dropped; phase 7 adds run endings.
-        archive(adventure);
-        adventure = null;
-      }
+      report(command(adventure, { type: 'abandon' }, deps.date()));
       show('menu');
     },
     tick: () => {
       syncClock();
-      return active()?.elapsed ?? 0;
+      return (active() ?? game)?.elapsed ?? 0;
     },
     setHidden: (value) => {
       hidden = value;

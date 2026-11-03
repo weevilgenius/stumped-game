@@ -10,6 +10,8 @@ import { fillHelpBoards } from './help';
 import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
+import { STARTERS } from './adventure/content/campaign';
+import { inspectAdventure, renderCampaign } from './adventureMenu';
 import { LOADOUT_DESCRIPTIONS, LOADOUTS } from './adventure/content/loadouts';
 import { solvesCsv } from './solves';
 import { createConfirmDialog } from './confirm';
@@ -217,6 +219,7 @@ const render = (): void => {
         adventure: screen === 'adventure' ? {
           state: () => controller.adventure!.state,
           setReady: controller.setReady,
+          inspect: (slot) => inspectAdventure($<HTMLDialogElement>('adventureCard'), controller, theme.palette, slot),
         } : undefined,
       });
     }
@@ -242,16 +245,17 @@ $('resume').onclick = controller.resume;
 $('retry').onclick = (): void => void controller.retry();
 
 /** How a run ended, for the main screen. */
-const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' } as const;
+const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up', victory: 'The Warden is defeated — victory!' } as const;
 
 const loadoutSelect = $<HTMLSelectElement>('adventureLoadout');
 const loadoutName = (id: string): string => `${id[0].toUpperCase()}${id.slice(1)}`;
-for (const loadout of LOADOUTS) {
-  loadoutSelect.add(new Option(loadoutName(loadout.id), loadout.id));
+const ADVENTURE_LOADOUTS = [...STARTERS, ...LOADOUTS];
+for (const loadout of ADVENTURE_LOADOUTS) {
+  loadoutSelect.add(new Option(`${loadoutName(loadout.id)}${STARTERS.includes(loadout) ? '' : ' (sandbox)'}`, loadout.id));
 }
 const renderLoadout = (): void => {
-  const loadout = LOADOUTS.find((entry) => entry.id === loadoutSelect.value)!;
-  $('adventureLoadoutDescription').textContent = LOADOUT_DESCRIPTIONS[loadout.id];
+  const loadout = ADVENTURE_LOADOUTS.find((entry) => entry.id === loadoutSelect.value)!;
+  $('adventureLoadoutDescription').textContent = LOADOUT_DESCRIPTIONS[loadout.id] ?? (loadout.id === 'herbalist' ? 'Victory unlock: healing replaces defense.' : 'Campaign starter: two abilities. Find gear and reach the Warden.');
   $('adventureLoadoutInfo').textContent = `${loadout.health} health · ${loadout.loadout.map((item) => loadoutName(item.id)).join(' → ')} (priority order)`;
 };
 loadoutSelect.onchange = renderLoadout;
@@ -259,6 +263,10 @@ renderLoadout();
 
 /** Adventure mode while it is playtested: shown from Settings, and doubles as the between-round summary. */
 const renderAdventure = (): void => {
+  for (const option of loadoutSelect.options) {
+    option.disabled = STARTERS.some((starter) => starter.id === option.value) && !controller.adventureUnlocks.includes(option.value);
+    if (option.value === 'herbalist') option.text = `Herbalist${option.disabled ? ' (win a campaign to unlock)' : ''}`;
+  }
   const { adventure } = controller;
   const state = adventure?.state;
   $('adventure').hidden = !controller.settings.adventure;
@@ -274,6 +282,8 @@ const renderAdventure = (): void => {
   if (adventure) $('adventureInfo').textContent = `${loadoutName(adventure.state.character)} · ${$('adventureInfo').textContent}`;
   $('adventureContinue').hidden = !state || state.phase === 'ended';
   $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
+  if (state?.campaign && state.phase === 'between' && !state.encounter) $('adventureContinue').hidden = true;
+  renderCampaign($('campaign'), controller, theme.palette);
   $('adventureAbandon').hidden = !state || state.phase === 'ended';
 };
 $('adventureStart').onclick = (): void => void controller.startAdventure(loadoutSelect.value);

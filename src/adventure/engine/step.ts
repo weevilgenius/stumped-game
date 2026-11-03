@@ -1,3 +1,5 @@
+import { applyCampaign, campaignKill, campaignRoundEnd, levelItem, refreshCampaignContent } from './campaign';
+import { currentNode } from './campaignTypes';
 import type {
   AdventureCommand, AdventureEvent, AdventureState, Band, CharacterDef, Collection, CollectSource, EncounterDef,
   EncounterState, EngineResult, RejectReason, RoundManifest, SlotState,
@@ -86,6 +88,7 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
 
   const win = (encounter: EncounterState): void => {
     encounter.phase = 'scavenge';
+    if (encounter.type === 'enemy') campaignKill(state, events);
     events.push({
       type: 'encounter-transitioned', encounter: encounter.def.id, to: 'scavenge',
       outcome: encounter.type === 'enemy' ? 'defeated' : 'completed',
@@ -95,6 +98,7 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
   const addResource = (resource: string, bands: readonly Band[], amount: number): void => {
     const { band, value } = bandOf(bands, amount);
     state.resources[resource] = (state.resources[resource] ?? 0) + value;
+    if (state.campaign && resource === 'supplies') state.campaign.earned += value;
     events.push({ type: 'resource-changed', resource, amount: value, total: state.resources[resource], band });
   };
 
@@ -143,7 +147,26 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
 
   /** Routes a pulse to the first eligible readied item, the scavenge rules, or nowhere. */
   const route = (collect: Collection, turn: number): void => {
-    const index = state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
+    const campaign = state.campaign;
+    if (campaign && state.encounter?.phase === 'scavenge' && currentNode(state)?.kind !== 'forage') {
+      const index = state.slots.findIndex((slot) => slot.ready && slot.item.colors.includes(collect.color));
+      const slot = state.slots[index];
+      if (slot) {
+        events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
+        if (slot.item.effect === 'heal') activate(index, slot, collect.amount, turn);
+        else {
+          const id = slot.item.instance ?? slot.item.id;
+          slot.experience = (slot.experience ?? 0) + collect.amount;
+          if (slot.experience >= 24 && !campaign.leveled.includes(id) && (slot.level ?? 0) < 3) {
+            levelItem(state, slot, events);
+            campaign.leveled.push(id);
+          }
+        }
+        return;
+      }
+    }
+    const index = campaign && state.encounter?.phase === 'scavenge' ? -1
+      : state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
     const slot = state.slots[index];
     if (slot) {
       events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
@@ -166,7 +189,11 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     const rule = state.encounter?.phase === 'scavenge'
       ? state.encounter.def.scavenge.find((r) => r.colors.includes(collect.color))
       : undefined;
-    if (rule) addResource(rule.resource, rule.bands, collect.amount);
+    if (rule) {
+      const loss = state.campaign?.encounterRounds ?? 0;
+      const bands = rule.bands.map((band) => ({ ...band, value: Math.max(0, band.value - loss) }));
+      addResource(rule.resource, bands, collect.amount);
+    }
     else events.push({ type: 'pulse-discarded' });
   };
 
@@ -218,6 +245,11 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     events.push({ type: 'round-ended', outcome });
     state.round = null;
     state.rounds++;
+    if (state.campaign?.victory && outcome !== 'completed') {
+      state.phase = 'ended'; state.outcome = 'victory';
+      events.push({ type: 'run-ended', outcome: 'victory' });
+      return;
+    }
     if (outcome !== 'completed') {
       state.phase = 'ended';
       state.outcome = outcome;
@@ -239,6 +271,7 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       events.push({ type: 'encounter-transitioned', encounter: state.encounter.def.id, to: 'ended', outcome: 'cleared' });
       state.encounter = null;
     }
+    campaignRoundEnd(state, events);
   };
 
   return { turn, endRound };
@@ -250,12 +283,13 @@ const apply = (state: AdventureState, command: AdventureCommand, events: Adventu
   switch (command.type) {
   case 'begin-encounter':
     if (state.phase !== 'between') reject('wrong-phase');
-    if (state.encounter) reject('encounter-active');
+    if (state.encounter || state.campaign) reject('encounter-active');
     state.encounter = startEncounter(command.encounter);
     events.push({ type: 'encounter-started', encounter: command.encounter.id });
     return;
   case 'begin-round':
     if (state.phase !== 'between') reject('wrong-phase');
+    if (state.campaign && !state.encounter) reject('wrong-phase');
     if (!validManifest(command.round)) reject('bad-manifest');
     state.phase = 'round';
     state.round = { manifest: command.round, turn: 0, collected: [] };
@@ -281,6 +315,11 @@ const apply = (state: AdventureState, command: AdventureCommand, events: Adventu
   }
   case 'end-round':
     endRound(command.outcome);
+    return;
+  default: {
+    const reason = applyCampaign(state, command, events);
+    if (reason) reject(reason);
+  }
   }
 };
 
@@ -296,6 +335,7 @@ export function step(state: AdventureState, command: AdventureCommand): EngineRe
   const next = structuredClone(state);
   const events: AdventureEvent[] = [];
   try {
+    refreshCampaignContent(next);
     apply(next, command, events);
   } catch (error) {
     if (!(error instanceof Rejected)) throw error;

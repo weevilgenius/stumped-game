@@ -92,6 +92,7 @@
               <select id="adventureLoadout" aria-describedby="adventureLoadoutDescription adventureLoadoutInfo"></select>
               <p id="adventureLoadoutDescription"></p>
               <p id="adventureLoadoutInfo"></p>
+              <div id="campaign"></div>
               <div class="actions">
                 <button id="adventureContinue" type="button" class="text-button">Continue &rarr;</button>
                 <button id="adventureStart" type="button" class="text-button">New run</button>
@@ -115,6 +116,7 @@
     </main>
 
     <!-- Puzzle screen: the Phaser canvas. -->
+    <dialog id="adventureCard" aria-label="Adventure details"></dialog>
     <div id="game" hidden><p id="fullscreenStatus" role="status"></p></div>
 
     <dialog id="changelog" aria-labelledby="changelogTitle">
