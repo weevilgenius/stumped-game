@@ -26,6 +26,8 @@ jobs:
           # Keep the order of each stump found and the solve log (see README).
           VITE_COLLECT_SOLVE_DATA: 'true'
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        # Dependabot PRs cannot access the Actions secret used for Firebase previews.
+        if: ${{ github.event.pull_request.user.login != 'dependabot[bot]' }}
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STUMPED_GAME }}
