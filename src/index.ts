@@ -390,13 +390,26 @@ settingsForm.onchange = (event): void => {
   renderMenu();
 };
 
-/** Copies the adventure runs as JSON, for pasting into a message. */
+/** Shares the adventure runs as a JSON file, or downloads it where files cannot be shared. */
 $('copyAdventure').onclick = (): void => {
   const status = $('copyAdventureStatus');
-  // The clipboard is missing outside secure pages.
-  const clipboard = navigator.clipboard as Clipboard | undefined;
-  void (clipboard?.writeText(controller.adventureData()) ?? Promise.reject(new Error('no clipboard')))
-    .then(() => (status.textContent = 'Copied.'), () => (status.textContent = 'Could not copy.'));
+  const name = `adventure-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([controller.adventureData()], name, { type: 'application/json' });
+  // Share before any await: browsers only allow it during the tap.
+  if (navigator.canShare?.({ files: [file] })) {
+    navigator.share({ files: [file] }).then(
+      () => (status.textContent = 'Shared.'),
+      (error: unknown) => (status.textContent = error instanceof DOMException && error.name === 'AbortError' ? '' : 'Could not share.'),
+    );
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  status.textContent = 'Downloaded.';
 };
 
 /** Copies the solve log as CSV, for pasting into a spreadsheet or a message. */

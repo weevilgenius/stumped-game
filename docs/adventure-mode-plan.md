@@ -246,7 +246,7 @@ Test on the repository's preferred desktop, phone, and tablet devices. Keep anim
 
 The puzzle scene draws the strip when it is given an adventure (`AdventureView` in `src/puzzleScene.ts`): above the board in the stacked layout, or in the side panel under the top bar, in place of the theme's flags. It is redrawn whole from the run after each change, and the controller's engine events, passed in through `showAdventureEvents()`, add brief chip flashes, fizzles, and hit flashes; a redraw cuts off any still running. Death locks the board under a Defeated banner. Settings has a Show adventure mode switch (saved as optional `adventure`), and the main screen's Adventure section doubles as the between-round summary: health, supplies, the encounter ahead, and Next puzzle.
 
-For analysis, each logged command has a timestamp (`times`, beside `log`), a replaced or dropped run is kept under `adventureRuns` (last ten), and Settings has Copy adventure data (current and earlier runs as JSON). Adventure wins go into the solve log flagged `adventure`, and every solve records when What if? mode was turned on (`whatIfs`; CSV columns `mode` and `what_if_seconds`).
+For analysis, each logged command has a timestamp (`times`, beside `log`), a replaced or dropped run is kept under `adventureRuns` (last ten), and Settings has Export adventure data (current and earlier runs as JSON). Adventure wins go into the solve log flagged `adventure`, and every solve records when What if? mode was turned on (`whatIfs`; CSV columns `mode` and `what_if_seconds`).
 
 ### Playtest review (2026-11-02)
 
