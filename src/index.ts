@@ -393,23 +393,31 @@ settingsForm.onchange = (event): void => {
 /** Shares the adventure runs as a JSON file, or downloads it where files cannot be shared. */
 $('copyAdventure').onclick = (): void => {
   const status = $('copyAdventureStatus');
-  const name = `adventure-${new Date().toISOString().slice(0, 10)}.json`;
-  const file = new File([controller.adventureData()], name, { type: 'application/json' });
+  const data = controller.adventureData();
+  const name = `adventure-${new Date().toISOString().slice(0, 10)}`;
+  const download = (): void => {
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${name}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    status.textContent = 'Downloaded.';
+  };
+  // Android Chrome refuses to share .json files, so the shared copy is plain text.
+  const file = new File([data], `${name}.txt`, { type: 'text/plain' });
   // Share before any await: browsers only allow it during the tap.
   if (navigator.canShare?.({ files: [file] })) {
     navigator.share({ files: [file] }).then(
       () => (status.textContent = 'Shared.'),
-      (error: unknown) => (status.textContent = error instanceof DOMException && error.name === 'AbortError' ? '' : 'Could not share.'),
+      (error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') status.textContent = '';
+        else download();
+      },
     );
     return;
   }
-  const url = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  status.textContent = 'Downloaded.';
+  download();
 };
 
 /** Copies the solve log as CSV, for pasting into a spreadsheet or a message. */

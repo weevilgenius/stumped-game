@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.5
+- Export adventure data works on Android: the shared file is plain text, and the game downloads it instead if sharing fails.
+
 ## 0.15.4
 - Undo after keeping What if? changes takes back the kept X's in one step, instead of an earlier move.
 
