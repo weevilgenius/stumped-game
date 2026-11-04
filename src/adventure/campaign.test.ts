@@ -99,6 +99,15 @@ describe('harvest and levels', () => {
     expect(events.at(-1)).toEqual({ type: 'pulse-discarded' });
   });
 
+  it('fizzles a non-harvest color after a kill, even for a readied forage item', () => {
+    let { state } = run(fighting(), { type: 'begin-round', round: ROUND }, turn(0), turn(1));
+    state.slots[1] = { ...state.slots[1], item: { ...state.slots[1].item, effect: 'forage', colors: [8] } };
+    const result = run(state, turn(8));
+    state = result.state;
+    expect(state.resources.supplies ?? 0).toBe(0);
+    expect(result.events.at(-1)).toEqual({ type: 'pulse-discarded' });
+  });
+
   it('adds one band step per level, continuing past the top band', () => {
     const bands = [{ min: 1, value: 2 }, { min: 4, value: 3 }, { min: 8, value: 5 }];
     expect(bandOf(bands, 1, 1)).toEqual({ band: 1, value: 3 });

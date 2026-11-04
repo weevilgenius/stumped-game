@@ -255,7 +255,11 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
         harvest(collect, turn);
         return;
       }
-      // Other colors still heal or forage through items that do, or fizzle.
+      // After a kill, other colors fizzle, even for items that heal or forage.
+      if (state.encounter.type === 'enemy') {
+        events.push({ type: 'pulse-discarded' });
+        return;
+      }
     }
     const index = state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
     const slot = state.slots[index];
