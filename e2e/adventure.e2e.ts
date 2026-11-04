@@ -28,6 +28,11 @@ test('starts a campaign run on its own screen, travels to a fight, and resumes i
   // Every first-column node is a fight.
   await tap(page, 'Travel to Fight, danger 1');
   await expect(page.getByRole('button', { name: 'Flee' })).toBeAttached();
+  // A button on an item's panel acts instead of opening the panel's card.
+  await tap(page, /^Gear tab/);
+  await tap(page, /^Unready /);
+  await expect.poll(async () => (await readSave()).state.slots[0].ready).toBe(false);
+  await expect(page.locator('#adventureCard')).toBeHidden();
   await tap(page, /Next puzzle/);
   await expect(page.locator('#game canvas')).toBeVisible();
   // A tap on a strip item toggles readiness; a long press opens its card.

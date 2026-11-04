@@ -180,8 +180,8 @@ class CampScene extends Phaser.Scene {
   private tapAt(x: number, y: number): void {
     const scroll = this.cameras.main.scrollY;
     const inContent = y >= this.contentTop && y < this.contentBottom;
-    // Fixed bars are checked first; content only within its visible band.
-    const hit = [...this.controls].sort(([, a], [, b]) => Number(b.fixed) - Number(a.fixed)).find(([, c]) => {
+    // Fixed bars are checked first, then the latest drawn, so a button wins over the panel it sits on.
+    const hit = [...this.controls].reverse().sort(([, a], [, b]) => Number(b.fixed) - Number(a.fixed)).find(([, c]) => {
       const [cx, cy, cw, ch] = c.bounds;
       const py = c.fixed ? y : y + scroll;
       return (c.fixed || inContent) && x >= cx && x < cx + cw && py >= cy && py < cy + ch;
