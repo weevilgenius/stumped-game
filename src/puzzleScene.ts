@@ -527,7 +527,10 @@ class PuzzleScene extends Phaser.Scene {
   private drawStatus(r: Rect): void {
     const { u, model } = this;
     const mid = r.y + r.h / 2;
-    const fullscreen = document.fullscreenEnabled;
+    // iOS exits full screen on any downward swipe, which page script cannot block, and an installed app has no browser bars to hide.
+    // iPadOS reports a Mac user agent, so a touch screen gives it away.
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    const fullscreen = document.fullscreenEnabled && !ios;
     // Trade the Menu label for its back arrow on narrow toolbars, leaving the stats their existing space.
     const compactMenu = fullscreen && r.w < 420 * u;
     const menuWidth = (compactMenu ? 38 : 84) * u;

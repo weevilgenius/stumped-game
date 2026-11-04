@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.3
+- iPhone and iPad no longer show the full screen button, because Safari drops out of full screen on any downward swipe. Add Stumped to the Home Screen to play without browser bars.
+
 ## 0.15.2
 - Export adventure data saves a file: phones and tablets open the share sheet, other browsers download it.
 
