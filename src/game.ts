@@ -316,7 +316,7 @@ export function enterHypothesis(game: Game): void {
 /**
  * Turns hypothesis mode off. Tentative stumps are always removed.
  * @param game the game
- * @param keep true to turn hypothesis X's into normal X's, false to discard them
+ * @param keep true to turn hypothesis X's into normal X's (undone as one step), false to discard them
  */
 export function leaveHypothesis(game: Game, keep: boolean): void {
   if (keep) {
@@ -325,6 +325,10 @@ export function leaveHypothesis(game: Game, keep: boolean): void {
       game.marks[cell] = MARK_X;
     }
     settle(game, kept);
+    if (kept.length > 0) {
+      // One undo step takes back the whole kept batch.
+      game.undo.push(kept.map((cell) => [cell, MARK_NONE]));
+    }
   }
   game.hypo = null;
   game.hypoUndo = [];

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.4
+- Undo after keeping What if? changes takes back the kept X's in one step, instead of an earlier move.
+
 ## 0.15.3
 - iPhone and iPad no longer show the full screen button, because Safari drops out of full screen on any downward swipe. Add Stumped to the Home Screen to play without browser bars.
 

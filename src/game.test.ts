@@ -189,9 +189,15 @@ describe('hypothesis mode', () => {
     expect(undo(game)).toBe(false);
     expect(game.marks[0]).toBe(MARK_X);
     leaveHypothesis(game, false);
+    if (keep) {
+      // The kept X goes first, and older history for its square cannot bring an X back.
+      undo(game);
+      expect([game.marks[0], game.marks[5]]).toEqual([MARK_X, MARK_NONE]);
+      undo(game);
+      expect([game.marks[0], game.marks[5]]).toEqual([MARK_NONE, MARK_NONE]);
+    }
     undoAll(game);
-    expect([game.marks[0], game.marks[5], game.marks[10]])
-      .toEqual([MARK_NONE, keep ? MARK_X : MARK_NONE, MARK_NONE]);
+    expect([game.marks[0], game.marks[5], game.marks[10]]).toEqual([MARK_NONE, MARK_NONE, MARK_NONE]);
     expect([game.acorns, game.hints]).toEqual([3, []]);
   });
 
@@ -261,15 +267,36 @@ describe('hypothesis mode', () => {
     expect(game.marks.every((mark) => mark === MARK_NONE)).toBe(true);
   });
 
-  it('keeps hypothesis X\'s as normal X\'s, drops tentative stumps, and cannot be undone', () => {
+  it('keeps hypothesis X\'s as normal X\'s and drops tentative stumps', () => {
     const game = fresh();
     enterHypothesis(game);
     tap(game, 5);
     tapTwice(game, 10);
     leaveHypothesis(game, true);
     expect([game.marks[5], game.marks[10]]).toEqual([MARK_X, MARK_NONE]);
-    expect(undo(game)).toBe(false);
     expect(stumps(game)).toEqual([]);
+  });
+
+  it('undoes the kept batch in one step, leaving earlier marks', () => {
+    const game = fresh();
+    tap(game, 0);
+    tap(game, 1);
+    enterHypothesis(game);
+    tap(game, 5);
+    tap(game, 6);
+    tapTwice(game, 10);
+    leaveHypothesis(game, true);
+    expect(undo(game)).toBe(true);
+    expect([0, 1, 5, 6, 10].map((cell) => game.marks[cell])).toEqual([MARK_X, MARK_X, MARK_NONE, MARK_NONE, MARK_NONE]);
+    expect(undo(game)).toBe(true);
+    expect(game.marks[1]).toBe(MARK_NONE);
+  });
+
+  it('adds no undo step when nothing is kept', () => {
+    const game = fresh();
+    enterHypothesis(game);
+    leaveHypothesis(game, true);
+    expect(undo(game)).toBe(false);
   });
 });
 
