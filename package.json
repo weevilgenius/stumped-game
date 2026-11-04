@@ -35,7 +35,7 @@
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.14.0",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "happy-dom": "^21.0.4",
     "jiti": "^2.7.0",
     "rollup-plugin-visualizer": "^7.1.1",
