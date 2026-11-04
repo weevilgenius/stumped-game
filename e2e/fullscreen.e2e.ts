@@ -79,6 +79,21 @@ test('devices without full screen omit the puzzle control', async ({ page }) => 
   await expect(page.locator('[data-action="help"]')).toBeVisible();
 });
 
+for (const [device, agent] of [
+  ['iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'],
+  ['iPad', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'],
+]) {
+  test(`${device} omits the puzzle full screen control`, async ({ page }) => {
+    await page.addInitScript((userAgent) => {
+      Object.defineProperty(document, 'fullscreenEnabled', { get: () => true });
+      Object.defineProperty(navigator, 'userAgent', { get: () => userAgent });
+      Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
+    }, agent);
+    await openPuzzle(page);
+    await expect(page.locator('[data-action="fullscreen"]')).toHaveCount(0);
+  });
+}
+
 test('a denied puzzle full-screen request reports failure and allows retry', async ({ page, isMobile }) => {
   await page.addInitScript(() => {
     Object.defineProperty(document, 'fullscreenEnabled', { get: () => true });
