@@ -1129,7 +1129,8 @@ class PuzzleScene extends Phaser.Scene {
       const won = encounter.phase === 'scavenge';
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      const title = add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      title.setScale(Math.min(1, (ew - 12 * u) / title.width));
       if (state.campaign) {
         this.controls.set('enemy', {
           view: { name: 'enemy', label: 'Inspect encounter and consumables', bounds: [ex / u, r.y / u, ew / u, r.h / u], disabled: false },
@@ -1138,14 +1139,18 @@ class PuzzleScene extends Phaser.Scene {
         enemy.setInteractive().on('pointerdown', () => this.activateControl('enemy'));
         const harvest = encounter.def.scavenge.flatMap((rule) => rule.colors);
         const dots = add(this.add.graphics());
-        harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color]).fillCircle(ex + ew - (i * 9 + 7) * u, top + 9 * u, 3 * u));
+        // Reserve a row below the title, even when all nine colors can be harvested.
+        const spacing = Math.min(9 * u * k, (ew - 12 * u) / harvest.length);
+        const radius = Math.min(3 * u * k, spacing / 3);
+        harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color])
+          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, top + 21 * u * k, radius));
       }
       if (won) {
         enemy.setAlpha(0.5);
         add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
-        this.healthBar(add, ex + 6 * u, top + 20 * u * k, ew - 12 * u, barH, fill,
+        this.healthBar(add, ex + 6 * u, top + (state.campaign ? 28 : 20) * u * k, ew - 12 * u, barH, fill,
           encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
@@ -1154,9 +1159,9 @@ class PuzzleScene extends Phaser.Scene {
         const now = encounter.countdown <= 1;
         const enemyType = encounter.type === 'enemy';
         const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
-        add(this.add.text(ex + 6 * u, top + 38 * u * k, due,
+        add(this.add.text(ex + 6 * u, top + (state.campaign ? 44 : 38) * u * k, due,
           now ? { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13 * k), fontStyle: 'normal' }));
-        add(this.add.text(ex + 6 * u, top + 56 * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
+        add(this.add.text(ex + 6 * u, top + (state.campaign ? 60 : 56) * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
       }
     }
 

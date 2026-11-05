@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.16.0
+- Keep adventure harvest colors below the location title and fit long names within the card.
 - Tap equipped items and skills to toggle readiness; hold to inspect their details.
 - Adventure selection, routes, equipment, loot and camp choices have their own full-screen scenes; home offers only Start and Resume for adventures.
 - Adventure campaign: choose a starter, follow a branching trail through fights, shops, rests and treasure, and defeat the Warden.
