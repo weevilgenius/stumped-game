@@ -676,7 +676,7 @@ export function createController(deps: ControllerDeps): Controller {
     },
     tick: () => {
       syncClock();
-      return game?.elapsed ?? 0;
+      return active()?.elapsed ?? 0;
     },
     setHidden: (value) => {
       hidden = value;

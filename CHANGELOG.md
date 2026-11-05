@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.6
+- The adventure puzzle timer now shows the time spent on the current adventure puzzle.
+
 ## 0.15.5
 - Export adventure data works on Android: the shared file is plain text, and the game downloads it instead if sharing fails.
 
