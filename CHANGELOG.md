@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.7
+- "Perfectly Marked" no longer shows when the board has a red X from a wrong guess.
+
 ## 0.15.6
 - The adventure puzzle timer now shows the time spent on the current adventure puzzle.
 
