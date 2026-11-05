@@ -968,6 +968,29 @@ describe('adventure', () => {
     expect([controller.screen, adventureGame(controller)]).toEqual(['adventure', adventure]);
   });
 
+  it.each([false, true])('returns adventure play time with an ordinary puzzle present: %s', async (ordinary) => {
+    const { fake, controller } = setup(ordinary ? savedStore(false, { elapsed: 1200 }) : undefined);
+    await controller.startAdventure();
+    fake.time = 500;
+    expect(controller.tick()).toBe(500);
+    expect(controller.game?.elapsed ?? 0).toBe(ordinary ? 1200 : 0);
+
+    controller.setHidden(true);
+    fake.time = 1500;
+    expect(controller.tick()).toBe(500);
+    controller.setHidden(false);
+    fake.time = 1800;
+    expect(controller.tick()).toBe(800);
+
+    controller.showMenu();
+    fake.time = 2500;
+    await controller.playAdventure();
+    expect(controller.tick()).toBe(800);
+    fake.time = 2700;
+    expect(controller.tick()).toBe(1000);
+    expect(controller.game?.elapsed ?? 0).toBe(ordinary ? 1200 : 0);
+  });
+
   it('times the adventure puzzle apart from the ordinary one', async () => {
     const { fake, controller } = setup(savedStore(false));
     await controller.startAdventure();
