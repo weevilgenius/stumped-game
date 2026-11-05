@@ -322,7 +322,7 @@ const renderCard = (): void => {
     const goods = type === 'loot' ? state.campaign?.loot[cardTarget.index] : state.campaign?.shop?.stock[cardTarget.index]?.goods;
     if (goods) {
       title = titleOf(goods.item.id);
-      body = goods.kind === 'gear' ? `<p>${swatches(goods.item.colors, paletteColor)}</p>${lines(itemDetails(goods.item))}` : lines([consumableDetails(goods.item)]);
+      body = goods.kind === 'gear' ? `<p>${swatches(goods.item.colors, paletteColor)}</p>${lines(itemDetails(goods.item, goods.slot))}` : lines([consumableDetails(goods.item)]);
     }
   } else if (type === 'enemy' && state.encounter) {
     const { encounter } = state;

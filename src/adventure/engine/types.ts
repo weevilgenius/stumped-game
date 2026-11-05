@@ -243,7 +243,8 @@ export interface MapNode {
 
 /** Something to pick up or buy. */
 export type Goods =
-  | { readonly kind: 'gear'; readonly item: ItemDef }
+  /** Gear; a dropped item keeps its slot, so picking it back up keeps its level and readiness. */
+  | { readonly kind: 'gear'; readonly item: ItemDef; readonly slot?: SlotState }
   | { readonly kind: 'consumable'; readonly item: ConsumableDef };
 
 /** A shop's stock, fixed on arrival. Sold entries become null. */

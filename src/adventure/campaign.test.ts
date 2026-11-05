@@ -239,6 +239,16 @@ describe('stops', () => {
     expect(between.campaign!.loot.length).toBe(killed.state.campaign!.loot.length - 1);
     expect(advance(killed.state, turn(5)).state.campaign!.loot).toEqual(killed.state.campaign!.loot);
   });
+
+  it('leaves a dropped item here as loot, keeping its level when picked back up', () => {
+    const state = newCampaign(KNIGHT, 11);
+    state.slots[0].level = 2;
+    const { state: dropped } = run(state, { type: 'drop-item', from: { area: 'slots', index: 0 } });
+    expect(dropped.slots.map((s) => s.item.id)).not.toContain(state.slots[0].item.id);
+    expect(dropped.campaign!.loot.at(-1)).toMatchObject({ kind: 'gear', item: { id: state.slots[0].item.id } });
+    const back = run(dropped, { type: 'take-loot', index: dropped.campaign!.loot.length - 1 }).state;
+    expect(back.slots.at(-1)).toMatchObject({ item: { id: state.slots[0].item.id }, level: 2 });
+  });
 });
 
 describe('complete runs', () => {

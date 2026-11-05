@@ -487,7 +487,7 @@ class CampScene extends Phaser.Scene {
     const textW = w - 24 * u - actions.length * (bw + 8 * u);
     const sx = goods.kind === 'gear' ? this.swatches(x + 12 * u, y + 14 * u, goods.item.colors) : 0;
     this.text(x + 12 * u + sx, y + 10 * u, textW - sx, label, 15, true);
-    this.text(x + 12 * u, y + 34 * u, textW, goods.kind === 'gear' ? itemSummary(goods.item) : consumableDetails(goods.item).split('.')[0], 12);
+    this.text(x + 12 * u, y + 34 * u, textW, goods.kind === 'gear' ? itemSummary(goods.item, goods.slot) : consumableDetails(goods.item).split('.')[0], 12);
     actions.forEach(([text, command], i) => this.button(`${name}-${i}`, x + w - (i + 1) * (bw + 8 * u), y + 12 * u, bw, 40 * u, text,
       () => command && this.send(command), { disabled: !command, label: `${text} ${label}` }));
     return y + h + 8 * u;

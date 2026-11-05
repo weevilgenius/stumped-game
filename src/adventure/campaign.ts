@@ -260,7 +260,10 @@ export function advance(state: AdventureState, command: RunCommand): EngineResul
   try {
     if (next.phase === 'ended') reject('run-ended');
     if (!isCampaignCommand(command)) {
+      const dropped = command.type === 'drop-item' ? (command.from.area === 'pack' ? next.pack : next.slots)?.[command.from.index] : undefined;
       engine(command);
+      // A dropped item stays here as loot until the player moves on.
+      if (dropped && next.campaign) next.campaign.loot.push({ kind: 'gear', item: dropped.item, slot: dropped });
     } else {
       const campaign = next.campaign ?? reject('wrong-phase');
       if (next.phase !== 'between') reject('wrong-phase');
@@ -302,8 +305,9 @@ const stow = (state: AdventureState, goods: Goods): void => {
     return;
   }
   const pack = state.pack ??= [];
-  if (state.slots.length < MAX_SLOTS) state.slots.push(slotOf(goods.item));
-  else if (pack.length < MAX_PACK) pack.push(slotOf(goods.item));
+  const slot = goods.slot ?? slotOf(goods.item);
+  if (state.slots.length < MAX_SLOTS) state.slots.push(slot);
+  else if (pack.length < MAX_PACK) pack.push(slot);
   else reject('no-room');
 };
 
