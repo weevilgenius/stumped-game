@@ -93,6 +93,7 @@ export function adventureName(id: string): string {
   return id.replaceAll('-', ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
 const action = (name: string, label: string, onSelect: () => void, disabled = false): AdventureAction => ({ name, label, onSelect, disabled });
+const itemBands = (item: ItemDef): string => `${item.bands.map((band) => band.value).join(' / ')} by size band`;
 const itemCards = (item: ItemDef, slot?: SlotState): AdventureCard[] => [
   { id: 'item-effects', title: `${adventureName(item.id)} · ${adventureName(item.effect)}`,
     body: item.bands.map((band, index) => `${band.min}${item.bands[index + 1] ? `–${item.bands[index + 1].min - 1}` : '+'} squares: ${band.value}`).join('\n') },
@@ -158,7 +159,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
   const inspect = (slot: number, pack = false): void => { view.detail = { type: 'item', slot, pack }; view.page = 0; onChange(); };
   const addOffers = (offers: readonly Offer[], shop: boolean): void => {
     page.cards = offers.map((offer) => ({ id: offer.id, title: `${name(offer.item?.id ?? offer.potion!.id)}${shop ? ` · ${offer.price} supplies` : ''}`,
-      body: offer.item ? `${name(offer.item.effect)} · ${offer.item.charge ? 'Charged' : 'Immediate'}\n${offer.item.bands.map((band) => band.value).join(' / ')} by size band` : `Instant ${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. No tactical turn.`,
+      body: offer.item ? `${name(offer.item.effect)} · ${offer.item.charge ? 'Charged' : 'Immediate'}\n${itemBands(offer.item)}` : `Instant ${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. No tactical turn.`,
       colors: offer.item?.colors,
       actions: [action(`inspect-offer-${offer.id}`, 'Details', () => { view.detail = { type: 'offer', offer: offer.id }; view.page = 0; onChange(); }),
         action(`take-${offer.id}`, shop ? 'Buy' : 'Take', () => send(shop ? { type: 'buy', offer: offer.id } : { type: 'take-loot', offer: offer.id }),
@@ -212,11 +213,11 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
   } else if (view.panel === 'gear') {
     page.title = 'Equipment';
     page.cards = state.slots.map((slot, index) => ({ id: `equipped-${slot.item.instance ?? slot.item.id}`, title: `${index + 1}. ${name(slot.item.id)} · ${slot.ready ? 'Ready' : 'Unready'}`,
-      body: `${name(slot.item.effect)} · Level ${slot.level ?? 0}/3\nTap to toggle readiness. Hold for details.`, colors: slot.item.colors,
+      body: `${name(slot.item.effect)} · ${itemBands(slot.item)}\nLevel ${slot.level ?? 0}/3 · Tap to toggle readiness. Hold for details.`, colors: slot.item.colors,
       press: { ...action(`ready-${index}`, `${name(slot.item.id)}, ${slot.ready ? 'ready' : 'not ready'}`, () => controller.setReady(index, !slot.ready)), onHold: () => inspect(index) },
       actions: [action(`inspect-slot-${index}`, 'Inspect / manage', () => inspect(index))],
     }));
-    page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · Level ${slot.level ?? 0}/3\nReserve item; does not receive pulses.`, colors: slot.item.colors, actions: [action(`inspect-pack-${index}`, 'Inspect / manage', () => inspect(index, true))] })));
+    page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · ${itemBands(slot.item)}\nLevel ${slot.level ?? 0}/3 · Reserve item; does not receive pulses.`, colors: slot.item.colors, actions: [action(`inspect-pack-${index}`, 'Inspect / manage', () => inspect(index, true))] })));
   } else if (view.panel === 'loot') {
     page.title = 'Loot';
     if (campaign) addOffers(campaign.loot, false);

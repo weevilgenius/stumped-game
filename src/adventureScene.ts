@@ -166,6 +166,7 @@ export class AdventureScene extends Phaser.Scene {
 
   private drawCard(card: AdventureCard, x: number, y: number, width: number, height: number): void {
     const theme = this.options.theme;
+    const compact = height < 170;
     const back = this.add.rectangle((x + width / 2) * this.u, (y + height / 2) * this.u, width * this.u, height * this.u, theme.ink).setRounded(12 * this.u)
       .setStrokeStyle(this.u, theme.cream, card.selected ? 0.8 : 0.18);
     if (card.press) {
@@ -174,14 +175,15 @@ export class AdventureScene extends Phaser.Scene {
       back.setInteractive({ useHandCursor: true });
       bindItemPress(back, this.u, () => this.activate(action.name), () => this.activate(action.name, true));
     }
-    this.label(card.title, x + 12, y + 12, 16, width - 24);
+    this.label(card.title, x + 12, y + (compact ? 6 : 12), 16, width - 24);
     const actions = card.actions ?? [];
     const perRow = width >= 360 ? 3 : 2;
     const actionRows = Math.ceil(actions.length / perRow);
     const actionTop = y + height - 12 - actionRows * 48;
-    const swatchY = actionTop - (card.colors?.length ? 28 : 0);
-    const text = this.label(card.body, x + 12, y + 40, this.height < 500 ? 12 : 14, width - 24);
-    const maxLines = Math.max(1, Math.floor((swatchY - y - 44) / (this.height < 500 ? 17 : 20)));
+    const swatchY = actionTop - (card.colors?.length ? (compact ? 24 : 28) : 0);
+    const textY = y + (compact ? 28 : 40);
+    const text = this.label(card.body, x + 12, textY, this.height < 500 ? 12 : 14, width - 24);
+    const maxLines = Math.max(1, Math.floor((swatchY - textY - 4) / (this.height < 500 ? 17 : 20)));
     const lines = text.getWrappedText(card.body);
     if (lines.length > maxLines) text.setText([...lines.slice(0, maxLines - 1), `${lines[maxLines - 1].replace(/\s+\S*$/, '')}…`].join('\n'));
     card.colors?.forEach((color, index) => {
