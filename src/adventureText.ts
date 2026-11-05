@@ -62,7 +62,7 @@ export function itemDetails(item: ItemDef, slot?: SlotState): string[] {
   if (item.charge) lines.push(`Charges: fires once it has taken all ${item.colors.length} of its colors in one puzzle.`);
   if (item.cooldown) lines.push(`Cooldown: skipped for ${item.cooldown} turns after it fires.`);
   if (slot && item.effect !== 'heal' && item.effect !== 'forage') {
-    lines.push(`Level ${level}: ${slot.xp ?? 0}/${XP_PER_LEVEL} harvested squares toward the next (one level per fight).`);
+    lines.push(`Level ${level}: ${slot.xp ?? 0}/${XP_PER_LEVEL} squares collected after kills toward the next (one level per fight).`);
   } else if (level) {
     lines.push(`Level ${level}.`);
   }
@@ -80,7 +80,7 @@ export function encounterDetails(encounter: EncounterState): string[] {
     return [`Progress ${encounter.progress}/${encounter.def.goal}. Deadline in ${encounter.countdown} turns, or ${encounter.def.failDamage} damage.`];
   }
   const { def } = encounter;
-  if (encounter.phase === 'scavenge') return ['Defeated. Harvest colors level up readied items or become supplies.'];
+  if (encounter.phase === 'scavenge') return ['Defeated. Readied items level up from their colors; harvest colors no item takes become supplies.'];
   const lines = [
     `Health ${encounter.health}/${def.health}.`,
     `Next hit: ${nextHit(encounter)} damage ${encounter.countdown <= 1 ? 'this turn' : `in ${encounter.countdown} turns`}.`,

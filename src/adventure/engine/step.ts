@@ -184,12 +184,16 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     events.push({ type: 'healed', amount: healed, health: state.health });
   };
 
-  /** A harvested pulse: experience for the first readied item that takes it, or supplies. */
-  const harvest = (collect: Collection, turn: number): void => {
+  /**
+   * A pulse after a kill: experience for the first readied item that takes it, else supplies
+   * for a harvest color; any other color fizzles.
+   */
+  const harvest = (collect: Collection, turn: number, harvestable: boolean): void => {
     const index = state.slots.findIndex((slot) => slot.ready && slot.item.colors.includes(collect.color));
     const slot = state.slots[index];
     if (!slot) {
-      addResource('supplies', HARVEST_SUPPLIES, collect.amount);
+      if (harvestable) addResource('supplies', HARVEST_SUPPLIES, collect.amount);
+      else events.push({ type: 'pulse-discarded' });
       return;
     }
     events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
@@ -251,15 +255,8 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
   const route = (collect: Collection, turn: number): void => {
     const harvestable = state.encounter ? harvestColors(state.encounter) : null;
     if (state.encounter?.phase === 'scavenge' && harvestable) {
-      if (harvestable.includes(collect.color)) {
-        harvest(collect, turn);
-        return;
-      }
-      // After a kill, other colors fizzle, even for items that heal or forage.
-      if (state.encounter.type === 'enemy') {
-        events.push({ type: 'pulse-discarded' });
-        return;
-      }
+      harvest(collect, turn, harvestable.includes(collect.color));
+      return;
     }
     const index = state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
     const slot = state.slots[index];

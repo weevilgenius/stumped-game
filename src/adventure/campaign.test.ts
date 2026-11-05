@@ -99,13 +99,18 @@ describe('harvest and levels', () => {
     expect(events.at(-1)).toEqual({ type: 'pulse-discarded' });
   });
 
-  it('fizzles a non-harvest color after a kill, even for a readied forage item', () => {
+  it('lets readied items take any color after a kill, and only harvest colors become supplies', () => {
     let { state } = run(fighting(), { type: 'begin-round', round: ROUND }, turn(0), turn(1));
+    // Color 8 is not harvestable; a readied forage item still forages it.
     state.slots[1] = { ...state.slots[1], item: { ...state.slots[1].item, effect: 'forage', colors: [8] } };
-    const result = run(state, turn(8));
-    state = result.state;
-    expect(state.resources.supplies ?? 0).toBe(0);
-    expect(result.events.at(-1)).toEqual({ type: 'pulse-discarded' });
+    const events: AdventureEvent[] = [];
+    for (const color of [2, 8]) {
+      const result = run(state, turn(color));
+      state = result.state;
+      events.push(...result.events);
+    }
+    expect(events).toContainEqual(expect.objectContaining({ type: 'experience-gained', item: state.slots[0].item.id }));
+    expect(state.resources.supplies).toBeGreaterThan(0);
   });
 
   it('adds one band step per level, continuing past the top band', () => {
