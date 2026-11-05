@@ -170,6 +170,7 @@ class PuzzleScene extends Phaser.Scene {
   private buttonsFrom = 0;
   private ended = false;
   private explanation: { pages: ExplainPage[]; index: number } | null = null;
+  /** Units that have flashed (or were already complete on load) this puzzle. */
   private complete = new Set<string>();
   private shownSeconds = -1;
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
@@ -745,11 +746,12 @@ class PuzzleScene extends Phaser.Scene {
     this.syncHud();
     const done = completedUnits(this.model);
     for (const [key, cells] of done) {
+      // Each unit flashes once per puzzle, so unmarking and remarking an X stays quiet.
       if (!this.complete.has(key)) {
+        this.complete.add(key);
         this.pulse(cells);
       }
     }
-    this.complete = new Set(done.keys());
     if (this.model.status !== 'playing' && !this.ended) {
       this.finish();
     }
