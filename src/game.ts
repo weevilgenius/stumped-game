@@ -494,10 +494,10 @@ export function completedUnits(game: Game): Map<string, number[]> {
 
 /**
  * @param game the game
- * @returns true if no square is left unmarked
+ * @returns true if no square is left unmarked and none holds a red X from a wrong guess
  */
 export function isPerfectlyMarked(game: Game): boolean {
-  return game.marks.every((mark) => mark !== MARK_NONE);
+  return game.marks.every((mark) => mark !== MARK_NONE && mark !== MARK_RED);
 }
 
 /* ========================================================= *\

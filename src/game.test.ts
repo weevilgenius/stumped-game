@@ -435,6 +435,20 @@ describe('feedback', () => {
     expect(game.status).toBe('won');
     expect(isPerfectlyMarked(game)).toBe(true);
   });
+
+  it('is not perfectly marked after a wrong guess', () => {
+    const game = fresh();
+    tapTwice(game, 0);
+    game.marks.forEach((mark, cell) => {
+      if (mark === MARK_NONE && !SOLUTION.includes(cell)) {
+        tap(game, cell);
+      }
+    });
+    SOLUTION.forEach((cell) => tapTwice(game, cell));
+    expect(game.status).toBe('won');
+    expect(game.marks[0]).toBe(MARK_RED);
+    expect(isPerfectlyMarked(game)).toBe(false);
+  });
 });
 
 describe('results', () => {
