@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { newGame } from '../src/game';
 import type { Game } from '../src/game';
 import type { AdventureSave } from '../src/adventurePlay';
+import { generate } from '../src/engine';
 import { createCampaign, startRun, step } from '../src/adventure/engine';
 import { STARTERS } from '../src/adventure/content/campaign';
 
@@ -161,6 +163,39 @@ test('loot and forward travel follow an actual fight, with new preparation scree
   await activate(page, 'Route');
   await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
   expect((await readSave(page)).state.campaign!.loot).toHaveLength(0);
+});
+
+test('finishing postcombat scavenging opens loot and keeps the next puzzle playable without reloading', async ({ page }) => {
+  await enable(page);
+  const start = startRun(STARTERS[0]); start.campaign = createCampaign(7);
+  let state = step(start, { type: 'travel', node: '0-0' }).state;
+  // Make the first reveal win a real fight so the remaining reveals scavenge.
+  if (state.encounter?.type !== 'enemy') throw new Error('Expected a fight');
+  state.encounter.health = 1;
+  state.slots[0] = { ...state.slots[0], item: { ...state.slots[0].item, colors: [0, 1, 2, 3, 4, 5, 6, 7, 8] } };
+  const puzzle = generate({ size: 9, tier: 'medium', silver: false, freebies: 0, sizeMix: 0, shape: 0 }, 7);
+  const game = newGame(puzzle, false, 'scavenging-completion', true);
+  state = step(state, { type: 'begin-round', round: { id: game.id, size: puzzle.size, givenColors: [],
+    collections: puzzle.colors.map((color, region) => ({ color, amount: puzzle.regions.filter((value) => value === region).length })) } }).state;
+  const save: AdventureSave = { version: 1, loadout: STARTERS[0], start, state, log: [], game, played: 0, open: true, view: 'adventure' };
+  await page.evaluate((value) => localStorage.setItem('stumped-main.adventure', JSON.stringify(value)), save);
+  await page.reload();
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  for (const [index, cell] of puzzle.solution.entries()) {
+    await page.getByRole('gridcell').nth(cell).focus(); await page.keyboard.press('Enter');
+    if (index === 0) expect((await readSave(page)).state.encounter?.phase).toBe('scavenge');
+  }
+  expect((await readSave(page)).game?.status).toBe('won');
+  await expect(page.getByRole('heading', { name: 'Loot', exact: true })).toBeAttached({ timeout: 20000 });
+  await activate(page, page.locator('.accessible-adventure [data-action^="take-"]:enabled').first());
+  expect((await readSave(page)).state.slots).toHaveLength(3);
+  await activate(page, 'Route');
+  await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
+  await activate(page, 'Next puzzle');
+  await expect(page.getByRole('gridcell')).toHaveCount(81);
+  const first = await page.evaluate(() => (window as unknown as { stumped: { model: Game } }).stumped.model.puzzle.solution[0]);
+  await page.getByRole('gridcell').nth(first).focus(); await page.keyboard.press('Enter');
+  expect((await readSave(page)).game?.marks[first]).toBe(3);
 });
 
 test('quiet locations, shops and reserves use Phaser controls and survive reload', async ({ page }, info) => {

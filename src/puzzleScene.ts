@@ -1401,7 +1401,7 @@ let phaser: Phaser.Game | undefined;
  */
 export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
   const game = canvasGame(parent, options.theme);
-  game.scene.stop('adventure-menu');
+  game.scene.getScene('adventure-menu')?.scene.stop();
   const scene = game.scene.getScene('puzzle') as Phaser.Scene | null;
   if (scene) scene.scene.restart(options);
   else game.scene.add('puzzle', PuzzleScene, true, options);
@@ -1410,7 +1410,8 @@ export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
 /** Show the adventure selection or preparation scene on the same Phaser canvas. */
 export function openAdventureScreen(parent: HTMLElement, options: AdventureSceneOptions): void {
   const game = canvasGame(parent, options.theme);
-  game.scene.stop('puzzle');
+  // Queue shutdown: a completion timer can call this before the puzzle's final update.
+  game.scene.getScene('puzzle')?.scene.stop();
   const scene = game.scene.getScene('adventure-menu') as AdventureScene | null;
   if (!scene) game.scene.add('adventure-menu', AdventureScene, true, options);
   else if (scene.sys.isActive()) scene.configure(options);
@@ -1419,8 +1420,8 @@ export function openAdventureScreen(parent: HTMLElement, options: AdventureScene
 
 /** Stop canvas scenes when returning to the DOM home screen. */
 export function closeCanvasScreens(): void {
-  phaser?.scene.stop('puzzle');
-  phaser?.scene.stop('adventure-menu');
+  phaser?.scene.getScene('puzzle')?.scene.stop();
+  phaser?.scene.getScene('adventure-menu')?.scene.stop();
 }
 
 /** Create one shared renderer and preserve its resolution while its host is hidden. */

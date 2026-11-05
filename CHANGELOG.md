@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.16.0
+- Return to the adventure screens after completing a scavenging puzzle without needing to reload.
 - Show item effect bands directly on equipped and packed gear cards, matching the shop.
 - Keep adventure harvest colors below the location title and fit long names within the card.
 - Tap equipped items and skills to toggle readiness; hold to inspect their details.
