@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.8
+- A stump's row, column, or color flashes only the first time it is fully marked, not again after unmarking and remarking an X.
+
 ## 0.15.7
 - "Perfectly Marked" no longer shows when the board has a red X from a wrong guess.
 
