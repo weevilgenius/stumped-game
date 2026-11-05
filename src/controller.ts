@@ -737,7 +737,7 @@ export function createController(deps: ControllerDeps): Controller {
     },
     tick: () => {
       syncClock();
-      return active()?.elapsed ?? 0;
+      return (screen === 'adventure' ? adventure?.game : game)?.elapsed ?? 0;
     },
     setHidden: (value) => {
       hidden = value;

@@ -1040,7 +1040,7 @@ describe('adventure', () => {
 
   it.each([false, true])('returns adventure play time with an ordinary puzzle present: %s', async (ordinary) => {
     const { fake, controller } = setup(ordinary ? savedStore(false, { elapsed: 1200 }) : undefined);
-    await controller.startAdventure();
+    await begin(controller);
     fake.time = 500;
     expect(controller.tick()).toBe(500);
     expect(controller.game?.elapsed ?? 0).toBe(ordinary ? 1200 : 0);
