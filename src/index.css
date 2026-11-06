@@ -773,7 +773,7 @@ fieldset label + label {
   margin-top: 6px;
 }
 
-/* Wide enough on larger screens to keep every size chip in one row. */
+/* Size chips wrap within the settings dialog on small screens. */
 #settings {
   width: min(92vw, 540px);
 }
@@ -840,6 +840,32 @@ fieldset label + label {
   border-color: var(--green);
   background: var(--green);
   color: var(--on-green);
+}
+
+/* Extra-large puzzles keep their accent whether selected or not. */
+.toggles label.large-size {
+  --size-accent: #b3303e;
+  color: var(--size-accent);
+  border-color: var(--size-accent);
+}
+
+:root[data-theme='vallarta'] .toggles label.large-size {
+  --size-accent: #7540a0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .toggles label.large-size {
+    --size-accent: #ff9ca7;
+  }
+
+  :root[data-theme='vallarta'] .toggles label.large-size {
+    --size-accent: #d5afff;
+  }
+}
+
+.toggles label.large-size:has(:checked) {
+  background: var(--size-accent);
+  color: var(--paper);
 }
 
 .toggles label:has(:focus-visible) {

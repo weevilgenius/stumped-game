@@ -232,7 +232,7 @@ describe('replacing a game', () => {
   it('prepares a new puzzle when generator settings change, but not for the timer', () => {
     const { fake, controller } = setup();
     controller.boot(null);
-    controller.updateSettings({ timer: false, silver: 'sometimes' });
+    controller.updateSettings({ ...controller.settings, timer: false });
     expect(fake.requests).toHaveLength(1);
     controller.updateSettings({ timer: false, silver: 'sometimes', sizes: [6] });
     expect(fake.requests).toHaveLength(2);
@@ -241,6 +241,18 @@ describe('replacing a game', () => {
 });
 
 describe('multiple choices', () => {
+  it('keeps new installs in sizes 5 through 10 until larger sizes are selected', () => {
+    const { fake, controller } = setup();
+    fake.manual = true;
+    fake.random = 0.999;
+    controller.boot(null);
+    expect(controller.settings.sizes).toEqual([5, 6, 7, 8, 9, 10]);
+    expect(fake.requests.at(-1)!.settings.size).toBe(10);
+    controller.updateSettings({ ...controller.settings, sizes: [11, 12] });
+    expect(fake.requests.at(-1)!.settings.size).toBe(12);
+    expect(saved(fake.store).settings.sizes).toEqual([11, 12]);
+  });
+
   it('chooses every toggled size and difficulty with equal probability', () => {
     const sizes = [7, 8, 10];
     const tiers = ['easy', 'hard'] as const;

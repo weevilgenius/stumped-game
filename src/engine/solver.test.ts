@@ -1,4 +1,5 @@
-import { EXCLUDED, OPEN, STUMP, unitCells } from './board';
+import mulberry32 from '../utils/mulberry';
+import { type Board, EXCLUDED, isValidSolution, OPEN, STUMP, unitCells } from './board';
 import {
   applyStep, countSolutions, describeStep, findSolutions, findBlocking, findChain, findConfinement, findElimination,
   findForced, nextStep, solve, stepTier, type Step,
@@ -42,6 +43,47 @@ describe('findSolutions', () => {
   it('lists solutions in row order up to the limit', () => {
     expect(findSolutions(UNIQUE, 5)).toEqual([[1, 8, 10, 19, 22]]);
     expect(findSolutions(BOARD, 2)).toEqual([[0, 7, 14, 16, 23], [0, 8, 11, 19, 22]]);
+  });
+
+  it.each([5, 6, 7])('matches exhaustive valid placements and their order at size %i', (size) => {
+    const rng = mulberry32(size);
+    const layouts = [
+      Array.from({ length: size * size }, (_, cell) => Math.floor(cell / size)),
+      Array.from({ length: size * size }, (_, cell) => cell % size),
+      ...Array.from({ length: 4 }, () => Array.from({ length: size * size }, () => Math.floor(rng() * size))),
+    ];
+    for (const regions of layouts) {
+      const board: Board = { size, regions };
+      const expected: number[][] = [];
+      // Independently enumerate column permutations and validate complete placements.
+      const permute = (columns: readonly number[]): void => {
+        if (columns.length === size) {
+          const cells = columns.map((col, row) => row * size + col);
+          if (isValidSolution(board, cells)) {
+            expected.push(cells);
+          }
+          return;
+        }
+        for (let col = 0; col < size; col++) {
+          if (!columns.includes(col)) {
+            permute([...columns, col]);
+          }
+        }
+      };
+      permute([]);
+      for (const limit of [0, 1, 2, 5, Infinity]) {
+        expect(findSolutions(board, limit)).toEqual(expected.slice(0, limit));
+      }
+    }
+  });
+
+  it('uses current regions when the generator repairs the same board', () => {
+    const regions = Array.from({ length: 25 }, (_, cell) => Math.floor(cell / 5));
+    const board: Board = { size: 5, regions };
+    const original = findSolutions(board, 2);
+    expect(original).toHaveLength(2);
+    regions.fill(0);
+    expect(findSolutions(board, 2)).toEqual([]);
   });
 });
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.0
+- Add optional 11×11 and 12×12 puzzles, with new region colors in both themes. New installs start with sizes 5×5 through 10×10 selected.
+- Puzzles generate faster, especially larger hard puzzles.
+
 ## 0.15.8
 - A stump's row, column, or color flashes only the first time it is fully marked, not again after unmarking and remarking an X.
 

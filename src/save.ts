@@ -36,7 +36,7 @@ export const LEGACY_KEYS = ['settings', 'game', 'results', 'played', 'open'] as 
 
 /** Creates the initial state for a device without a readable save. */
 export function newSave(): Save {
-  return { version: 1, settings: { timer: true, silver: 'sometimes' }, game: null, results: [], played: [], open: false };
+  return { version: 1, settings: { timer: true, silver: 'sometimes', sizes: [5, 6, 7, 8, 9, 10] }, game: null, results: [], played: [], open: false };
 }
 
 /** @returns whether a parsed JSON value is an object, not null or an array */

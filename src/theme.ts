@@ -62,7 +62,7 @@ export interface Theme {
 export const THEMES: Readonly<Record<ThemeName, Theme>> = {
   woods: {
     name: 'woods',
-    palette: [0xE4BB49, 0x5B75B2, 0xD57374, 0xAED994, 0x48B5B2, 0xFAB4D0, 0xA7BFD7, 0x9778D6, 0xAD6F48, 0xFEAA6C],
+    palette: [0xE4BB49, 0x5B75B2, 0xD57374, 0xAED994, 0x48B5B2, 0xFAB4D0, 0xA7BFD7, 0x9778D6, 0xAD6F48, 0xFEAA6C, 0x43835F, 0x79838F],
     icons: {
       stump: stumpUrl, acorn: acornUrl, silver: silverUrl, woodpecker: woodpeckerUrl, owl: owlUrl, squirrel: squirrelUrl,
     },
@@ -81,7 +81,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     name: 'vallarta',
     // Marigold, rosa mexicano, turquoise, lime, cobalt, sun yellow, lilac, mole brown, jade, rosa pastel.
     // Spread in hue and lightness so neighboring patches stay easy to tell apart. No red: it would hide mistake marks.
-    palette: [0xF7941D, 0xE8489A, 0x20B2C0, 0x7CC63E, 0x3A5BD0, 0xFBE36A, 0xB98FEE, 0x9A5B34, 0x0F6B4E, 0xF9C6D8],
+    palette: [0xF7941D, 0xE8489A, 0x20B2C0, 0x7CC63E, 0x3A5BD0, 0xFBE36A, 0xB98FEE, 0x9A5B34, 0x0F6B4E, 0xF9C6D8, 0xD94C3D, 0xA4ADB4],
     icons: {
       stump: calaveraUrl, acorn: margaritaUrl, silver: pinaColadaUrl,
       woodpecker: parrotUrl, owl: tecoloteUrl, squirrel: geckoUrl,

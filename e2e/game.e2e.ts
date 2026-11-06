@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import type Phaser from 'phaser';
 import type { Game, Result } from '../src/game';
+import { encodeSeedCode } from '../src/engine/seedCode';
 
 /**
  * Functional end-to-end tests.
@@ -19,6 +20,20 @@ import type { Game, Result } from '../src/game';
 
 /** An 8 by 8 medium puzzle with no stump revealed at the start. */
 const CODE = '1D580000048';
+
+for (const size of [11, 12]) {
+  test(`renders and restores a ${size}×${size} hard puzzle`, async ({ page }) => {
+    const code = encodeSeedCode({ size, tier: 'hard', silver: false, sizeMix: 1, shape: 1, freebies: 1 }, 1);
+    await openPuzzle(page, code);
+    const game = await model(page);
+    expect(game.puzzle.size).toBe(size);
+    expect(game.puzzle.tier).toBe('hard');
+    expect(game.marks).toHaveLength(size * size);
+    await page.reload();
+    await puzzleReady(page);
+    expect((await model(page)).puzzle).toEqual(game.puzzle);
+  });
+}
 const SOLUTION = [6, 11, 17, 31, 32, 45, 50, 60];
 
 const X = 1;
@@ -558,6 +573,7 @@ test('new puzzles follow the size and difficulty settings', async ({ page }) => 
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings' }).click();
   const settings = page.locator('#settings');
+  await settings.getByRole('group', { name: 'Size', exact: true }).getByRole('checkbox', { name: 'Any', exact: true }).check();
   await settings.getByRole('checkbox', { name: '5×5' }).check();
   await settings.getByRole('checkbox', { name: 'Easy' }).check();
   await settings.getByLabel('Show timer').uncheck();
@@ -593,6 +609,7 @@ for (const silver of ['always', 'sometimes', 'never'] as const) {
     const mode = settings.getByLabel('Silver acorn mode');
     await expect(mode).toHaveValue('sometimes');
     await expect(mode.locator('option')).toHaveText(['Always', 'Sometimes', 'Never']);
+    await settings.getByRole('group', { name: 'Size', exact: true }).getByRole('checkbox', { name: 'Any', exact: true }).check();
     await settings.getByRole('checkbox', { name: '5×5' }).check();
     await settings.getByRole('checkbox', { name: 'Easy' }).check();
     await mode.selectOption(silver);
@@ -622,7 +639,10 @@ test('toggled sizes and difficulties persist and control new puzzles', async ({ 
   const settings = page.locator('#settings');
   const size = (name: string): Locator => settings.getByRole('group', { name: 'Size' }).getByRole('checkbox', { name });
   const tier = (name: string): Locator => settings.getByRole('group', { name: 'Difficulty' }).getByRole('checkbox', { name });
-  await expect(size('Any')).toBeChecked();
+  await expect(size('Any')).not.toBeChecked();
+  for (const n of [5, 6, 7, 8, 9, 10]) await expect(size(`${n}×${n}`)).toBeChecked();
+  for (const n of [11, 12]) await expect(size(`${n}×${n}`)).not.toBeChecked();
+  await size('Any').check();
   await expect(tier('Any')).toBeChecked();
 
   // Choosing a size or difficulty turns Any off; turning them all off turns it back on.
