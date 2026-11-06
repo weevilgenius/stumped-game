@@ -16,7 +16,7 @@ describe('encodeSeedCode', () => {
   });
 
   it('rejects out-of-range settings', () => {
-    expect(() => encodeSeedCode({ ...MIN, size: 11 }, 0)).toThrow();
+    expect(() => encodeSeedCode({ ...MIN, size: 13 }, 0)).toThrow();
     expect(() => encodeSeedCode({ ...MIN, shape: 4 }, 0)).toThrow();
     expect(() => encodeSeedCode(MIN, -1)).toThrow();
     expect(() => encodeSeedCode(MIN, 2 ** 32)).toThrow();
@@ -27,7 +27,7 @@ describe('encodeSeedCode', () => {
 
 describe('decodeSeedCode', () => {
   it('round-trips every field', () => {
-    for (const [settings, seed] of [[MIN, 0], [MAX, 0xFFFFFFFF], [MID, 123456789]] as const) {
+    for (const [settings, seed] of [[MIN, 0], [MAX, 0xFFFFFFFF], [MID, 123456789], [{ ...MAX, size: 11 }, 123], [{ ...MAX, size: 12 }, 0xFFFFFFFF]] as const) {
       for (const version of [1, 2]) {
         expect(decodeSeedCode(encodeSeedCode(settings, seed, version))).toEqual({ settings, seed, version });
       }
@@ -64,7 +64,6 @@ describe('decodeSeedCode', () => {
     expect(decodeSeedCode(withCheck('0000000000'))).toBeNull(); // version 0
     expect(decodeSeedCode(withCheck('3000000000'))).toBeNull(); // version 3, newer than this build
     expect(decodeSeedCode(withCheck('Z000000000'))).toBeNull(); // version 31
-    expect(decodeSeedCode(withCheck('1R00000000'))).toBeNull(); // size 11
     expect(decodeSeedCode(withCheck('1300000000'))).toBeNull(); // tier 3
     expect(decodeSeedCode(withCheck('1000000001'))).toBeNull(); // padding bit set
   });

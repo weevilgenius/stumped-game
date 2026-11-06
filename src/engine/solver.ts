@@ -445,21 +445,29 @@ export function findSolutions(board: Board, limit: number): number[][] {
   const { size, regions } = board;
   const solutions: number[][] = [];
   const cols: number[] = [];
-  const place = (row: number, colsUsed: number, regionsUsed: number): void => {
+  const full = (1 << size) - 1;
+  const regionBits = regions.map((region) => 1 << region);
+  const place = (row: number, colsUsed: number, regionsUsed: number, adjacent: number): void => {
     if (row === size) {
       solutions.push(cols.map((col, r) => r * size + col));
       return;
     }
-    for (let col = 0; col < size && solutions.length < limit; col++) {
-      const region = regions[row * size + col];
-      if (!((colsUsed >> col) & 1) && !((regionsUsed >> region) & 1) && !(row && Math.abs(col - cols[row - 1]) <= 1)) {
+    // Skip used columns and the previous stump's neighbors in one operation.
+    // Lowest bit first preserves solution order, which the generator's repairs rely on.
+    let available = full & ~(colsUsed | adjacent);
+    while (available && solutions.length < limit) {
+      const bit = available & -available;
+      available ^= bit;
+      const col = 31 - Math.clz32(bit);
+      const region = regionBits[row * size + col];
+      if (!(regionsUsed & region)) {
         cols.push(col);
-        place(row + 1, colsUsed | (1 << col), regionsUsed | (1 << region));
+        place(row + 1, colsUsed | bit, regionsUsed | region, (bit << 1) | (bit >>> 1));
         cols.pop();
       }
     }
   };
-  place(0, 0, 0);
+  place(0, 0, 0, 0);
   return solutions;
 }
 

@@ -23,6 +23,13 @@ const won = (): Save => {
 };
 
 describe('save round trips', () => {
+  it.each([11, 12])('restores a size %i puzzle and opt-in settings', (size) => {
+    const puzzle = generate({ ...SETTINGS, size, tier: 'hard' }, 1);
+    const save: Save = { ...newSave(), settings: { ...newSave().settings, sizes: [size] },
+      game: newGame(puzzle, false, 'large'), played: [puzzle.code], open: true };
+    expect(read(save)).toEqual(save);
+  });
+
   it('preserves lifetime totals beyond the retained best times', () => {
     const save = fresh();
     save.stats = { gamesPlayed: 1234, perfectSolves: 456, recordedWinId: 'older-win' };
@@ -155,7 +162,7 @@ describe('invalid saves', () => {
 
   it.each([
     ['settings', { timer: 'yes', silver: false }],
-    ['settings', { timer: true, silver: false, size: 11 }],
+    ['settings', { timer: true, silver: false, size: 13 }],
     ['settings', { timer: true, silver: false, size: 'small' }],
     ['settings', { timer: true, silver: false, tier: 'expert' }],
     ['settings', { timer: true, silver: false, sizes: [] }],

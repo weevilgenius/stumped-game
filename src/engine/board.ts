@@ -12,7 +12,7 @@ export const TIERS: readonly Tier[] = ['easy', 'medium', 'hard'];
  * An N by N grid split into N regions. Cells are indexed `row * size + col`.
  */
 export interface Board {
-  /** Grid width and height, 5 to 10. */
+  /** Grid width and height, 5 to 12. */
   readonly size: number;
   /** Region index (0 to size - 1) for each cell. */
   readonly regions: readonly number[];
@@ -47,14 +47,14 @@ export const OLDEST_GENERATOR_VERSION = 1;
 /** Smallest supported grid size. */
 export const MIN_SIZE = 5;
 /** Largest supported grid size. */
-export const MAX_SIZE = 10;
+export const MAX_SIZE = 12;
 
 /**
  * Everything besides the seed that determines a generated board. The variety
  * controls are levels 0 to 3 so they pack into a seed code.
  */
 export interface GeneratorSettings {
-  /** Grid size, 5 to 10. */
+  /** Grid size, 5 to 12. */
   readonly size: number;
   /** Requested difficulty. */
   readonly tier: Tier;

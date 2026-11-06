@@ -85,6 +85,7 @@ Each attempt does the following, all drawn from one `mulberry32(seed)` stream:
   | 10 | 0.2 to 1 s | several seconds for thin hard boards |
 
   Run it in a Web Worker and prepare the next puzzle ahead of time.
+- **Large sizes:** 11×11 and 12×12 are opt-in in the app. Generation runs in a worker and prepares the next puzzle ahead of time; hard puzzles with thin regions can take a minute or longer. Seed codes already have room for sizes through 12.
 - **Colors:** `colors` maps each region to a palette index. A board of size N
   uses indexes 0 to N - 1 in a random order, because the palette is in priority
   order. The UI owns the actual palette.
