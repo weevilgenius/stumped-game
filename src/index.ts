@@ -3,14 +3,14 @@ import type { PieceNames, Tier } from './engine';
 import type { SilverMode } from './settings';
 import { createController } from './controller';
 import { bestTimes, formatTime, type Game, type Hint, isClean, MARK_STUMP, type Result, resultOf } from './game';
-import { openPuzzle, showAdventureEvents } from './puzzleScene';
+import { closeCanvasScreens, openAdventureScreen, openPuzzle, showAdventureEvents } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
 import { fillHelpBoards } from './help';
 import { setMuted } from './sound';
 import { watchForUpdates } from './updates';
 import { parseChangelog, renderChangelog, releasesAfter } from './changelog';
-import { LOADOUT_DESCRIPTIONS, LOADOUTS } from './adventure/content/loadouts';
+import { inspectAdventure } from './adventureMenu';
 import { solvesCsv } from './solves';
 import { createConfirmDialog } from './confirm';
 
@@ -206,6 +206,11 @@ const render = (): void => {
   menu.classList.toggle('busy', controller.busy);
   menu.inert = controller.busy;
   const { screen } = controller;
+  if (screen === 'campaign' || screen === 'campaign-select') {
+    opened = null; menu.hidden = true; stage.hidden = false;
+    openAdventureScreen(stage, { controller, selection: screen === 'campaign-select', theme });
+    return;
+  }
   const game = screen === 'adventure' ? controller.adventure?.game : controller.game;
   if (screen !== 'menu' && game) {
     if (stage.hidden || opened !== game) {
@@ -219,18 +224,20 @@ const render = (): void => {
         showTimer: controller.settings.timer,
         onChange: controller.changed,
         elapsed: controller.tick,
-        onExit: controller.showMenu,
+        onExit: screen === 'adventure' ? controller.showAdventure : controller.showMenu,
         onHelp: openHelp,
         theme,
         adventure: screen === 'adventure' ? {
           state: () => controller.adventure!.state,
           setReady: controller.setReady,
+          inspect: (slot) => inspectAdventure($<HTMLDialogElement>('adventureCard'), controller, theme.palette, slot),
         } : undefined,
       });
     }
   } else {
     const leavingPuzzle = !stage.hidden;
     opened = null;
+    closeCanvasScreens();
     stage.hidden = true;
     menu.hidden = false;
     renderMenu();
@@ -249,44 +256,13 @@ $('thumb').onclick = controller.resume;
 $('resume').onclick = controller.resume;
 $('retry').onclick = (): void => void controller.retry();
 
-/** How a run ended, for the main screen. */
-const RUN_OUTCOMES = { death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' } as const;
-
-const loadoutSelect = $<HTMLSelectElement>('adventureLoadout');
-const loadoutName = (id: string): string => `${id[0].toUpperCase()}${id.slice(1)}`;
-for (const loadout of LOADOUTS) {
-  loadoutSelect.add(new Option(loadoutName(loadout.id), loadout.id));
-}
-const renderLoadout = (): void => {
-  const loadout = LOADOUTS.find((entry) => entry.id === loadoutSelect.value)!;
-  $('adventureLoadoutDescription').textContent = LOADOUT_DESCRIPTIONS[loadout.id];
-  $('adventureLoadoutInfo').textContent = `${loadout.health} health · ${loadout.loadout.map((item) => loadoutName(item.id)).join(' → ')} (priority order)`;
-};
-loadoutSelect.onchange = renderLoadout;
-renderLoadout();
-
-/** Adventure mode while it is playtested: shown from Settings, and doubles as the between-round summary. */
+/** Adventure home controls lead into dedicated Phaser screens. */
 const renderAdventure = (): void => {
-  const { adventure } = controller;
-  const state = adventure?.state;
   $('adventure').hidden = !controller.settings.adventure;
-  const encounter = state?.encounter;
-  const name = encounter ? `${encounter.def.id[0].toUpperCase()}${encounter.def.id.slice(1)}` : '';
-  const ahead = !encounter ? 'A new foe awaits.'
-    : encounter.type === 'enemy' && encounter.health < encounter.def.health ? `The fight continues: ${name}, ${encounter.health}/${encounter.def.health} health.`
-      : `${name} ahead.`;
-  const outcome = state?.outcome;
-  $('adventureInfo').textContent = !state ? 'No adventure yet.'
-    : outcome ? `${RUN_OUTCOMES[outcome]} after ${state.rounds} ${state.rounds === 1 ? 'puzzle' : 'puzzles'}.`
-      : `Health ${state.health}/${state.maxHealth} · Supplies ${state.resources.supplies ?? 0} · ${ahead}`;
-  if (adventure) $('adventureInfo').textContent = `${loadoutName(adventure.state.character)} · ${$('adventureInfo').textContent}`;
-  $('adventureContinue').hidden = !state || state.phase === 'ended';
-  $('adventureContinue').innerHTML = state?.phase === 'between' ? 'Next puzzle &rarr;' : 'Continue &rarr;';
-  $('adventureAbandon').hidden = !state || state.phase === 'ended';
+  $<HTMLButtonElement>('adventureContinue').disabled = !controller.adventure;
 };
-$('adventureStart').onclick = (): void => void controller.startAdventure(loadoutSelect.value);
-$('adventureContinue').onclick = (): void => void controller.playAdventure();
-$('adventureAbandon').onclick = (): void => void controller.abandonAdventure();
+$('adventureStart').onclick = controller.selectAdventure;
+$('adventureContinue').onclick = (): void => void controller.resumeAdventure();
 
 $('share').onclick = (): void => {
   if (!controller.game) {

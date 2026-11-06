@@ -1,6 +1,6 @@
 # Adventure Mode Implementation Plan
 
-**Status:** Proposed implementation sequence and decision checkpoints.
+**Status:** Phase 7 hybrid implementation; balance and presentation remain under playtest review.
 
 This plan builds on:
 
@@ -337,6 +337,18 @@ Add enough progression to support a real start-to-finish run: route choices, enc
 ### Recommended starting point
 
 Use one character, 9×9 medium puzzles, and a small branching adventure. Start with two abilities consuming two to four colors, and make finding gear with wider coverage the immediate survival pressure. Add enough loot, recovery, and spending to test that progression together. Keep the existing samples as concept probes; choose equipment and enemy values for the new progression rather than treating the samples as balanced targets. Defer permanent unlocks and historical world changes unless they are essential to the first release's appeal.
+
+### Hybrid implementation (2026-11-06)
+
+The next phase 7 experiment combines PR #80's engine integration, replay and
+ongoing puzzle records with PR #79's content tables, simpler navigation and
+level-as-data calculation, capped at three improvements. Here, Gear and Map
+replace the five separate management destinations. Scrolling cards retain exact
+values, and a compact map supports 23 columns toward the revised 18–27 puzzle
+target. Both prototype save formats import with their original journals kept.
+See [the hybrid implementation note](adventure-mode-campaign.md) for rules,
+compatibility and experiment commands. Balance remains provisional; the committed
+playtest feedback below continues to guide the next review.
 
 ### Playtest review: complete runs (2026-11-06)
 

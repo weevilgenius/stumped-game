@@ -1,3 +1,6 @@
+import { applyCampaign, campaignKill, campaignRoundEnd, levelItem, refreshCampaignContent } from './campaign';
+import { currentNode } from './campaignTypes';
+import { MAX_ITEM_LEVEL, XP_PER_LEVEL } from '../content/campaign';
 import type {
   AdventureCommand, AdventureEvent, AdventureState, Band, CharacterDef, Collection, CollectSource, EncounterDef,
   EncounterState, EngineResult, RejectReason, RoundManifest, SlotState,
@@ -32,11 +35,16 @@ export function startRun(character: CharacterDef): AdventureState {
  * The band a pulse falls in.
  * @param bands bands, smallest first
  * @param amount pulse size
+ * @param level earned band steps, without changing the item's base definition
  * @returns the band's index and value
  */
-export function bandOf(bands: readonly Band[], amount: number): { band: number; value: number } {
-  const band = Math.max(0, bands.findLastIndex((b) => b.min <= amount));
-  return { band, value: bands[band]?.value ?? 0 };
+export function bandOf(bands: readonly Band[], amount: number, level = 0): { band: number; value: number } {
+  if (!bands.length) return { band: 0, value: 0 };
+  const step = Math.max(0, bands.findLastIndex((b) => b.min <= amount)) + level;
+  const last = bands.length - 1;
+  const band = Math.min(step, last);
+  const rise = last > 0 ? bands[last].value - bands[last - 1].value : 1;
+  return { band, value: bands[band].value + (step - band) * rise };
 }
 
 class Rejected extends Error {
@@ -86,15 +94,17 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
 
   const win = (encounter: EncounterState): void => {
     encounter.phase = 'scavenge';
+    if (encounter.type === 'enemy') campaignKill(state, events);
     events.push({
       type: 'encounter-transitioned', encounter: encounter.def.id, to: 'scavenge',
       outcome: encounter.type === 'enemy' ? 'defeated' : 'completed',
     });
   };
 
-  const addResource = (resource: string, bands: readonly Band[], amount: number): void => {
-    const { band, value } = bandOf(bands, amount);
+  const addResource = (resource: string, bands: readonly Band[], amount: number, level = 0): void => {
+    const { band, value } = bandOf(bands, amount, level);
     state.resources[resource] = (state.resources[resource] ?? 0) + value;
+    if (state.campaign && resource === 'supplies') state.campaign.earned += value;
     events.push({ type: 'resource-changed', resource, amount: value, total: state.resources[resource], band });
   };
 
@@ -115,7 +125,7 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
 
   const activate = (index: number, slot: SlotState, amount: number, turn: number): void => {
     const { item } = slot;
-    const { band, value } = bandOf(item.bands, amount);
+    const { band, value } = bandOf(item.bands, amount, slot.level);
     events.push({ type: 'ability-activated', slot: index, item: item.id, effect: item.effect, value, band });
     slot.readyAt = turn + (item.cooldown ?? 0) + 1;
     const encounter = state.encounter;
@@ -137,13 +147,33 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       state.health += healed;
       events.push({ type: 'healed', amount: healed, health: state.health });
     } else if (item.effect === 'forage') {
-      addResource(item.resource ?? 'supplies', item.bands, amount);
+      addResource(item.resource ?? 'supplies', item.bands, amount, slot.level);
     }
   };
 
   /** Routes a pulse to the first eligible readied item, the scavenge rules, or nowhere. */
   const route = (collect: Collection, turn: number): void => {
-    const index = state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
+    const campaign = state.campaign;
+    if (campaign && state.encounter?.phase === 'scavenge' && currentNode(state)?.kind !== 'forage') {
+      const index = state.slots.findIndex((slot) => slot.ready && slot.item.colors.includes(collect.color));
+      const slot = state.slots[index];
+      if (slot) {
+        events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
+        if (slot.item.effect === 'heal' || slot.item.effect === 'forage') activate(index, slot, collect.amount, turn);
+        else {
+          const id = slot.item.instance ?? slot.item.id;
+          slot.experience = Math.min(XP_PER_LEVEL, (slot.experience ?? 0) + collect.amount);
+          if (slot.experience >= XP_PER_LEVEL && !campaign.leveled.includes(id) && (slot.level ?? 0) < MAX_ITEM_LEVEL) {
+            levelItem(state, slot, events);
+            campaign.leveled.push(id);
+          }
+          events.push({ type: 'experience-gained', item: slot.item.id, slot: index, experience: slot.experience, level: slot.level ?? 0 });
+        }
+        return;
+      }
+    }
+    const index = campaign && state.encounter?.phase === 'scavenge' ? -1
+      : state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
     const slot = state.slots[index];
     if (slot) {
       events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
@@ -166,7 +196,11 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     const rule = state.encounter?.phase === 'scavenge'
       ? state.encounter.def.scavenge.find((r) => r.colors.includes(collect.color))
       : undefined;
-    if (rule) addResource(rule.resource, rule.bands, collect.amount);
+    if (rule) {
+      const loss = state.campaign?.encounterRounds ?? 0;
+      const bands = rule.bands.map((band) => ({ ...band, value: Math.max(0, band.value - loss) }));
+      addResource(rule.resource, bands, collect.amount);
+    }
     else events.push({ type: 'pulse-discarded' });
   };
 
@@ -218,6 +252,11 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     events.push({ type: 'round-ended', outcome });
     state.round = null;
     state.rounds++;
+    if (state.campaign?.victory && outcome !== 'completed') {
+      state.phase = 'ended'; state.outcome = 'victory';
+      events.push({ type: 'run-ended', outcome: 'victory' });
+      return;
+    }
     if (outcome !== 'completed') {
       state.phase = 'ended';
       state.outcome = outcome;
@@ -239,6 +278,7 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       events.push({ type: 'encounter-transitioned', encounter: state.encounter.def.id, to: 'ended', outcome: 'cleared' });
       state.encounter = null;
     }
+    campaignRoundEnd(state, events);
   };
 
   return { turn, endRound };
@@ -250,12 +290,13 @@ const apply = (state: AdventureState, command: AdventureCommand, events: Adventu
   switch (command.type) {
   case 'begin-encounter':
     if (state.phase !== 'between') reject('wrong-phase');
-    if (state.encounter) reject('encounter-active');
+    if (state.encounter || state.campaign) reject('encounter-active');
     state.encounter = startEncounter(command.encounter);
     events.push({ type: 'encounter-started', encounter: command.encounter.id });
     return;
   case 'begin-round':
     if (state.phase !== 'between') reject('wrong-phase');
+    if (state.campaign && !state.encounter) reject('wrong-phase');
     if (!validManifest(command.round)) reject('bad-manifest');
     state.phase = 'round';
     state.round = { manifest: command.round, turn: 0, collected: [] };
@@ -281,6 +322,11 @@ const apply = (state: AdventureState, command: AdventureCommand, events: Adventu
   }
   case 'end-round':
     endRound(command.outcome);
+    return;
+  default: {
+    const reason = applyCampaign(state, command, events);
+    if (reason) reject(reason);
+  }
   }
 };
 
@@ -296,6 +342,7 @@ export function step(state: AdventureState, command: AdventureCommand): EngineRe
   const next = structuredClone(state);
   const events: AdventureEvent[] = [];
   try {
+    refreshCampaignContent(next);
     apply(next, command, events);
   } catch (error) {
     if (!(error instanceof Rejected)) throw error;

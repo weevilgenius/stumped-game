@@ -97,16 +97,11 @@
           <section id="adventure" aria-label="Adventure" hidden>
             <div class="about">
               <span class="eyebrow">Adventure (playtest)</span>
-              <p id="adventureInfo"></p>
-              <label for="adventureLoadout">New run loadout</label>
-              <select id="adventureLoadout" aria-describedby="adventureLoadoutDescription adventureLoadoutInfo"></select>
-              <p id="adventureLoadoutDescription"></p>
-              <p id="adventureLoadoutInfo"></p>
               <div class="actions">
-                <button id="adventureContinue" type="button" class="text-button">Continue &rarr;</button>
-                <button id="adventureStart" type="button" class="text-button">New run</button>
-                <button id="adventureAbandon" type="button" class="text-button">Give up</button>
+                <button id="adventureContinue" type="button" class="text-button">Resume adventure &rarr;</button>
+                <button id="adventureStart" type="button" class="text-button">Start adventure</button>
               </div>
+            </div>
             </div>
           </section>
           <form id="codeForm">
@@ -125,6 +120,7 @@
     </main>
 
     <!-- Puzzle screen: the Phaser canvas. -->
+    <dialog id="adventureCard" aria-label="Adventure details"></dialog>
     <div id="game" hidden><p id="fullscreenStatus" role="status"></p></div>
 
     <dialog id="changelog" aria-labelledby="changelogTitle">

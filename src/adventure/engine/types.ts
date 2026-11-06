@@ -1,3 +1,5 @@
+import type { CampaignCommand, CampaignEvent, CampaignState, EncounterBudget } from './campaignTypes';
+
 /* ========================================================= *\
  *  Adventure engine contracts: definitions, state,          *
  *  commands, and events. Everything here is plain JSON.     *
@@ -49,6 +51,12 @@ export interface ItemDef {
   readonly cooldown?: number;
   /** Resource a forage item adds. */
   readonly resource?: string;
+  /** Loot tier, one to three. */
+  readonly tier?: number;
+  /** Unique campaign instance id; catalog ids remain readable. */
+  readonly instance?: string;
+  /** Shop value before selling at half price. */
+  readonly price?: number;
 }
 
 /** One telegraphed enemy action. */
@@ -73,6 +81,8 @@ export interface ScavengeRule {
 export type EncounterDef =
   | {
     readonly type: 'enemy';
+    /** Bounded campaign behavior; absent in the sandbox. */
+    readonly budget?: EncounterBudget;
     /** Content identifier. */
     readonly id: string;
     /** Starting health. */
@@ -132,6 +142,10 @@ export interface SlotState {
   charged: ColorId[];
   /** Squares a charge item has taken this round. */
   chargedAmount: number;
+  /** Campaign level, at most three. */
+  level?: number;
+  /** Postcombat squares toward the next level. */
+  experience?: number;
 }
 
 /** The active encounter, which can outlast a round. */
@@ -172,10 +186,12 @@ export interface RoundState {
 }
 
 /** How a run ended. */
-export type RunOutcome = 'death' | 'failed' | 'abandoned';
+export type RunOutcome = 'death' | 'failed' | 'abandoned' | 'victory';
 
 /** A whole adventure run. Save it with `JSON.stringify`. */
 export interface AdventureState {
+  /** Absent for legacy sandbox runs. */
+  campaign?: CampaignState;
   /** 'between' rounds, in a 'round', or 'ended'. */
   phase: 'between' | 'round' | 'ended';
   /** Character content identifier. */
@@ -202,6 +218,7 @@ export interface AdventureState {
 
 /** Input to `step()`. */
 export type AdventureCommand =
+  | CampaignCommand
   | {
     readonly type: 'begin-encounter';
     /** The encounter to start. */
@@ -245,10 +262,15 @@ export type RejectReason =
   | 'bad-manifest'
   | 'bad-collection'
   | 'bad-slot'
-  | 'round-incomplete';
+  | 'round-incomplete'
+  | 'bad-choice'
+  | 'inventory-full'
+  | 'insufficient-supplies';
 
 /** Something that happened, in order. Data only, no rendering instructions. */
 export type AdventureEvent =
+  | { readonly type: 'experience-gained'; readonly item: string; readonly slot: number; readonly experience: number; readonly level: number }
+  | CampaignEvent
   | { readonly type: 'command-rejected'; readonly command: AdventureCommand['type']; readonly reason: RejectReason }
   | { readonly type: 'encounter-started'; readonly encounter: string }
   | { readonly type: 'round-started'; readonly id: string }

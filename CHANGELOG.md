@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.0
+- Adventure playtest: complete seeded campaigns with branching routes, tiered loot, shops, rests, events, consumables, and a victory-unlocked character.
+- Manage the current stop, equipment, and route from Here, Gear, and Map screens, with scrolling cards and a compact map for longer adventures.
+- Equipment gains capped improvements from harvest. Replaced and dropped gear stays at the current stop until you move on.
+- Earlier adventure prototypes resume with their original journals preserved; puzzle records retain timing, hints, mistakes, and rule versions for playtest analysis.
+
 ## 0.17.0
 - Choose the new Christmas theme: a snowy forest at night with wrapped presents to find, candy canes, silver bell mode, sleigh bell sounds, and cardinal, snowy owl, and reindeer hints.
 - The Puerto Vallarta theme is now called Vallarta in Settings.
