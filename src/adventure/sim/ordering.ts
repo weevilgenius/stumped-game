@@ -89,3 +89,20 @@ export function opportunities(puzzle: Puzzle, revealed: readonly number[], oracl
   const cells = oracle ? puzzle.solution.filter((cell) => !revealed.includes(cell)) : reachableCells(puzzle, revealed);
   return cells.map((cell) => opportunity(puzzle, cell));
 }
+
+/**
+ * Bank every deduction without revealing it tactically. Forced placements are
+ * applied to private solver marks, unlocking later deductions without reading
+ * the solution. This models solving first and planning the adventure afterwards.
+ */
+export function bankedOpportunities(board: VisibleBoard): Opportunity[] {
+  let marks: Uint8Array = new Uint8Array(board.size ** 2);
+  const bank: number[] = [];
+  for (;;) {
+    const deduction = nextStep(board, marks);
+    if (!deduction) break;
+    if (deduction.type === 'forced') bank.push(deduction.place);
+    marks = applyStep(marks, deduction);
+  }
+  return bank.map((cell) => opportunity(board, cell));
+}
