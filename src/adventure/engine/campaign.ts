@@ -1,4 +1,4 @@
-import { BOSS, CONTENT_VERSION, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, ITEMS, MAX_ITEM_LEVEL, POTIONS, STARTERS } from '../content/campaign';
+import { BOSS, CONTENT_VERSION, ELITE_AMBUSH, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, ITEMS, LATE_AMBUSH, MAX_ITEM_LEVEL, POTIONS, STARTERS } from '../content/campaign';
 import type { AdventureEvent, AdventureState, EncounterDef, ItemDef, RejectReason, SlotState } from './types';
 import { currentNode, type CampaignCommand, type CampaignState, type Offer, type RouteNode } from './campaignTypes';
 
@@ -225,7 +225,11 @@ export function applyCampaign(state: AdventureState, command: CampaignCommand, e
     if (['fight', 'elite', 'boss'].includes(target.kind)) {
       const def = makeEncounter(campaign, target);
       if (def.type !== 'enemy') return 'bad-choice';
-      state.encounter = { type: 'enemy', def, phase: 'active', health: def.health, intent: 0, countdown: def.intents[0].delay };
+      // Later enemies, and elites most of all, may strike on the first reveal.
+      const progress = target.column / Math.max(1, ...campaign.map.map((entry) => entry.column));
+      const ambush = target.kind === 'boss' ? 0 : LATE_AMBUSH * progress + (target.kind === 'elite' ? ELITE_AMBUSH : 0);
+      const early = random({ ...campaign, rng: deriveSeed(campaign.seed, `ambush/${target.id}`) }) < ambush;
+      state.encounter = { type: 'enemy', def, phase: 'active', health: def.health, intent: 0, countdown: early ? 1 : def.intents[0].delay };
       events.push({ type: 'encounter-started', encounter: def.id });
     } else if (target.kind === 'forage') {
       const def: EncounterDef = { type: 'objective', id: 'treasure-grove', goal: 1, accepts: [], deadline: 100, failDamage: 0,
