@@ -55,7 +55,7 @@ export class AdventureScene extends Phaser.Scene {
     this.options = options;
     this.view = newAdventureScreen();
     const node = options.controller.adventure?.state.campaign?.map.find((node) => node.id === options.controller.adventure?.state.campaign?.node);
-    this.view.mapColumn = Math.max(0, (node?.column ?? 0) - 1);
+    this.view.mapColumn = node?.column ?? 0;
     if (options.controller.adventure?.state.encounter) this.view.panel = 'here';
     else if (options.controller.adventure?.state.campaign?.loot.length && !options.controller.adventure.state.encounter) this.view.panel = 'here';
     else if (options.controller.adventure?.state.campaign?.active && node && ['shop', 'rest', 'event'].includes(node.kind)) this.view.panel = 'here';
@@ -120,12 +120,13 @@ export class AdventureScene extends Phaser.Scene {
       selected ? theme.cream : theme.woodDark).setRounded(8 * this.u).setScrollFactor(fixed ? 0 : 1).setDepth(fixed ? 11 : 0);
     back.setStrokeStyle(this.u, theme.cream, selected ? 0.9 : 0.25);
     const text = this.label(action.label, x + 6, y + height / 2, this.height < 500 ? 12 : 14, width - 12,
-      selected ? theme.background : theme.cream, fixed).setOrigin(0, 0.5);
+      selected && !disabled ? theme.background : theme.cream, fixed).setOrigin(0, 0.5);
     // Long action labels wrap within their own touch target.
     if (text.height > (height - 6) * this.u) text.setFontSize(11 * this.u);
     this.controls.set(action.name, { view: { name: action.name, label: action.label, bounds: [x, y, width, height], disabled }, action, fixed });
     this.spots[action.name] = { x: x + width / 2, y: y + height / 2 };
-    if (disabled) { back.setFillStyle(theme.ink); text.setAlpha(0.5); }
+    // A selected but disabled button (the current map stop) keeps full-strength text against the dark fill.
+    if (disabled) { back.setFillStyle(theme.ink); text.setAlpha(selected ? 1 : 0.5); }
     else {
       back.setInteractive({ useHandCursor: true });
       bindItemPress(back, this.u, () => this.activate(action.name));

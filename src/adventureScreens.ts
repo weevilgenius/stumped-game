@@ -207,7 +207,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     if (campaign) {
       page.map = campaign.map;
       page.current = campaign.node; page.visited = campaign.visited; page.reachable = routeChoices(state).map((entry) => entry.id);
-      page.travel = (entry) => { send({ type: 'travel', node: entry.id }); view.mapColumn = Math.max(0, entry.column - 1); navigate('here'); };
+      page.travel = (entry) => { send({ type: 'travel', node: entry.id }); view.mapColumn = entry.column; navigate('here'); };
     } else page.cards = [{ id: 'sandbox', title: 'Sandbox playtest', body: 'The current wolf continues between puzzles. Defeating it starts a new wolf after harvest.' }];
   } else if (view.panel === 'gear') {
     page.title = 'Equipment';
