@@ -92,6 +92,7 @@ test('route, equipment and an unfinished puzzle resume through separate canvas s
 });
 
 test('item and skill taps toggle readiness while holds inspect without toggling', async ({ page }, info) => {
+  test.setTimeout(60_000);
   await enable(page); await start(page); await activate(page, 'Gear');
   const touch = info.project.name === 'mobile-chromium' ? await page.context().newCDPSession(page) : null;
   const down = async (target: Locator): Promise<{ x: number; y: number }> => {
@@ -138,6 +139,18 @@ test('item and skill taps toggle readiness while holds inspect without toggling'
     await up(); expect((await readSave(page)).state.slots[slot].ready).toBe(false);
     await card.getByRole('button', { name: 'Back to puzzle', exact: true }).click();
   }
+  // Tapping the backdrop over a hint button only dismisses the card.
+  await down(page.locator('.accessible-puzzle [data-action="slot0"]')); await expect(card).toBeVisible(); await up();
+  const box = (await card.boundingBox())!;
+  const hints = await Promise.all(['woodpecker', 'owl', 'squirrel'].map((name) => page.locator(`.accessible-puzzle [data-action="${name}"]`).boundingBox()));
+  const hintSpot = hints.map((b) => ({ x: b!.x + b!.width / 2, y: b!.y + b!.height / 2 }))
+    .find(({ x, y }) => x < box.x || x > box.x + box.width || y < box.y || y > box.y + box.height)!;
+  if (touch) {
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [hintSpot] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  } else await page.mouse.click(hintSpot.x, hintSpot.y);
+  await expect(card).not.toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { stumped: { model: Game } }).stumped.model.hints)).toEqual([]);
 });
 
 test('loot and forward travel follow an actual fight, with new preparation screens after each puzzle', async ({ page }) => {

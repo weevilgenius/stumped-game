@@ -74,5 +74,13 @@ export function inspectAdventure(dialog: HTMLDialogElement, controller: Pick<Con
   }
   if (state.campaign && state.phase !== 'ended') renderPotions(dialog, state, (command) => { controller.adventureCommand(command); dialog.close(); });
   button(dialog, 'Back to puzzle', () => dialog.close());
+  // Phaser also listens on window, so presses on the dialog or its backdrop would reach canvas controls beneath.
+  const stop = (event: Event): void => event.stopPropagation();
+  dialog.onmousedown = dialog.onmouseup = dialog.ontouchstart = dialog.ontouchend = dialog.onpointerdown = dialog.onpointerup = stop;
+  dialog.onclick = (event) => {
+    const box = dialog.getBoundingClientRect();
+    const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+    if (event.target === dialog && outside) dialog.close();
+  };
   dialog.showModal();
 }
