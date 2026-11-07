@@ -4,7 +4,7 @@
 - Adventure playtest: complete seeded campaigns with branching routes, tiered loot, shops, rests, events, consumables, and a victory-unlocked character.
 - Manage the current stop, equipment, and route from Here, Gear, and Map screens, with scrolling cards and a compact map for longer adventures.
 - Choose Fight or Flee together on the enemy card; later puzzles in the encounter say Continue Fight.
-- Gear has Details, move up/down, and drop controls in each item card. Arrows move items between equipment and the pack; shops offer confirmed sales with the value shown.
+- Gear has Details, filled up/down triangle buttons, and drop controls in each item card. Arrows move items between equipment and the pack; shops offer confirmed sales with the value shown.
 - Equipment gains capped improvements from harvest. Replaced and dropped gear stays at the current stop until you move on.
 - Earlier adventure prototypes resume with their original journals preserved; puzzle records retain timing, hints, mistakes, and rule versions for playtest analysis.
 

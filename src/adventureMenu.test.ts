@@ -47,7 +47,7 @@ it('offers only connected route actions and keeps equipment swaps out of an unfi
   view.detail = null;
   page = adventurePage(controller, view, false, vi.fn());
   expect(page.cards[0].press).toBeUndefined();
-  expect(page.cards[0].actions!.map((action) => action.label)).toEqual(['Details', '↑', '↓', '🗑']);
+  expect(page.cards[0].actions!.map((action) => action.label)).toEqual(['Details', '▲', '▼', '🗑']);
   expect(page.cards[0].actions!.slice(1).every((action) => action.disabled)).toBe(true);
 });
 
