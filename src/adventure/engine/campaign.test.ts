@@ -279,7 +279,7 @@ describe('capacity and updates', () => {
     expect(replacement.campaign!.pack).toHaveLength(3);
     state = replacement;
     state.campaign!.potions = Array.from({ length: 3 }, () => ({ id: 'healing-potion', value: 9 }));
-    const potion = { id: 'potion', price: 0, item: null, potion: { id: 'block-potion', value: 10 } };
+    const potion = { id: 'potion', price: 0, item: null, potion: { id: 'block-potion' as const, value: 10 } };
     state.campaign!.loot.push(potion);
     expect(step(state, { type: 'take-loot', offer: potion.id }).state).toBe(state);
   });
