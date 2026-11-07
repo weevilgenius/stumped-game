@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" preserveAspectRatio="xMidYMin slice">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f1c33"/><stop offset="0.55" stop-color="#22406b"/><stop offset="0.85" stop-color="#5d7fa8"/></linearGradient>
+<linearGradient id="snow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f8fc"/><stop offset="1" stop-color="#c9d9ea"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffe9a8" stop-opacity="0.55"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient>
+<g id="pine"><path d="M0-120 34-62H18L48-14H26L58 30H-58L-26-14H-48L-18-62H-34Z"/><path d="M-8 30h16v20H-8Z" fill="#4a3020"/></g>
+<g id="flake" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M0-7V7M-6-3.5 6 3.5M-6 3.5 6-3.5"/></g>
+</defs>
+<rect width="800" height="560" fill="url(#sky)"/>
+<g fill="#fff">
+<circle cx="60" cy="40" r="1.6"/><circle cx="150" cy="90" r="1.2"/><circle cx="240" cy="30" r="1.8"/><circle cx="330" cy="70" r="1.2"/>
+<circle cx="470" cy="36" r="1.5"/><circle cx="560" cy="96" r="1.1"/><circle cx="700" cy="50" r="1.7"/><circle cx="760" cy="120" r="1.2"/>
+<circle cx="420" cy="120" r="1"/><circle cx="110" cy="150" r="1.2"/>
+</g>
+<circle cx="640" cy="110" r="38" fill="#f3f1e4"/>
+<circle cx="626" cy="100" r="7" fill="#dcd9c8"/><circle cx="652" cy="122" r="5" fill="#dcd9c8"/>
+<path d="M0 300C120 250 220 270 330 240s240-10 470 30V560H0Z" fill="#a9c1dc"/>
+<g fill="#3b5f7d">
+<use href="#pine" transform="translate(40 280) scale(0.7)"/><use href="#pine" transform="translate(110 262) scale(0.85)"/>
+<use href="#pine" transform="translate(190 268) scale(0.65)"/><use href="#pine" transform="translate(620 262) scale(0.8)"/>
+<use href="#pine" transform="translate(700 276) scale(0.7)"/><use href="#pine" transform="translate(770 262) scale(0.9)"/>
+</g>
+<path d="M0 360C160 320 300 340 420 330s260-20 380 20V560H0Z" fill="url(#snow)"/>
+<g fill="#1f4a3a">
+<use href="#pine" transform="translate(70 360) scale(1.15)"/><use href="#pine" transform="translate(735 350) scale(1.25)"/>
+<use href="#pine" transform="translate(160 372) scale(0.85)"/><use href="#pine" transform="translate(650 368) scale(0.9)"/>
+</g>
+<g fill="#fff" opacity="0.9">
+<path d="M70 240 52 270h36ZM735 222 715 256h40ZM160 270 146 294h28ZM650 264 636 288h28Z"/>
+</g>
+<ellipse cx="400" cy="320" rx="170" ry="170" fill="url(#glow)"/>
+<g transform="translate(400 420)">
+<path d="M0-250 60-160H32L96-70H58L130 30H-130L-58-70H-96L-32-160H-60Z" fill="#2e7d4f" stroke="#1b4d31" stroke-width="5" stroke-linejoin="round"/>
+<path d="M-12 30h24v32h-24Z" fill="#5a3a22"/>
+<path d="M-50-170C-10-150 30-150 52-168M-82-80C-20-56 40-58 90-82M-112 12C-30 36 50 34 116 10" fill="none" stroke="#f6c21b" stroke-width="4" stroke-linecap="round"/>
+<g stroke="#1b4d31" stroke-width="2">
+<circle cx="-24" cy="-152" r="8" fill="#d1343c"/><circle cx="28" cy="-162" r="7" fill="#8cc8ea"/>
+<circle cx="-60" cy="-66" r="9" fill="#f6c21b"/><circle cx="10" cy="-60" r="9" fill="#d1343c"/><circle cx="66" cy="-74" r="8" fill="#b98fee"/>
+<circle cx="-92" cy="18" r="9" fill="#8cc8ea"/><circle cx="-30" cy="28" r="9" fill="#f6c21b"/><circle cx="40" cy="26" r="9" fill="#d1343c"/><circle cx="96" cy="16" r="9" fill="#f6c21b"/>
+<circle cx="-10" cy="-110" r="7" fill="#f7fafc"/><circle cx="-36" cy="-24" r="7" fill="#f7fafc"/><circle cx="54" cy="-20" r="7" fill="#8cc8ea"/>
+</g>
+<path d="M0-284l9 20 22 2-16 14 5 22-20-12-20 12 5-22-16-14 22-2Z" fill="#f6c21b" stroke="#c48a10" stroke-width="3" stroke-linejoin="round"/>
+</g>
+<g stroke="#2b1a1a" stroke-width="3" stroke-linejoin="round">
+<g transform="translate(310 470)"><path d="M-34-30h68v42h-68Z" fill="#d1343c"/><path d="M-7-30h14v42H-7Z" fill="#f6c21b"/><path d="M-38-42h76v14h-76Z" fill="#e5464d"/><path d="M-7-42h14v14H-7Z" fill="#f6c21b"/><path d="M-4-42c-10-12-26-8-20 0ZM4-42c10-12 26-8 20 0Z" fill="#f6c21b"/></g>
+<g transform="translate(470 474)"><path d="M-40-26h80v36h-80Z" fill="#3e8e5a"/><path d="M-6-26h12v36H-6Z" fill="#f7fafc"/><path d="M-44-38h88v14h-88Z" fill="#4fa56a"/><path d="M-6-38H6v14H-6Z" fill="#f7fafc"/><path d="M-3-38c-10-12-24-8-18 0ZM3-38c10-12 24-8 18 0Z" fill="#f7fafc"/></g>
+<g transform="translate(392 486)"><path d="M-26-22h52v30h-52Z" fill="#5b75b2"/><path d="M-5-22H5v30H-5Z" fill="#f6c21b"/><path d="M-29-32h58v12h-58Z" fill="#7390d0"/><path d="M-5-32H5v12H-5Z" fill="#f6c21b"/></g>
+<g transform="translate(544 488)"><path d="M-18-18h36v24h-36Z" fill="#b98fee"/><path d="M-4-18h8v24h-8Z" fill="#fff"/><path d="M-21-26h42v10h-42Z" fill="#cfb0f5"/></g>
+</g>
+<path d="M0 500c120-14 260-6 400-10s280 0 400 10v60H0Z" fill="#f4f8fc"/>
+<g transform="translate(150 446)" stroke="#5d7fa8" stroke-width="3">
+<circle cy="20" r="34" fill="#fbfdff"/><circle cy="-30" r="24" fill="#fbfdff"/><circle cy="-68" r="18" fill="#fbfdff"/>
+<path d="M-18-50h36v10h-36Z" fill="#d1343c" stroke="#2b1a1a"/><path d="M8-46l6 26h10l-6-26Z" fill="#d1343c" stroke="#2b1a1a"/>
+<path d="M-20-82h40v4h-40ZM-13-82v-24h26v24Z" fill="#2b2f36" stroke="#2b1a1a"/>
+<path d="M0-66l18 4-18 4Z" fill="#f5a623" stroke="#b36b10" stroke-width="2"/>
+<g fill="#2b2f36" stroke="none"><circle cx="-7" cy="-72" r="2.6"/><circle cx="7" cy="-72" r="2.6"/><circle cy="-30" r="3"/><circle cy="-16" r="3"/><circle cy="8" r="3"/></g>
+<path d="M-22-34-52-58M-58-62l6 4 2-10M22-34l30-20M52-54l8-2-4 8" fill="none" stroke="#6b4a2a" stroke-width="4" stroke-linecap="round"/>
+</g>
+<g transform="translate(672 440)" stroke="#2b1a1a" stroke-width="2.5" stroke-linejoin="round">
+<path d="M-4-28 6-16C16-12 22-2 20 10c-2 12-14 18-26 16-10-2-14-10-12-20 0-6 4-10 8-14-2-6 0-14 6-20Z" fill="#d1343c"/>
+<path d="M-12-14-20-10-12-6Z" fill="#f5a623"/>
+<circle cx="-6" cy="-14" r="2.2" fill="#111" stroke="none"/>
+<path d="M-40 28h80" stroke="#6b4a2a" stroke-width="5" stroke-linecap="round"/>
+<path d="M-36 24c10-4 30-4 42 0" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none"/>
+</g>
+<g opacity="0.85">
+<use href="#flake" transform="translate(40 120)"/><use href="#flake" transform="translate(130 210) scale(0.7)"/>
+<use href="#flake" transform="translate(250 150)"/><use href="#flake" transform="translate(280 300) scale(0.8)"/>
+<use href="#flake" transform="translate(540 180) scale(0.9)"/><use href="#flake" transform="translate(560 320) scale(0.7)"/>
+<use href="#flake" transform="translate(700 200)"/><use href="#flake" transform="translate(770 340) scale(0.8)"/>
+<use href="#flake" transform="translate(220 400) scale(0.6)"/><use href="#flake" transform="translate(600 410) scale(0.6)"/>
+<use href="#flake" transform="translate(360 60) scale(0.8)"/><use href="#flake" transform="translate(500 90) scale(0.6)"/>
+</g>
+</svg>

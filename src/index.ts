@@ -1,8 +1,8 @@
 import './index.css';
-import type { Tier } from './engine';
+import type { PieceNames, Tier } from './engine';
 import type { SilverMode } from './settings';
 import { createController } from './controller';
-import { bestTimes, formatTime, type Game, isClean, MARK_STUMP, type Result, resultOf } from './game';
+import { bestTimes, formatTime, type Game, type Hint, isClean, MARK_STUMP, type Result, resultOf } from './game';
 import { openPuzzle, showAdventureEvents } from './puzzleScene';
 import { cssColor, type IconName, parseTheme, THEMES, type ThemeName } from './theme';
 import { createWorkerGenerator } from './generator';
@@ -50,6 +50,12 @@ const applyTheme = (): void => {
     const form = word.dataset.piece ?? '';
     const name = form.toLowerCase() === 'many' ? theme.piece.many : theme.piece.one;
     word.textContent = form === form.toLowerCase() ? name : `${name[0].toUpperCase()}${name.slice(1)}`;
+  }
+  for (const words of document.querySelectorAll<HTMLElement>('[data-life]')) {
+    words.textContent = theme.life[words.dataset.life as keyof PieceNames];
+  }
+  for (const words of document.querySelectorAll<HTMLElement>('[data-hint]')) {
+    words.textContent = theme.hintNames[words.dataset.hint as Hint];
   }
   for (const words of document.querySelectorAll<HTMLElement>('[data-silver]')) {
     words.textContent = words.dataset.silver === 'lower' ? theme.silverName.toLowerCase() : theme.silverName;
@@ -146,12 +152,14 @@ const summary = (): string => {
 const EYEBROWS = {
   woods: { playing: 'Your forest is waiting', won: 'A forest well found', lost: 'Stumped.' },
   vallarta: { playing: 'Your fiesta is waiting', won: '¡Bien hecho!', lost: 'Stumped.' },
+  christmas: { playing: 'Your presents are waiting', won: 'Merry and bright', lost: 'Stumped.' },
 } as const;
 
 /** The invitation to try a lost puzzle again, by theme. */
 const RETRY_LINES = {
   woods: 'Another walk through the woods?',
   vallarta: 'Another stroll down the Malecón?',
+  christmas: 'Another trek through the snow?',
 } as const;
 
 const renderMenu = (): void => {

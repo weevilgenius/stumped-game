@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0
+- Choose the new Christmas theme: a snowy forest at night with wrapped presents to find, candy canes, silver bell mode, sleigh bell sounds, and cardinal, snowy owl, and reindeer hints.
+- The Puerto Vallarta theme is now called Vallarta in Settings.
+
 ## 0.16.0
 - Add optional 11×11 and 12×12 puzzles, with new region colors in both themes. New installs start with sizes 5×5 through 10×10 selected.
 - Puzzles generate faster, especially larger hard puzzles.

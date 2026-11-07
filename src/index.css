@@ -1249,13 +1249,17 @@ fieldset label + label {
   height: 32px;
 }
 
-/* ---------- Puerto Vallarta theme ---------- */
+/* ---------- Themes ---------- */
 
-/* Each theme's words and art; the other theme's are hidden. */
+/* Each theme's words and art; the other themes' are hidden. */
 :root[data-theme='vallarta'] .for-woods,
-:root:not([data-theme='vallarta']) .for-vallarta {
+:root[data-theme='christmas'] .for-woods,
+:root:not([data-theme='vallarta']) .for-vallarta,
+:root:not([data-theme='christmas']) .for-christmas {
   display: none !important;
 }
+
+/* ---------- Puerto Vallarta theme ---------- */
 
 /* Sun-bleached paper by day, a Day of the Dead night in dark mode. */
 :root[data-theme='vallarta'] {
@@ -1330,6 +1334,74 @@ fieldset label + label {
     linear-gradient(-45deg, var(--paper) 25%, transparent 25%) 0 100% / 14px 7px repeat-x,
     linear-gradient(90deg, #e8458b 0 16.6%, #f5a623 0 33.3%, #18a7b5 0 50%, #8e44ad 0 66.6%, #59b83a 0 83.3%, #ff7a1a 0) 0 0 / 360px 100%;
   opacity: 0.85;
+}
+
+/* ---------- Christmas theme ---------- */
+
+/* Fresh snow by day, a winter night in dark mode. */
+:root[data-theme='christmas'] {
+  --bg: #1c2b3f;
+  --gold: #e9b53f;
+  --ink: #1c2b3f;
+  --paper: #f3f7fb;
+  --surface: #fbfdff;
+  --text: #1f3346;
+  --muted: #5e7085;
+  --line: #d6e1ec;
+  --green: #2e7d4f;
+  --on-green: #fbfdff;
+  --leaf: #4f9fd1;
+  --accent: #d1343c;
+  --eyebrow: #a8323a;
+  --focus: #d1343c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='christmas'] {
+    --paper: #142033;
+    --surface: #1c2b3f;
+    --text: #eaf2f9;
+    --muted: #a6b8ca;
+    --line: #34475f;
+    --green: #3e8e5a;
+    --leaf: #a9d6f2;
+    --accent: #e9b53f;
+    --eyebrow: #f2a3a8;
+  }
+}
+
+:root[data-theme='christmas'] .art {
+  background: #0f1c33;
+}
+
+/* The scene keeps its tree and presents in view on a short, wide card. */
+:root[data-theme='christmas'] .art img {
+  object-position: center 80%;
+}
+
+:root[data-theme='christmas'] #thumb {
+  border-color: var(--bg);
+  background: var(--bg);
+}
+
+:root[data-theme='christmas'] .wood {
+  border-color: #6e1d22;
+  background: #a8323a;
+  color: #f4f8fb;
+}
+
+:root[data-theme='christmas'] dialog::backdrop {
+  background: #1c2b3f80;
+}
+
+:root[data-theme='christmas'] .toggles label.large-size {
+  --size-accent: #7540a0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='christmas'] .toggles label.large-size {
+    --size-accent: #d5afff;
+  }
 }
 
 /* Keep the playtest's equipment preview compact on phones. */

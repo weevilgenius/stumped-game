@@ -1,4 +1,4 @@
-import { playSound, type Sound, setMuted, VALLARTA_SOUNDS, WOODS_SOUNDS } from './sound';
+import { CHRISTMAS_SOUNDS, playSound, type Sound, setMuted, VALLARTA_SOUNDS, WOODS_SOUNDS } from './sound';
 
 /** Counts the audio nodes each sound starts, standing in for Web Audio. */
 class FakeAudioContext {
@@ -44,7 +44,7 @@ describe('sound effects', () => {
     FakeAudioContext.started = 0;
   });
 
-  const SETS = { woods: WOODS_SOUNDS, vallarta: VALLARTA_SOUNDS };
+  const SETS = { woods: WOODS_SOUNDS, vallarta: VALLARTA_SOUNDS, christmas: CHRISTMAS_SOUNDS };
   const cases = Object.entries(SETS).flatMap(([theme, set]) => SOUNDS.map((sound) => [theme, sound, set] as const));
 
   it.each(cases)('plays the %s %s', (_theme, sound, set) => {

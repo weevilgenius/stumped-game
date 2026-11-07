@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <clipPath id="cane">
+      <path d="M40 116V46c0-18 12-32 28-32s28 14 28 30v6H80v-6c0-8-6-14-12-14s-12 6-12 16v70Z"/>
+    </clipPath>
+  </defs>
+  <path d="M40 116V46c0-18 12-32 28-32s28 14 28 30v6H80v-6c0-8-6-14-12-14s-12 6-12 16v70Z" fill="#fff8f2"/>
+  <g clip-path="url(#cane)" stroke="#d1343c" stroke-width="9">
+    <path d="M20 40 60 0M20 64 84 0M20 88l90-90M20 112 110 22M20 136 110 46M40 140 110 70M64 140l46-46"/>
+  </g>
+  <path d="M40 116V46c0-18 12-32 28-32s28 14 28 30v6H80v-6c0-8-6-14-12-14s-12 6-12 16v70Z" fill="none" stroke="#2b1a1a" stroke-width="4" stroke-linejoin="round"/>
+  <g transform="translate(54 70) rotate(-20)">
+    <path d="M0 0c-14-10-26-4-24 6 10 4 18 2 24-6ZM0 0c14-10 26-4 24 6-10 4-18 2-24-6Z" fill="#3e8e5a" stroke="#2b1a1a" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="-3" cy="4" r="5" fill="#d1343c" stroke="#2b1a1a" stroke-width="2.5"/>
+    <circle cx="5" cy="5" r="5" fill="#d1343c" stroke="#2b1a1a" stroke-width="2.5"/>
+  </g>
+</svg>
