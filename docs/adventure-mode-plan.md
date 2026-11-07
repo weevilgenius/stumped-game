@@ -371,6 +371,7 @@ Barry played a complete run on each of two phase 7 implementations, built on the
 Barry played two complete runs on the hybrid implementation (PR #93). The first (Ranger, 22 puzzles) won at full health with 216 supplies unspent and every weapon at its level cap; the boss died in one puzzle. After raising tier 3, elite, and boss health and making half of elites hit harder, the second (Herbalist, 27 puzzles) won with health as low as 9/22 and a three-puzzle boss fight. Weapon leveling with a cap works well.
 
 - **Direction:** Better, and further tuning should reach the target. A run this long needs a wider spread of enemies and equipment so difficulty can ramp and peak higher. Harder enemies plus environmental effects that weaken or knock out colors approach the desired challenge. Both wait for later phases.
+- **Solve, then plan (resolved for now):** After longer play the dual rhythm works: solve a moderately hard puzzle without revealing anything, then turn to the adventure strip and spend the resources. Phase 7 shows the split can carry the game. Major changes stay possible later, and the options in the previous review remain open.
 - **Consumables:** Too common and too strong. Ordinary fights no longer drop them; shops, elites, and events are the only sources. Their strength is unchanged for now.
 
 ### Completion criteria
