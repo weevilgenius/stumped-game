@@ -6,6 +6,7 @@ describe('themes', () => {
   it('reads saved names and falls back to the woods', () => {
     expect(parseTheme('vallarta')).toBe('vallarta');
     expect(parseTheme('woods')).toBe('woods');
+    expect(parseTheme('christmas')).toBe('christmas');
     expect(parseTheme(null)).toBe('woods');
     expect(parseTheme('beach')).toBe('woods');
   });

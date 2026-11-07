@@ -179,6 +179,19 @@ const brass = (ctx: AudioContext, out: AudioNode, options: ToneOptions & { reado
   tone(ctx, filter, { ...options, wave: 'sawtooth' });
 };
 
+/** Rings a bell: a pure tone with a fainter, quicker, out-of-tune overtone. */
+const bell = (ctx: AudioContext, out: AudioNode, from: number, at = 0, length = 0.6, gain = 0.2): void => {
+  tone(ctx, out, { from, at, length, gain });
+  tone(ctx, out, { from: from * 2.76, at, length: length / 3, gain: gain / 3 });
+};
+
+/** Shakes sleigh bells: a few bright, overlapping jingles. */
+const jingle = (ctx: AudioContext, out: AudioNode, at: number, gain: number, count = 3): void => {
+  for (let i = 0; i < count; i++) {
+    knock(ctx, out, at + i * 0.025, 7000 + i * 900, gain, 0.06);
+  }
+};
+
 /* ------------------------------------------------------- *\
  *  The sounds                                             *
 \* ------------------------------------------------------- */
@@ -284,6 +297,44 @@ export const VALLARTA_SOUNDS: SoundSet = {
   // A gecko's clicks, speeding up.
   squirrel: (ctx, out) => {
     [0, 0.09, 0.16, 0.21, 0.25].forEach((at) => knock(ctx, out, at, 2400, 0.7, 0.025));
+  },
+};
+
+/** Christmas: sleigh bells, a celesta, and winter animals. The woodpecker is the cardinal and the squirrel is the reindeer. */
+export const CHRISTMAS_SOUNDS: SoundSet = {
+  // A light shake of sleigh bells.
+  x: (ctx, out) => jingle(ctx, out, 0, 0.35, 2),
+  // A single, softer jingle.
+  erase: (ctx, out) => knock(ctx, out, 0, 5200, 0.35, 0.04),
+  // A celesta note.
+  stump: (ctx, out) => bell(ctx, out, 1046.5, 0, 0.5, 0.22),
+  // A dull thump into the snow.
+  wrong: (ctx, out) => {
+    tone(ctx, out, { from: 140, to: 70, length: 0.28, gain: 0.4 });
+    knock(ctx, out, 0, 300, 0.6, 0.12);
+  },
+  // Bells ringing up a major chord, with sleigh bells under them.
+  win: (ctx, out) => {
+    [783.99, 987.77, 1174.66, 1567.98].forEach((from, i) => bell(ctx, out, from, i * 0.13, i === 3 ? 1.2 : 0.5, 0.2));
+    [0, 0.26, 0.52].forEach((at) => jingle(ctx, out, at, 0.25));
+  },
+  // Bells sinking down a minor line.
+  lose: (ctx, out) => {
+    [659.25, 523.25, 415.3].forEach((from, i) => bell(ctx, out, from, i * 0.22, i === 2 ? 1 : 0.4, 0.2));
+  },
+  // A cardinal's "cheer cheer": two falling whistles.
+  woodpecker: (ctx, out) => {
+    [0, 0.2].forEach((at) => tone(ctx, out, { from: 3800, to: 2200, at, length: 0.14, gain: 0.12 }));
+  },
+  // A snowy owl's low, slow hoots.
+  owl: (ctx, out) => {
+    tone(ctx, out, { from: 330, to: 300, length: 0.3, gain: 0.3, vibrato: 4 });
+    tone(ctx, out, { from: 320, to: 290, at: 0.42, length: 0.4, gain: 0.3, vibrato: 4 });
+  },
+  // Reindeer hooves crunching through snow, with a jingle from the harness.
+  squirrel: (ctx, out) => {
+    [0, 0.12, 0.3, 0.42].forEach((at) => knock(ctx, out, at, 700, 0.8, 0.07));
+    jingle(ctx, out, 0.05, 0.2);
   },
 };
 

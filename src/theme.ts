@@ -1,6 +1,6 @@
 import { type PieceNames, STUMP_NAMES } from './engine';
 import type { Hint } from './game';
-import { type SoundSet, VALLARTA_SOUNDS, WOODS_SOUNDS } from './sound';
+import { CHRISTMAS_SOUNDS, type SoundSet, VALLARTA_SOUNDS, WOODS_SOUNDS } from './sound';
 import acornUrl from './assets/acorn_icon@8x.png';
 import owlUrl from './assets/owl_icon@8x.png';
 import silverUrl from './assets/silver_acorn_icon@8x.png';
@@ -13,6 +13,12 @@ import margaritaUrl from './assets/vallarta/margarita.svg?no-inline';
 import pinaColadaUrl from './assets/vallarta/pina-colada.svg?no-inline';
 import tecoloteUrl from './assets/vallarta/owl.svg?no-inline';
 import parrotUrl from './assets/vallarta/parrot.svg?no-inline';
+import candyCaneUrl from './assets/christmas/candy-cane.svg?no-inline';
+import cardinalUrl from './assets/christmas/cardinal.svg?no-inline';
+import presentUrl from './assets/christmas/present.svg?no-inline';
+import reindeerUrl from './assets/christmas/reindeer.svg?no-inline';
+import silverBellUrl from './assets/christmas/silver-bell.svg?no-inline';
+import snowyOwlUrl from './assets/christmas/snowy-owl.svg?no-inline';
 
 /* ========================================================= *\
  *  Themes: the look of the board, its pieces, and the main  *
@@ -20,7 +26,7 @@ import parrotUrl from './assets/vallarta/parrot.svg?no-inline';
 \* ========================================================= */
 
 /** Every theme, the default first. */
-export const THEME_NAMES = ['woods', 'vallarta'] as const;
+export const THEME_NAMES = ['woods', 'vallarta', 'christmas'] as const;
 
 /** A theme's name, as saved and as set on `<html data-theme>`. */
 export type ThemeName = typeof THEME_NAMES[number];
@@ -50,6 +56,8 @@ export interface Theme {
   readonly flags: readonly number[];
   /** What the Owl calls the pieces. */
   readonly piece: PieceNames;
+  /** What the lives are called, as in "costs an acorn". */
+  readonly life: PieceNames;
   /** What the one-life mode is called, without "mode", as at the start of a sentence. */
   readonly silverName: string;
   /** What each hint button is called, for screen readers. */
@@ -73,6 +81,7 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     cream: 0xf7edd5,
     flags: [],
     piece: STUMP_NAMES,
+    life: { one: 'acorn', many: 'acorns', a: 'an acorn' },
     silverName: 'Silver acorn',
     hintNames: { woodpecker: 'Woodpecker', owl: 'Owl', squirrel: 'Squirrel' },
     sounds: WOODS_SOUNDS,
@@ -92,10 +101,32 @@ export const THEMES: Readonly<Record<ThemeName, Theme>> = {
     ink: 0x2a1d4a,
     cream: 0xfff3d6,
     piece: { one: 'skull', many: 'skulls', a: 'a skull' },
+    life: { one: 'margarita', many: 'margaritas', a: 'a margarita' },
     silverName: 'Piña colada',
     flags: [0xe8458b, 0xf5a623, 0x18a7b5, 0x8e44ad, 0x59b83a, 0xff7a1a, 0xf6c21b, 0x3d6fd1],
     hintNames: { woodpecker: 'Parrot', owl: 'Owl', squirrel: 'Gecko' },
     sounds: VALLARTA_SOUNDS,
+  },
+  christmas: {
+    name: 'christmas',
+    // Gold, ice blue, holly, plum, frost, cinnamon, navy, rose, mint, spruce, clementine, slate.
+    // No red: the presents are red, and so are mistake marks.
+    palette: [0xE9B53F, 0x8CC8EA, 0x4E9A5E, 0x8A63B8, 0xD5DEE7, 0xA86A44, 0x34508F, 0xEFA3BE, 0xA9DFC4, 0x2F7F86, 0xF08A3C, 0x6E7884],
+    icons: {
+      stump: presentUrl, acorn: candyCaneUrl, silver: silverBellUrl,
+      woodpecker: cardinalUrl, owl: snowyOwlUrl, squirrel: reindeerUrl,
+    },
+    background: 0x1c2b3f,
+    wood: 0xa8323a,
+    woodDark: 0x6e1d22,
+    ink: 0x1c2b3f,
+    cream: 0xf4f8fb,
+    flags: [],
+    piece: { one: 'present', many: 'presents', a: 'a present' },
+    life: { one: 'candy cane', many: 'candy canes', a: 'a candy cane' },
+    silverName: 'Silver bell',
+    hintNames: { woodpecker: 'Cardinal', owl: 'Owl', squirrel: 'Reindeer' },
+    sounds: CHRISTMAS_SOUNDS,
   },
 };
 

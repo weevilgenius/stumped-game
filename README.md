@@ -56,7 +56,9 @@ hint doesn't earn the clean solve ★.
 | <img src="docs/how-to-play/squirrel.png" width="64" alt="Squirrel"> | **Squirrel** puts X's on three random squares that have no stump. |
 
 In the Puerto Vallarta theme, stumps become skulls, acorns become margaritas,
-the woodpecker a parrot, and the squirrel a gecko. The rules are the same.
+the woodpecker a parrot, and the squirrel a gecko. In the Christmas theme,
+stumps become wrapped presents, acorns become candy canes, the woodpecker a
+cardinal, and the squirrel a reindeer. The rules are the same.
 
 The same guide is in the game: tap **Help** on the home screen, or **?** while
 playing.
