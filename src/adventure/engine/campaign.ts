@@ -336,6 +336,14 @@ export function applyCampaign(state: AdventureState, command: CampaignCommand, e
     events.push({ type: 'gear-changed', item: slot.item.id });
     return null;
   }
+  case 'drop-potion': {
+    if (!between) return 'wrong-phase';
+    const potion = campaign.potions[command.potion];
+    if (!potion) return 'bad-choice';
+    campaign.potions.splice(command.potion, 1);
+    campaign.loot.push({ id: `drop/${potion.id}/${state.rounds}/${campaign.loot.length}`, price: 0, item: null, potion });
+    return null;
+  }
   case 'sell': {
     if (!shop) return 'wrong-phase';
     const area = command.pack === undefined ? state.slots : campaign.pack;
