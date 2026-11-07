@@ -345,6 +345,23 @@ describe('hybrid regressions', () => {
     expect(solve(strong(issue(state, { type: 'travel', node: elite.id }))).campaign!.loot.filter((offer) => offer.potion)).toHaveLength(1);
   });
 
+  it('later enemies, especially elites, sometimes attack on the first reveal', () => {
+    let early = 0, late = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const first = enter(seed);
+      if (first.encounter?.type !== 'enemy') throw new Error('Expected enemy');
+      expect(first.encounter.countdown).toBe(first.encounter.def.intents[0].delay);
+      const state = start(seed);
+      const elite = state.campaign!.map.filter((node) => node.kind === 'elite' && node.lane === 0).at(-1)!;
+      state.campaign!.node = `${elite.column - 1}-0`;
+      const { encounter } = issue(state, { type: 'travel', node: elite.id });
+      if (encounter?.type !== 'enemy') throw new Error('Expected enemy');
+      if (encounter.countdown === 1 && encounter.def.intents[0].delay > 1) early++; else late++;
+    }
+    expect(early).toBeGreaterThan(10);
+    expect(late).toBeGreaterThan(5);
+  });
+
   it('elites are tougher, and about half also hit harder', () => {
     let fierce = 0, plain = 0;
     for (let seed = 1; seed <= 20; seed++) {

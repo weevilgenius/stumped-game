@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 4;
+export const CONTENT_VERSION = 5;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -97,6 +97,10 @@ export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 3, 90, [{ delay:
 
 /** Elites: an enemy of the next tier up, tougher, with better and more loot. */
 export const ELITE_HEALTH = 1.6;
+/** Chance an ordinary fight attacks on its first reveal, reached at the end of the route and scaled down before it. */
+export const LATE_AMBUSH = 0.4;
+/** Extra first-reveal attack chance for elites, added at any point in the route. */
+export const ELITE_AMBUSH = 0.3;
 /** Share of elites that also hit harder. */
 export const FIERCE_ELITES = 0.5;
 /** Damage multiplier for those fierce elites, rounded up. */
