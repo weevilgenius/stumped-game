@@ -1,6 +1,6 @@
 {
   "name": "stumped-game",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Stump family Sudoku game",
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "screenshot": "node scripts/screenshot.ts",
+    "campaign": "node --import jiti/register scripts/campaign.ts",
     "simulate": "node --import jiti/register scripts/simulate.ts",
     "traces": "node --import jiti/register scripts/traces.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test"

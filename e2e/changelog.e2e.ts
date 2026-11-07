@@ -1,3 +1,4 @@
+import packageJson from '../package.json' with { type: 'json' };
 import { test, expect } from '@playwright/test';
 
 test('history shows all releases and returns focus when dismissed', async ({ page }) => {
@@ -20,5 +21,5 @@ test('a failed load can be retried by reopening history', async ({ page }) => {
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.unroute('**/CHANGELOG.md');
   await page.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(page.locator('#changelogBody h3').first()).toHaveText('0.10.0');
+  await expect(page.locator('#changelogBody h3').first()).toHaveText(packageJson.version);
 });

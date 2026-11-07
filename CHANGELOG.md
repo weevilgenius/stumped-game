@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.18.0
+- Improvements to the adventure mode prototype.
+
 ## 0.17.0
 - Choose the new Christmas theme: a snowy forest at night with wrapped presents to find, candy canes, silver bell mode, sleigh bell sounds, and cardinal, snowy owl, and reindeer hints.
 - The Puerto Vallarta theme is now called Vallarta in Settings.

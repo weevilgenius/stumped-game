@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
+import { bindItemPress } from './itemPress';
+import { AdventureScene } from './adventureScene';
+import type { AdventureSceneOptions } from './adventureScene';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
+import { currentNode } from './adventure/engine';
 import type { AdventureEvent, AdventureState, ItemDef, SlotState } from './adventure/engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
@@ -104,6 +108,8 @@ export interface AdventureView {
   readonly state: () => Readonly<AdventureState>;
   /** Readies or unreadies an equipment slot. */
   readonly setReady: (slot: number, ready: boolean) => void;
+  /** Inspect exact equipment or enemy values in a DOM card. */
+  readonly inspect?: (slot?: number) => void;
 }
 
 interface Rect {
@@ -174,7 +180,7 @@ class PuzzleScene extends Phaser.Scene {
   private complete = new Set<string>();
   private shownSeconds = -1;
   private accessible?: ReturnType<typeof createAccessiblePuzzle>;
-  private controls = new Map<string, { view: AccessibleControl; onTap: () => void; dim?: () => boolean }>();
+  private controls = new Map<string, { view: AccessibleControl; onTap: () => void; onHold?: () => void; dim?: () => boolean }>();
   private inputState = '';
   private fullscreenPending = false;
   /** Where the adventure strip goes, and what is drawn there now. */
@@ -239,7 +245,7 @@ class PuzzleScene extends Phaser.Scene {
     this.game.canvas.setAttribute('aria-hidden', 'true');
     this.accessible = createAccessiblePuzzle(this.game.canvas.parentElement!, this.model,
       (cell) => { this.lastTap = null; this.stroke = null; this.markCell(cell); },
-      (cell) => this.revealCell(cell), (name) => this.activateControl(name));
+      (cell) => this.revealCell(cell), (name, details) => this.activateControl(name, details));
     this.events.once('shutdown', () => {
       this.accessible?.destroy();
       this.accessible = undefined;
@@ -827,14 +833,15 @@ class PuzzleScene extends Phaser.Scene {
     );
   }
 
-  private activateControl(name: string): void {
+  private activateControl(name: string, details = false): void {
     const control = this.controls.get(name);
     if (!control || this.blocked() || performance.now() < this.buttonsFrom || control.dim?.()) {
       return;
     }
     this.lastTap = null;
     this.stroke = null;
-    control.onTap();
+    if (details) control.onHold?.();
+    else control.onTap();
     this.syncAccessible();
   }
 
@@ -1082,7 +1089,7 @@ class PuzzleScene extends Phaser.Scene {
     this.tweens.killTweensOf(strip.parts);
     strip.parts.forEach((part) => part.destroy());
     strip.parts = [];
-    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot'))) {
+    for (const name of [...this.controls.keys()].filter((key) => key.startsWith('slot') || key === 'enemy')) {
       this.controls.delete(name);
     }
     const state = view.state();
@@ -1123,13 +1130,28 @@ class PuzzleScene extends Phaser.Scene {
       const won = encounter.phase === 'scavenge';
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      const title = add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      title.setScale(Math.min(1, (ew - 12 * u) / title.width));
+      if (state.campaign) {
+        this.controls.set('enemy', {
+          view: { name: 'enemy', label: 'Inspect encounter and consumables', bounds: [ex / u, r.y / u, ew / u, r.h / u], disabled: false },
+          onTap: () => view.inspect?.(),
+        });
+        enemy.setInteractive().on('pointerdown', () => this.activateControl('enemy'));
+        const harvest = encounter.def.scavenge.flatMap((rule) => rule.colors);
+        const dots = add(this.add.graphics());
+        // Reserve a row below the title, even when all nine colors can be harvested.
+        const spacing = Math.min(9 * u * k, (ew - 12 * u) / harvest.length);
+        const radius = Math.min(3 * u * k, spacing / 3);
+        harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color])
+          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, top + 21 * u * k, radius));
+      }
       if (won) {
         enemy.setAlpha(0.5);
         add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
-        this.healthBar(add, ex + 6 * u, top + 20 * u * k, ew - 12 * u, barH, fill,
+        this.healthBar(add, ex + 6 * u, top + (state.campaign ? 28 : 20) * u * k, ew - 12 * u, barH, fill,
           encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
@@ -1138,9 +1160,9 @@ class PuzzleScene extends Phaser.Scene {
         const now = encounter.countdown <= 1;
         const enemyType = encounter.type === 'enemy';
         const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
-        add(this.add.text(ex + 6 * u, top + 38 * u * k, due,
+        add(this.add.text(ex + 6 * u, top + (state.campaign ? 44 : 38) * u * k, due,
           now ? { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13 * k), fontStyle: 'normal' }));
-        add(this.add.text(ex + 6 * u, top + 56 * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
+        add(this.add.text(ex + 6 * u, top + (state.campaign ? 60 : 56) * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
       }
     }
 
@@ -1270,16 +1292,20 @@ class PuzzleScene extends Phaser.Scene {
     if (wait > 0) {
       parts.push(add(this.add.text(x + w - 4 * u, y + 3 * u, `${wait}`, this.textStyle(13)).setOrigin(1, 0)));
     }
-    if (!slot.ready || wait > 0) {
+    // Treasure groves idle everything but forage gear; the saved ready flag is untouched for the next fight.
+    const idle = currentNode(state)?.kind === 'forage' && item.effect !== 'forage';
+    if (!slot.ready || wait > 0 || idle) {
       parts.forEach((part) => (part as unknown as Phaser.GameObjects.Components.AlphaSingle).setAlpha(0.35));
     }
     const name = `slot${index}`;
-    const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
+    const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${idle ? 'idle in this grove' : slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
-      view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false },
-      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+      view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false, details: !!this.options.adventure?.inspect },
+      onTap: () => { if (!idle) this.options.adventure?.setReady(index, !slot.ready); },
+      onHold: () => this.options.adventure?.inspect?.(index),
     });
-    back.setInteractive().on('pointerdown', () => this.activateControl(name));
+    back.setInteractive();
+    bindItemPress(back, u, () => this.activateControl(name), () => this.activateControl(name, true));
     return back;
   }
 
@@ -1377,50 +1403,55 @@ let phaser: Phaser.Game | undefined;
  * @param options the game to play and the callbacks to report through
  */
 export function openPuzzle(parent: HTMLElement, options: PuzzleOptions): void {
+  const game = canvasGame(parent, options.theme);
+  game.scene.getScene('adventure-menu')?.scene.stop();
+  const scene = game.scene.getScene('puzzle') as Phaser.Scene | null;
+  if (scene) scene.scene.restart(options);
+  else game.scene.add('puzzle', PuzzleScene, true, options);
+}
+
+/** Show the adventure selection or preparation scene on the same Phaser canvas. */
+export function openAdventureScreen(parent: HTMLElement, options: AdventureSceneOptions): void {
+  const game = canvasGame(parent, options.theme);
+  // Queue shutdown: a completion timer can call this before the puzzle's final update.
+  game.scene.getScene('puzzle')?.scene.stop();
+  const scene = game.scene.getScene('adventure-menu') as AdventureScene | null;
+  if (!scene) game.scene.add('adventure-menu', AdventureScene, true, options);
+  else if (scene.sys.isActive()) scene.configure(options);
+  else scene.scene.restart(options);
+}
+
+/** Stop canvas scenes when returning to the DOM home screen. */
+export function closeCanvasScreens(): void {
+  phaser?.scene.getScene('puzzle')?.scene.stop();
+  phaser?.scene.getScene('adventure-menu')?.scene.stop();
+}
+
+/** Create one shared renderer and preserve its resolution while its host is hidden. */
+const canvasGame = (parent: HTMLElement, theme: Theme): Phaser.Game => {
   const size = (): { width: number; height: number; zoom: number } => {
     const ratio = Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO);
-    return {
-      width: Math.floor(parent.clientWidth * ratio), height: Math.floor(parent.clientHeight * ratio), zoom: 1 / ratio,
-    };
+    return { width: Math.floor(parent.clientWidth * ratio), height: Math.floor(parent.clientHeight * ratio), zoom: 1 / ratio };
   };
   if (phaser) {
-    // While the canvas was hidden the scale manager measured it as empty, and it only looks again
-    // twice a second. Measure now, or taps land on no square until it does.
+    // Re-measure immediately after showing a hidden host so pointer coordinates stay accurate.
     phaser.scale.refresh();
-    // Restart through the scene's own plugin: it queues behind the stop the scene asked for on leaving.
-    const scene = phaser.scene.getScene('puzzle') as Phaser.Scene | null;
-    if (scene) {
-      scene.scene.restart(options);
-    } else {
-      phaser.scene.start('puzzle', options);
-    }
-    return;
+    return phaser;
   }
   const game = phaser = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent,
-    backgroundColor: options.theme.background,
-    banner: false,
-    disableContextMenu: true,
-    // Effects use sound.ts. Phaser's unused context would still resume on focus,
-    // interrupting other iOS audio even while our effects are muted.
-    audio: { noAudio: true },
-    // Unused, and off so Phaser never listens for keys typed into the seed code box.
-    input: { keyboard: false },
+    type: Phaser.AUTO, parent, backgroundColor: theme.background, banner: false, disableContextMenu: true,
+    audio: { noAudio: true }, input: { keyboard: false },
     scale: { mode: Phaser.Scale.NONE, expandParent: false, ...size() },
   });
-  game.scene.add('puzzle', PuzzleScene, true, options);
   new ResizeObserver(() => {
     const { width, height, zoom } = size();
-    // A hidden parent has no size: keep the last one until it is shown again.
     if (width > 0 && height > 0 && (width !== game.scale.width || height !== game.scale.height)) {
-      if (zoom !== game.scale.zoom) {
-        game.scale.setZoom(zoom);
-      }
+      if (zoom !== game.scale.zoom) game.scale.setZoom(zoom);
       game.scale.resize(width, height);
     }
   }).observe(parent);
-}
+  return game;
+};
 
 /**
  * Passes adventure events to the puzzle screen, if it is showing an adventure.
