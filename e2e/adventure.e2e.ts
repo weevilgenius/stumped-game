@@ -69,7 +69,11 @@ test('route, equipment and an unfinished puzzle resume through separate canvas s
   const route = page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first();
   const bounds = await route.boundingBox();
   await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
-  await activate(page, 'Next puzzle');
+  await ready(page);
+  await expect(page.getByRole('button', { name: 'Fight', exact: true })).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Next puzzle', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: `screenshots/adventure-fight-${info.project.name}.png` });
+  await activate(page, page.locator('.accessible-adventure [data-action="play"]'));
   await expect(page.getByRole('gridcell')).toHaveCount(81);
   await page.getByRole('button', { name: /^Shortbow, ready/ }).focus(); await page.keyboard.press('Shift+Enter');
   const card = page.getByRole('dialog', { name: 'Adventure details' });
@@ -126,7 +130,7 @@ test('item and skill taps toggle readiness while holds inspect without toggling'
   await page.screenshot({ path: `screenshots/adventure-tap-gear-${info.project.name}.png` });
   await activate(page, 'Map');
   await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
-  await activate(page, 'Next puzzle');
+  await activate(page, page.locator('.accessible-adventure [data-action="play"]'));
   await expect(page.getByRole('gridcell')).toHaveCount(81);
   const card = page.getByRole('dialog', { name: 'Adventure details' });
   for (const [slot, name] of ['Shortbow', 'Parry'].entries()) {
@@ -157,7 +161,10 @@ test('loot and forward travel follow an actual fight, with new preparation scree
   await enable(page); await start(page);
   await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
   for (let puzzle = 0; puzzle < 2; puzzle++) {
-    await activate(page, 'Next puzzle');
+    if ((await readSave(page)).state.encounter?.phase === 'active') {
+      await expect(page.getByRole('button', { name: puzzle === 0 ? 'Fight' : 'Continue Fight', exact: true })).toBeAttached();
+    }
+    await activate(page, page.locator('.accessible-adventure [data-action="play"]'));
     await page.waitForFunction(() => {
       const w = window as unknown as { stumped?: { model: Game; sys: { isActive: () => boolean } }; controller: { adventure: { game: Game } } };
       return w.stumped?.sys.isActive() && w.stumped.model.id === w.controller.adventure.game.id && w.stumped.model.status === 'playing';
@@ -204,7 +211,7 @@ test('finishing postcombat scavenging opens loot and keeps the next puzzle playa
   expect((await readSave(page)).state.slots).toHaveLength(3);
   await activate(page, 'Map');
   await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
-  await activate(page, 'Next puzzle');
+  await activate(page, page.locator('.accessible-adventure [data-action="play"]'));
   await expect(page.getByRole('gridcell')).toHaveCount(81);
   const first = await page.evaluate(() => (window as unknown as { stumped: { model: Game } }).stumped.model.puzzle.solution[0]);
   await page.getByRole('gridcell').nth(first).focus(); await page.keyboard.press('Enter');
