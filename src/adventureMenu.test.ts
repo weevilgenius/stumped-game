@@ -61,6 +61,22 @@ it('keeps all exact size bands in inspection cards and uses one-time location ch
   expect(page.cards[0].id).toBe('move-on');
 });
 
+it('hides event effects until chosen, then shows what happened', () => {
+  const { controller, save, view } = setup();
+  view.panel = 'here';
+  save.state.campaign!.node = '4-0';
+  Object.assign(save.state.campaign!.map.find((node) => node.id === '5-0')!, { kind: 'event' });
+  controller.adventureCommand({ type: 'travel', node: '5-0' });
+  save.state.campaign!.event = 'shrine';
+  let page = adventurePage(controller, view, false, vi.fn());
+  expect(page.cards[0].actions!.map((action) => action.label)).toEqual(['Touch it', 'Leave it be']);
+  page.cards[0].actions![0].onSelect();
+  page = adventurePage(controller, view, false, vi.fn());
+  expect(page.cards[0].id).toBe('event-outcome');
+  expect(page.cards[0].body).toContain('-5 health · An item waits below');
+  expect(save.state.campaign!.loot).toHaveLength(1);
+});
+
 it('allows inspecting shop gear before spending supplies', () => {
   const { controller, save, view } = setup();
   save.state.campaign!.node = '2-0';
