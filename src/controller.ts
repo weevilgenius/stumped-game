@@ -7,6 +7,7 @@ import type { Generate } from './generator';
 import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
 import { STARTERS } from './adventure/content/campaign';
+import { currentNode } from './adventure/engine';
 import type { AdventureCommand, AdventureEvent, AdventureState } from './adventure/engine';
 import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, recordPuzzle, sync } from './adventurePlay';
 
@@ -689,6 +690,21 @@ export function createController(deps: ControllerDeps): Controller {
     get adventureUnlocks() { return adventureUnlocks; },
     adventureCommand: (next) => {
       if (!adventure || starting || confirming) return;
+      if (next.type === 'sell') {
+        const run = adventure;
+        const state = run.state;
+        const campaign = state.campaign;
+        const slot = next.pack === undefined ? state.slots[next.slot] : campaign?.pack[next.pack];
+        if (!slot || state.phase !== 'between' || state.encounter || !campaign?.active || currentNode(state)?.kind !== 'shop') return;
+        const value = Math.floor((slot.item.price ?? 25) / 2);
+        void (async () => {
+          if (!await ask(`Sell ${slot.item.id.replaceAll('-', ' ')} for ${value} supplies?`) || adventure !== run || run.state !== state) return;
+          report(command(run, next, deps.date()));
+          persist();
+          emit();
+        })();
+        return;
+      }
       report(command(adventure, next, deps.date()));
       persist();
       emit();

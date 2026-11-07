@@ -308,6 +308,24 @@ export function applyCampaign(state: AdventureState, command: CampaignCommand, e
     events.push({ type: 'gear-changed', item: campaign.pack.at(-1)!.item.id });
     return null;
   }
+  case 'move-gear': {
+    if (!between) return 'wrong-phase';
+    const area = command.pack ? campaign.pack : state.slots;
+    const slot = area[command.slot];
+    if (!slot || !Number.isInteger(command.slot) || ![-1, 1].includes(command.direction)) return 'bad-slot';
+    const target = command.slot + command.direction;
+    if (target >= 0 && target < area.length) {
+      [area[command.slot], area[target]] = [area[target], slot];
+    } else if (command.pack && command.direction === -1 && command.slot === 0) {
+      if (state.slots.length < 4) state.slots.push(...campaign.pack.splice(0, 1));
+      else [state.slots[3], campaign.pack[0]] = [slot, state.slots[3]];
+    } else if (!command.pack && command.direction === 1 && command.slot === state.slots.length - 1) {
+      if (campaign.pack.length) [state.slots[command.slot], campaign.pack[0]] = [campaign.pack[0], slot];
+      else campaign.pack.push(...state.slots.splice(command.slot, 1));
+    } else return 'bad-slot';
+    events.push({ type: 'gear-changed', item: slot.item.id });
+    return null;
+  }
   case 'drop': {
     if (!between) return 'wrong-phase';
     const area = command.pack ? campaign.pack : state.slots;
@@ -320,12 +338,14 @@ export function applyCampaign(state: AdventureState, command: CampaignCommand, e
   }
   case 'sell': {
     if (!shop) return 'wrong-phase';
-    const slot = campaign.pack[command.pack];
+    const area = command.pack === undefined ? state.slots : campaign.pack;
+    const index = command.pack ?? command.slot;
+    const slot = area[index];
     if (!slot) return 'bad-slot';
     const amount = Math.floor((slot.item.price ?? 25) / 2);
     state.resources.supplies = supplies + amount;
     campaign.earned += amount;
-    campaign.pack.splice(command.pack, 1);
+    area.splice(index, 1);
     events.push({ type: 'resource-changed', resource: 'supplies', amount, total: state.resources.supplies, band: 0 });
     return null;
   }

@@ -8,7 +8,7 @@ export function bindItemPress(target: Phaser.GameObjects.GameObject, scale: numb
   let timer: ReturnType<typeof setTimeout> | undefined;
   const cancel = (): void => { clearTimeout(timer); timer = undefined; press = null; };
   const down = (pointer: Phaser.Input.Pointer): void => {
-    if (pointer.button !== 0 || press) return;
+    if (pointer.button !== 0 || press || document.querySelector('dialog[open]')) return;
     press = { id: pointer.id, x: pointer.x, y: pointer.y, held: false };
     if (onHold) timer = setTimeout(() => {
       if (!press) return;

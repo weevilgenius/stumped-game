@@ -100,7 +100,7 @@ export class AdventureScene extends Phaser.Scene {
 
   private activate(name: string, details = false): void {
     const control = this.controls.get(name);
-    if (!control || control.view.disabled || performance.now() < this.blockedUntil || !this.sys.isActive()) return;
+    if (!control || control.view.disabled || performance.now() < this.blockedUntil || !this.sys.isActive() || document.querySelector('dialog[open]')) return;
     // A second tap must not activate a different offer or destination that replaced this button.
     this.blockedUntil = performance.now() + 300;
     if (details) control.action.onHold?.();
@@ -123,7 +123,8 @@ export class AdventureScene extends Phaser.Scene {
       selected && !disabled ? theme.background : theme.cream, fixed).setOrigin(0, 0.5);
     // Long action labels wrap within their own touch target.
     if (text.height > (height - 6) * this.u) text.setFontSize(11 * this.u);
-    this.controls.set(action.name, { view: { name: action.name, label: action.label, bounds: [x, y, width, height], disabled }, action, fixed });
+    if (action.ariaLabel) text.setX((x + width / 2) * this.u).setOrigin(0.5);
+    this.controls.set(action.name, { view: { name: action.name, label: action.ariaLabel ?? action.label, bounds: [x, y, width, height], disabled }, action, fixed });
     this.spots[action.name] = { x: x + width / 2, y: y + height / 2 };
     // A selected but disabled button (the current map stop) keeps full-strength text against the dark fill.
     if (disabled) { back.setFillStyle(theme.ink); text.setAlpha(selected ? 1 : 0.5); }
@@ -213,7 +214,7 @@ export class AdventureScene extends Phaser.Scene {
     const body = this.label(card.body, x + 12, bodyY, 14, width - 24, theme.cream, false);
     const swatchY = bodyY + body.height / this.u + 10;
     const actions = card.actions ?? [];
-    const perRow = width >= 360 ? 3 : 2;
+    const perRow = card.gearActions ? 4 : width >= 360 ? 3 : 2;
     const actionTop = swatchY + (card.colors?.length ? 30 : 0);
     const height = actionTop - y + Math.ceil(actions.length / perRow) * 48 + 12;
     const back = this.add.rectangle((x + width / 2) * this.u, (y + height / 2) * this.u, width * this.u, height * this.u, theme.ink).setRounded(12 * this.u)
@@ -230,7 +231,10 @@ export class AdventureScene extends Phaser.Scene {
       this.label(String(color + 1), cx, swatchY + 1, 12, 21, 0x17251b, false).setAlign('center');
     });
     const buttonWidth = (width - 24 - (Math.min(perRow, actions.length) - 1) * 6) / Math.max(1, Math.min(perRow, actions.length));
-    actions.forEach((action, index) => this.button(action, x + 12 + index % perRow * (buttonWidth + 6), actionTop + Math.floor(index / perRow) * 48, buttonWidth, 44, false, false));
+    if (card.gearActions) {
+      const detailsWidth = width - 24 - 3 * 50;
+      actions.forEach((action, index) => this.button(action, x + 12 + (index ? detailsWidth + 6 + (index - 1) * 50 : 0), actionTop, index ? 44 : detailsWidth, 44, false, false));
+    } else actions.forEach((action, index) => this.button(action, x + 12 + index % perRow * (buttonWidth + 6), actionTop + Math.floor(index / perRow) * 48, buttonWidth, 44, false, false));
     return height;
   }
 

@@ -51,3 +51,15 @@ it('ignores another pointer and secondary mouse buttons', () => {
   target.emit('pointerup', pointer); expect(tap).toHaveBeenCalledTimes(1);
   target.emit('destroy');
 });
+
+it('ignores presses begun in a dialog even when it closes before pointer release', () => {
+  const { target, pointer, tap, hold } = setup();
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('open', ''); document.body.append(dialog);
+  target.emit('pointerdown', pointer);
+  vi.advanceTimersByTime(600);
+  dialog.remove();
+  target.emit('pointerup', pointer);
+  expect(tap).not.toHaveBeenCalled(); expect(hold).not.toHaveBeenCalled();
+  target.emit('destroy');
+});
