@@ -366,6 +366,13 @@ Barry played a complete run on each of two phase 7 implementations, built on the
 - **Zones (tentative):** Thematic regions, such as a desert of flame or a swamp, each with effects and enemies it tends to spawn. Examples: a zone where red and yellow are boosted and green and blue weakened, or a swamp that occasionally poisons. Effects that apply to everyone make a zone's difficulty depend on the player's loadout. A zone should span several columns, with forks between zones, so choosing one commits the player. An obviously harder zone needs game reasons to enter, and those benefits should be small and specific for balance; they are not settled yet. Candidates: quests that can only be completed in that zone, rare or unique weapons from a zone miniboss, zone-themed gear, better loot tiers, or a shorter path to the boss.
 - **Run length:** Runs feel too short, even allowing for fights that will spill across puzzles once tuned. For comparison, Slay the Spire is about three times as long because it repeats its structure in acts, and FTL has about as many sectors but several encounters in each, with a pursuit timer (the rebels catch up if you linger). Barry's PR #79 run averaged about 3 minutes per puzzle, about 42 minutes for 14 puzzles. Decision: raise the target by 50%, to 18 to 27 puzzles (roughly an hour at that pace), and judge the feel again after tuning. The longer map needs at least PR #80's compact map, which shows a window of columns rather than the whole route. Acts built from zones (each ending in a boss or miniboss, choosing the next zone between acts, loot tiers stepping up per act) and FTL-style pressure for lingering in a zone are candidate structures.
 
+### Playtest review: hybrid runs (2026-11-07)
+
+Barry played two complete runs on the hybrid implementation (PR #93). The first (Ranger, 22 puzzles) won at full health with 216 supplies unspent and every weapon at its level cap; the boss died in one puzzle. After raising tier 3, elite, and boss health and making half of elites hit harder, the second (Herbalist, 27 puzzles) won with health as low as 9/22 and a three-puzzle boss fight. Weapon leveling with a cap works well.
+
+- **Direction:** Better, and further tuning should reach the target. A run this long needs a wider spread of enemies and equipment so difficulty can ramp and peak higher. Harder enemies plus environmental effects that weaken or knock out colors approach the desired challenge. Both wait for later phases.
+- **Consumables:** Too common and too strong. Ordinary fights no longer drop them; shops, elites, and events are the only sources. Their strength is unchanged for now.
+
 ### Completion criteria
 
 Both the simulator and interactive game can complete whole runs using identical rules. All routes reach valid outcomes, rewards and recovery opportunities are bounded, and saved runs resume throughout progression. Reports distinguish survival from encounter completion and show the opening gear race, health across encounters, equipment growth, resources earned and spent, and unresolved runs. Compare actual starters and equipment paths under both ordinary reveal behavior and deliberate planning, with original definitions and any counterfactual substitutions labeled. Independent playtesting checks whether the loop is understandable without developer explanation; final balance and victory-rate tuning remain in phase 8.
@@ -410,3 +417,7 @@ Ideas raised during planning, not yet part of any phase.
 - **Harvestable colors:** Only some colors scavenge after a win, explained up front, so players try to save them for the end. Different enemies could drop different colors.
 - **Charged harvest:** A harvest that charges like the staff, with a bonus for collecting colors in the right order.
 - **Carry-over charge:** Some charge carries from one puzzle to the next.
+- **Early attacks:** Later enemies are more likely to attack on the first turn.
+- **Enemy groups:** Several enemies at once, such as goblins. Damage goes to the front one, while those behind keep their own attack cycles.
+- **Color resistances:** Some stronger enemies take reduced damage from certain colors.
+- **Color-suppressing environments:** Zone or encounter effects that weaken or knock out certain colors.
