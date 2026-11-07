@@ -1037,6 +1037,33 @@ describe('adventure', () => {
 });
 
 describe('bounded campaign controller', () => {
+  it('confirms gear sales with their value, supports cancel, and ignores approval after navigation', async () => {
+    const { fake, controller } = setup();
+    await controller.startAdventure();
+    controller.adventure!.state.campaign!.node = '2-0';
+    controller.adventureCommand({ type: 'travel', node: '3-0' });
+    const before = structuredClone(controller.adventure!.state);
+    fake.answer = false;
+    controller.adventureCommand({ type: 'sell', slot: 0 });
+    await Promise.resolve(); await Promise.resolve();
+    const value = Math.floor((before.slots[0].item.price ?? 25) / 2);
+    expect(fake.questions.at(-1)).toContain(`${value} supplies`);
+    expect(controller.adventure!.state).toEqual(before);
+    let answer!: (value: boolean) => void;
+    fake.answer = new Promise((resolve) => { answer = resolve; });
+    controller.adventureCommand({ type: 'sell', slot: 0 });
+    controller.showMenu();
+    answer(true);
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.adventure!.state).toEqual(before);
+    fake.answer = true;
+    controller.adventureCommand({ type: 'sell', slot: 0 });
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.adventure!.state.slots).toHaveLength(before.slots.length - 1);
+    expect(controller.adventure!.state.resources.supplies).toBe((before.resources.supplies ?? 0) + value);
+    expect(parseAdventure(fake.store.get('adventure')!)!.state).toEqual(controller.adventure!.state);
+  });
+
   it('starts at the route map, saves travel before generation, and resumes its own puzzle', async () => {
     const { fake, controller } = setup(savedStore(false));
     await controller.startAdventure();

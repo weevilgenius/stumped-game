@@ -42,8 +42,13 @@ it('offers only connected route actions and keeps equipment swaps out of an unfi
   const actions = page.cards.flatMap((card) => card.actions ?? []);
   expect(actions.find((action) => action.name === 'pack')?.disabled).toBe(true);
   expect(actions.find((action) => action.name === 'earlier')?.disabled).toBe(true);
-  actions.find((action) => action.name === 'ready')!.onSelect();
-  expect(save.state.slots[0].ready).toBe(false);
+  expect(actions.find((action) => action.name === 'ready')).toBeUndefined();
+  expect(save.state.slots[0].ready).toBe(true);
+  view.detail = null;
+  page = adventurePage(controller, view, false, vi.fn());
+  expect(page.cards[0].press).toBeUndefined();
+  expect(page.cards[0].actions!.map((action) => action.label)).toEqual(['Details', '↑', '↓', '🗑']);
+  expect(page.cards[0].actions!.slice(1).every((action) => action.disabled)).toBe(true);
 });
 
 it('keeps all exact size bands in inspection cards and uses one-time location choices', () => {

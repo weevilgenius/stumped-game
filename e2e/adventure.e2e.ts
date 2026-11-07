@@ -95,7 +95,7 @@ test('route, equipment and an unfinished puzzle resume through separate canvas s
   await expect(page.locator('#game canvas')).toHaveCount(1);
 });
 
-test('item and skill taps toggle readiness while holds inspect without toggling', async ({ page }, info) => {
+test('gear opens details without toggling; puzzle taps toggle readiness while holds inspect', async ({ page }, info) => {
   test.setTimeout(60_000);
   await enable(page); await start(page); await activate(page, 'Gear');
   const touch = info.project.name === 'mobile-chromium' ? await page.context().newCDPSession(page) : null;
@@ -110,21 +110,10 @@ test('item and skill taps toggle readiness while holds inspect without toggling'
     if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     else await page.mouse.up();
   };
-  const gear = page.locator('.accessible-adventure [data-action="ready-0"]');
-  await ready(page); await down(gear); await up();
-  await expect.poll(async () => (await readSave(page)).state.slots[0].ready).toBe(false);
-  await ready(page); await down(gear);
+  await expect(page.locator('.accessible-adventure [data-action^="ready-"]')).toHaveCount(0);
+  await activate(page, page.locator('.accessible-adventure [data-action="inspect-slot-0"]'));
   await expect(page.getByRole('heading', { name: 'Shortbow', exact: true })).toBeAttached();
-  await up(); expect((await readSave(page)).state.slots[0].ready).toBe(false);
-  await activate(page, 'Back'); await ready(page);
-  const spot = await down(gear);
-  if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: spot.x + 35, y: spot.y }] });
-  else await page.mouse.move(spot.x + 35, spot.y);
-  await up(); expect((await readSave(page)).state.slots[0].ready).toBe(false);
-  await gear.focus(); await page.keyboard.press('Space');
-  await expect.poll(async () => (await readSave(page)).state.slots[0].ready).toBe(true);
-  await ready(page); await gear.focus(); await page.keyboard.press('Shift+Enter');
-  await expect(page.getByRole('heading', { name: 'Shortbow', exact: true })).toBeAttached();
+  await expect(page.getByRole('button', { name: /^(Unready|Ready)$/ })).toHaveCount(0);
   expect((await readSave(page)).state.slots[0].ready).toBe(true);
   await activate(page, 'Back');
   await page.screenshot({ path: `screenshots/adventure-tap-gear-${info.project.name}.png` });
@@ -160,6 +149,12 @@ test('item and skill taps toggle readiness while holds inspect without toggling'
 test('loot and forward travel follow an actual fight, with new preparation screens after each puzzle', async ({ page }) => {
   await enable(page); await start(page);
   await activate(page, page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first());
+  // Exercise loot navigation from a nearly won fight, independent of random enemy balance.
+  const saved = await readSave(page);
+  if (saved.state.encounter?.type !== 'enemy') throw new Error('Expected a fight');
+  saved.state.encounter.health = 1;
+  await page.evaluate((value) => localStorage.setItem('stumped-main.adventure', JSON.stringify(value)), saved);
+  await page.reload();
   for (let puzzle = 0; puzzle < 2; puzzle++) {
     if ((await readSave(page)).state.encounter?.phase === 'active') {
       await expect(page.getByRole('button', { name: puzzle === 0 ? 'Fight' : 'Continue Fight', exact: true })).toBeAttached();
@@ -233,10 +228,62 @@ test('quiet locations, shops and reserves use Phaser controls and survive reload
   await page.screenshot({ path: `screenshots/adventure-shop-${info.project.name}.png` });
   await page.reload();
   expect((await readSave(page)).state.slots).toHaveLength(3);
+  await activate(page, 'Gear');
+  await expect(page.getByRole('button', { name: /^Drop / })).toHaveCount(0);
+  const before = (await readSave(page)).state;
+  const value = Math.floor((before.slots[0].item.price ?? 25) / 2);
+  const sell = page.locator('.accessible-adventure [data-action="remove-slot-0"]');
+  await activate(page, sell);
+  await expect(page.locator('#confirmation')).toContainText(`${value} supplies`);
+  await page.locator('#confirmation').getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await readSave(page)).state).toEqual(before);
+  await expect(page.getByRole('heading', { name: 'Equipment', exact: true })).toBeAttached();
+  await activate(page, sell);
+  await page.locator('#confirmation').getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect.poll(async () => (await readSave(page)).state.slots.length).toBe(2);
+  expect((await readSave(page)).state.resources.supplies).toBe((before.resources.supplies ?? 0) + value);
+  await page.screenshot({ path: `screenshots/adventure-shop-gear-${info.project.name}.png` });
+  await page.reload();
+  expect((await readSave(page)).state.slots).toHaveLength(2);
+  await activate(page, 'Here');
   await activate(page, 'Leave shop');
   await activate(page, 'Map');
   await ready(page);
   await expect(page.locator('.accessible-adventure [data-action^="travel-"]:enabled').first()).toBeAttached();
+});
+
+test('gear arrows reorder equipment and reserves across the boundary, and dropping leaves loot', async ({ page }, info) => {
+  await enable(page);
+  const state = startRun(STARTERS[0]); state.campaign = createCampaign(7);
+  state.slots = Array.from({ length: 4 }, (_, index) => ({ ...structuredClone(state.slots[index % 2]), item: { ...state.slots[index % 2].item, instance: `gear-${index}` }, level: index % 3, experience: index }));
+  state.campaign.pack = [structuredClone(state.slots[1]), structuredClone(state.slots[0])].map((slot, index) => ({ ...slot, item: { ...slot.item, instance: `pack-${index}` } }));
+  const original = structuredClone(state);
+  const save: AdventureSave = { version: 2, loadout: STARTERS[0], start: original, state, log: [], game: null, played: 0, open: true, view: 'campaign' };
+  await page.evaluate((value) => localStorage.setItem('stumped-main.adventure', JSON.stringify(value)), save);
+  await page.reload(); await activate(page, 'Gear');
+  await expect(page.locator('.accessible-adventure [data-action="up-slot-0"]')).toBeDisabled();
+  await activate(page, page.locator('.accessible-adventure [data-action="down-slot-0"]'));
+  expect((await readSave(page)).state.slots.slice(0, 2)).toEqual([original.slots[1], original.slots[0]]);
+  await activate(page, page.locator('.accessible-adventure [data-action="up-slot-1"]'));
+  const reveal = async (action: string, direction: string): Promise<Locator> => {
+    const target = page.locator(`.accessible-adventure [data-action="${action}"]`);
+    for (let index = 0; index < 10 && !await target.count(); index++) await activate(page, direction);
+    await expect(target).toBeAttached();
+    return target;
+  };
+  await activate(page, await reveal('up-pack-0', 'Scroll down'));
+  expect((await readSave(page)).state.slots[3]).toEqual(original.campaign!.pack[0]);
+  expect((await readSave(page)).state.campaign!.pack[0]).toEqual(original.slots[3]);
+  await activate(page, await reveal('down-slot-3', 'Scroll up'));
+  expect((await readSave(page)).state.slots).toEqual(original.slots);
+  await activate(page, await reveal('down-pack-0', 'Scroll down'));
+  expect((await readSave(page)).state.campaign!.pack).toEqual([...original.campaign!.pack].reverse());
+  await activate(page, await reveal('remove-slot-0', 'Scroll up'));
+  expect((await readSave(page)).state.slots).toEqual(original.slots.slice(1));
+  expect((await readSave(page)).state.campaign!.loot[0].slot).toEqual(original.slots[0]);
+  await page.screenshot({ path: `screenshots/adventure-gear-controls-${info.project.name}.png` });
+  await page.reload();
+  expect((await readSave(page)).state.campaign!.loot[0].slot).toEqual(original.slots[0]);
 });
 
 test('legacy sandbox selection still starts its exact loadout and returns to its own screen', async ({ page }) => {

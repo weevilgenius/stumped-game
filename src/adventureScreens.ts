@@ -15,6 +15,8 @@ export interface AdventureAction {
   name: string;
   /** Visible and spoken label. */
   label: string;
+  /** Spoken description for a compact icon button. */
+  ariaLabel?: string;
   /** Whether the action is currently unavailable. */
   disabled?: boolean;
   /** Applies the action through the controller or changes the current view. */
@@ -34,6 +36,8 @@ export interface AdventureCard {
   colors?: readonly number[];
   /** Card controls. */
   actions?: AdventureAction[];
+  /** One Details button followed by three compact gear controls. */
+  gearActions?: boolean;
   /** Optional interaction with the card itself. */
   press?: AdventureAction;
   /** Highlight a selected character or current item. */
@@ -182,8 +186,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     page.cards[2].body += `\nReady in ${Math.max(0, slot.readyAt - (state.round?.turn ?? 0) - 1)} reveals${slot.item.charge ? ` · Needs colors ${slot.item.colors.filter((color) => !slot.charged.includes(color)).map((color) => color + 1).join(', ')}` : ''}`;
     page.cards[2].actions = pack ? [action('equip', 'Equip / swap', () => { view.detail = { type: 'equip', pack: index }; onChange(); }, !between),
       ...(node?.kind === 'shop' && campaign?.active ? [action('sell', `Sell for ${Math.floor((slot.item.price ?? 25) / 2)}`, () => { send({ type: 'sell', pack: index }); view.detail = null; onChange(); }, !between || !!state.encounter)] : [])]
-      : [action('ready', slot.ready ? 'Unready' : 'Ready', () => controller.setReady(index, !slot.ready)),
-        ...(campaign ? [action('pack', 'Put in pack', () => { send({ type: 'unequip', slot: index }); view.detail = null; onChange(); }, !between || campaign.pack.length >= 3)] : []),
+      : [...(campaign ? [action('pack', 'Put in pack', () => { send({ type: 'unequip', slot: index }); view.detail = null; onChange(); }, !between || campaign.pack.length >= 3)] : []),
         action('earlier', 'Move earlier', () => {
           const order = state.slots.map((_, i) => i); [order[index], order[index - 1]] = [order[index - 1], order[index]];
           send({ type: 'set-priority', slots: order }); view.detail = { type: 'item', slot: index - 1 }; onChange();
@@ -211,12 +214,22 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     } else page.cards = [{ id: 'sandbox', title: 'Sandbox playtest', body: 'The current wolf continues between puzzles. Defeating it starts a new wolf after harvest.' }];
   } else if (view.panel === 'gear') {
     page.title = 'Equipment';
+    const shop = node?.kind === 'shop' && !!campaign?.active;
+    const gearActions = (index: number, pack = false): AdventureAction[] => {
+      const slot = pack ? campaign!.pack[index] : state.slots[index];
+      const itemName = name(slot.item.id);
+      const icon = (id: string, label: string, ariaLabel: string, onSelect: () => void, disabled: boolean): AdventureAction => ({ ...action(id, label, onSelect, disabled), ariaLabel });
+      const id = `${pack ? 'pack' : 'slot'}-${index}`;
+      return [action(`inspect-${id}`, 'Details', () => inspect(index, pack)),
+        icon(`up-${id}`, '↑', `Move ${itemName} earlier`, () => send({ type: 'move-gear', slot: index, pack, direction: -1 }), !between || !campaign || (!pack && index === 0)),
+        icon(`down-${id}`, '↓', `Move ${itemName} later`, () => send({ type: 'move-gear', slot: index, pack, direction: 1 }), !between || !campaign || (pack && index === campaign.pack.length - 1)),
+        icon(`remove-${id}`, shop ? '💰' : '🗑', `${shop ? 'Sell' : 'Drop'} ${itemName}`, () => send(shop ? pack ? { type: 'sell', pack: index } : { type: 'sell', slot: index } : { type: 'drop', slot: index, pack }), !between || !campaign || (shop && !!state.encounter))];
+    };
     page.cards = state.slots.map((slot, index) => ({ id: `equipped-${slot.item.instance ?? slot.item.id}`, title: `${index + 1}. ${name(slot.item.id)} · ${slot.ready ? 'Ready' : 'Unready'}`,
-      body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL} · Tap to toggle readiness. Hold for details.`, colors: slot.item.colors,
-      press: { ...action(`ready-${index}`, `${name(slot.item.id)}, ${slot.ready ? 'ready' : 'not ready'}`, () => controller.setReady(index, !slot.ready)), onHold: () => inspect(index) },
-      actions: [action(`inspect-slot-${index}`, 'Inspect / manage', () => inspect(index))],
+      body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL}`, colors: slot.item.colors,
+      actions: gearActions(index), gearActions: true,
     }));
-    page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL} · Reserve item; does not receive pulses.`, colors: slot.item.colors, actions: [action(`inspect-pack-${index}`, 'Inspect / manage', () => inspect(index, true))] })));
+    page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL} · Reserve item; does not receive pulses.`, colors: slot.item.colors, actions: gearActions(index, true), gearActions: true })));
     page.cards.push(...(campaign?.potions ?? []).map((potion, index) => ({ id: `potion-${index}`, title: name(potion.id), body: `Instant ${potion.value} ${potion.id.split('-')[0]}. No tactical turn.`, actions: [action(`use-potion-${index}`, 'Use potion', () => send({ type: 'use-potion', potion: index }), potion.id !== 'healing-potion' && (state.encounter?.type !== 'enemy' || state.encounter.phase !== 'active'))] })));
   } else {
     page.title = node ? name(node.kind) : name(state.character);

@@ -94,7 +94,9 @@ export type CampaignCommand =
   | { readonly type: 'choose'; readonly choice: 'leave' | 'rest' | 'upgrade' | 'event'; readonly slot?: number; readonly option?: number }
   | { readonly type: 'take-loot'; readonly offer: string; readonly replace?: number }
   | { readonly type: 'buy'; readonly offer: string; readonly replace?: number }
-  | { readonly type: 'sell'; readonly pack: number }
+  | { readonly type: 'sell'; readonly pack: number; readonly slot?: never }
+  | { readonly type: 'sell'; readonly slot: number; readonly pack?: never }
+  | { readonly type: 'move-gear'; readonly slot: number; readonly pack?: boolean; readonly direction: -1 | 1 }
   | { readonly type: 'shop-heal' }
   | { readonly type: 'equip'; readonly pack: number; readonly slot: number }
   | { readonly type: 'unequip'; readonly slot: number }

@@ -28,6 +28,49 @@ const solve = (state: AdventureState, id = 'puzzle'): AdventureState => {
 };
 
 describe('seeded route contracts', () => {
+  it('moves whole items in both directions within and across equipment and pack, including full inventories', () => {
+    let state = start();
+    state.slots = Array.from({ length: 4 }, (_, index) => ({ ...structuredClone(state.slots[0]),
+      item: { ...state.slots[0].item, instance: `item-${index}` }, level: index % 3, experience: index, readyAt: index + 1, charged: [index], chargedAmount: index * 2 }));
+    state.campaign!.pack = Array.from({ length: 3 }, (_, index) => ({ ...structuredClone(state.slots[index]), item: { ...state.slots[index].item, instance: `pack-${index}` } }));
+    const original = structuredClone(state);
+    state = issue(state, { type: 'move-gear', slot: 3, direction: 1 });
+    expect(state.slots[3]).toEqual(original.campaign!.pack[0]);
+    expect(state.campaign!.pack[0]).toEqual(original.slots[3]);
+    state = issue(state, { type: 'move-gear', slot: 0, pack: true, direction: -1 });
+    expect(state).toEqual(original);
+    state = issue(state, { type: 'move-gear', slot: 0, direction: 1 });
+    expect(state.slots.slice(0, 2)).toEqual([original.slots[1], original.slots[0]]);
+    state = issue(state, { type: 'move-gear', slot: 0, pack: true, direction: 1 });
+    expect(state.campaign!.pack.slice(0, 2)).toEqual([original.campaign!.pack[1], original.campaign!.pack[0]]);
+    expect(step(state, { type: 'move-gear', slot: 0, direction: -1 }).state).toBe(state);
+    expect(step(state, { type: 'move-gear', slot: 2, pack: true, direction: 1 }).state).toBe(state);
+    state.campaign!.pack = [];
+    const last = structuredClone(state.slots[3]);
+    state = issue(state, { type: 'move-gear', slot: 3, direction: 1 });
+    expect(state.slots).toHaveLength(3);
+    expect(state.campaign!.pack).toEqual([last]);
+    state = issue(state, { type: 'move-gear', slot: 0, pack: true, direction: -1 });
+    expect(state.slots[3]).toEqual(last);
+    expect(state.campaign!.pack).toHaveLength(0);
+    state = issue(state, { type: 'travel', node: '0-0' });
+    state = issue(state, { type: 'begin-round', round: manifest() });
+    expect(step(state, { type: 'move-gear', slot: 0, direction: 1 }).state).toBe(state);
+  });
+
+  it('sells equipped gear at its displayed value only while shopping', () => {
+    let state = start();
+    expect(step(state, { type: 'sell', slot: 0 }).state).toBe(state);
+    state.campaign!.node = '2-0';
+    state = issue(state, { type: 'travel', node: '3-0' });
+    const [sold, remaining] = structuredClone(state.slots);
+    const supplies = state.resources.supplies ?? 0;
+    state = issue(state, { type: 'sell', slot: 0 });
+    expect(state.slots).toEqual([remaining]);
+    expect(state.resources.supplies).toBe(supplies + Math.floor((sold.item.price ?? 25) / 2));
+    expect(state.campaign!.loot).toHaveLength(0);
+  });
+
   it('every generated path reaches the boss, crosses a guaranteed first shop, and has three forage puzzles', () => {
     for (let seed = 0; seed < 100; seed++) {
       const campaign = createCampaign(seed);
