@@ -1,5 +1,5 @@
 import type { Controller } from './controller';
-import { bandOf } from './adventure/engine';
+import { bandOf, currentNode } from './adventure/engine';
 import { MAX_ITEM_LEVEL, XP_PER_LEVEL } from './adventure/content/campaign';
 import type { AdventureCommand, AdventureState, ItemDef, SlotState } from './adventure/engine';
 
@@ -47,6 +47,12 @@ const enemyInfo = (parent: HTMLElement, state: AdventureState, palette: readonly
     const budget = encounter.def.budget;
     text(parent, budget?.fleeAfter ? `Escapes without loot after ${budget.fleeAfter} puzzles; ${state.campaign?.encounterRounds ?? 0} finished.`
       : `Each new puzzle adds ${budget?.enrage ?? 0} damage to every hit. Attack countdown carries over.`);
+  }
+  if (currentNode(state)?.kind === 'forage') {
+    // Groves skip gear entirely (campaign route()), so no experience or healing here.
+    text(parent, 'Every color harvests supplies. Gear stays idle here: no experience, healing, or foraging bonus.');
+    swatches(parent, encounter.def.scavenge.flatMap((rule) => rule.colors), palette);
+    return;
   }
   text(parent, 'Harvest colors (unready gear to collect supplies):');
   swatches(parent, encounter.def.scavenge.flatMap((rule) => rule.colors), palette);
