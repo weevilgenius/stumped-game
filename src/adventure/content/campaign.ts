@@ -120,14 +120,24 @@ export interface EventOption {
   readonly gain?: 'gear' | 'consumable';
   /** Supplies it gives. */
   readonly earn?: number;
+  /** Flavor text shown after choosing, since labels don't reveal effects. */
+  readonly outcome?: string;
 }
 
 /** Events, mostly trades, some simply calm. */
 export const EVENTS: readonly EventDef[] = [
-  { id: 'hermit', text: 'A hermit offers tea by a warm fire.', options: [{ label: 'Rest a while (+4 health)', health: 4 }, { label: 'Move on' }] },
-  { id: 'peddler', text: 'A peddler waves you over to a cart of bottles.', options: [{ label: 'Buy a potion (8 supplies)', supplies: 8, gain: 'consumable' }, { label: 'Move on' }] },
-  { id: 'shrine', text: 'An old shrine hums with a strange light.', options: [{ label: 'Touch it (-5 health, gain an item)', health: -5, gain: 'gear' }, { label: 'Leave it be' }] },
-  { id: 'camp', text: 'An abandoned camp, long cold.', options: [{ label: 'Search it (+6 supplies)', earn: 6 }, { label: 'Move on' }] },
+  { id: 'hermit', text: 'A hermit offers tea by a warm fire.', options: [
+    { label: 'Rest a while', health: 4, outcome: 'The tea is bitter but warming. You doze by the fire and wake with your aches eased.' },
+    { label: 'Move on' }] },
+  { id: 'peddler', text: 'A peddler waves you over to a cart of bottles.', options: [
+    { label: 'Buy a bottle (8 supplies)', supplies: 8, gain: 'consumable', outcome: 'The peddler wraps a stoppered bottle in cloth and winks. "You\'ll know when you need it."' },
+    { label: 'Move on' }] },
+  { id: 'shrine', text: 'An old shrine hums with a strange light.', options: [
+    { label: 'Touch it', health: -5, gain: 'gear', outcome: 'The light bites like frost and you snatch your hand back. Something clatters onto the altar stone.' },
+    { label: 'Leave it be' }] },
+  { id: 'camp', text: 'An abandoned camp, long cold.', options: [
+    { label: 'Search it', earn: 6, outcome: 'Under a torn bedroll you find a forgotten bundle of provisions.' },
+    { label: 'Move on' }] },
   { id: 'brook', text: 'A quiet brook. Nothing stirs.', options: [{ label: 'Move on' }] },
 ];
 

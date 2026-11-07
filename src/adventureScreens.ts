@@ -49,6 +49,8 @@ export interface AdventureScreenState {
   character: string;
   /** Leftmost column of the route window. */
   mapColumn: number;
+  /** What the last event choice did, shown at that node until moving on. */
+  outcome?: { node: string; text: string };
   /** Nested inspection or equipment operation. */
   detail: { type: 'item'; slot: number; pack?: boolean } | { type: 'character' } | { type: 'offer'; offer: string } | { type: 'replace'; offer: string } | { type: 'equip'; pack: number } | null;
 }
@@ -235,7 +237,17 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
         ...state.slots.map((slot, index) => ({ id: `improve-${index}`, title: name(slot.item.id), body: `Level ${slot.level ?? 0}/${MAX_ITEM_LEVEL}. Improve the effect by one band step.`, colors: slot.item.colors, actions: [action(`improve-${index}`, 'Improve this item', () => send({ type: 'choose', choice: 'upgrade', slot: index }), (slot.level ?? 0) >= MAX_ITEM_LEVEL)] })));
     } else if (campaign?.active && node?.kind === 'event') {
       const event = eventAt(state)!;
-      page.cards.push({ id: 'event', title: name(event.id), body: event.text, actions: event.options.map((option, index) => action(`event-${index}`, option.label, () => send({ type: 'choose', choice: 'event', option: index }), (option.supplies ?? 0) > supplies)) });
+      page.cards.push({ id: 'event', title: name(event.id), body: event.text, actions: event.options.map((option, index) => action(`event-${index}`, option.label, () => {
+        // Set before sending: the page redraws on the command, and only shows it once the event resolves.
+        if (option.outcome) {
+          const effects = [option.health && `${option.health > 0 ? '+' : ''}${option.health} health`, option.supplies && `-${option.supplies} supplies`,
+            option.earn && `+${option.earn} supplies`, option.gain && `${option.gain === 'gear' ? 'An item' : 'A consumable'} waits below`].filter(Boolean);
+          view.outcome = { node: node.id, text: `${option.outcome}\n${effects.join(' · ')}` };
+        }
+        send({ type: 'choose', choice: 'event', option: index });
+      }, (option.supplies ?? 0) > supplies)) });
+    } else if (campaign && node?.kind === 'event' && view.outcome?.node === node.id) {
+      page.cards.unshift({ id: 'event-outcome', title: name(eventAt(state)?.id ?? 'event'), body: view.outcome.text });
     }
     if (!encounter && (!campaign?.active || !node)) page.cards.push({ id: 'move-on', title: 'Ready to move on', body: 'Choose a connected route. Moving on leaves unclaimed loot behind.', actions: [action('route-tab', 'Open map', () => navigate('map'))] });
   }
