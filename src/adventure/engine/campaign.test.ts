@@ -293,6 +293,22 @@ describe('hybrid regressions', () => {
     expect(result.state.resources.supplies).toBe(value);
   });
 
+  it('treasure groves idle all gear except forage gear, which adds its yield to the harvest', () => {
+    let state = start();
+    const node = routeChoices(state)[0];
+    Object.assign(node, { kind: 'forage' });
+    state = issue(state, { type: 'travel', node: node.id });
+    const satchel = { id: 'satchel', effect: 'forage' as const, colors: [0], bands: [{ min: 1, value: 1 }, { min: 8, value: 4 }] };
+    state.slots.push({ item: satchel, ready: true, readyAt: 0, charged: [], chargedAmount: 0, level: 0, experience: 0 });
+    const before = state.resources.supplies ?? 0;
+    state = issue(state, { type: 'begin-round', round: manifest() });
+    state = issue(state, { type: 'turn', collect: { color: 0, amount: 9 } });
+    expect(state.resources.supplies).toBe(before + 2 + 4);
+    state = issue(state, { type: 'turn', collect: { color: 2, amount: 9 } });
+    expect(state.resources.supplies).toBe(before + 2 + 4 + 2);
+    expect(state.slots.map((slot) => slot.experience ?? 0)).toEqual([0, 0, 0]);
+  });
+
   it.each([10, -2])('preserves damage dealt when enemy maximum health changes by %s', (change) => {
     const state = enter();
     if (state.encounter?.type !== 'enemy') throw new Error('Expected enemy');
