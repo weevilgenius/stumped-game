@@ -49,8 +49,8 @@ const enemyInfo = (parent: HTMLElement, state: AdventureState, palette: readonly
       : `Each new puzzle adds ${budget?.enrage ?? 0} damage to every hit. Attack countdown carries over.`);
   }
   if (currentNode(state)?.kind === 'forage') {
-    // Groves skip gear entirely (campaign route()), so no experience or healing here.
-    text(parent, 'Every color harvests supplies. Gear stays idle here: no experience, healing, or foraging bonus.');
+    // Groves idle all gear but forage items (route() in the engine), so no experience or healing here.
+    text(parent, 'Every color harvests supplies. Readied forage gear adds its yield on top; other gear stays idle and earns no experience.');
     swatches(parent, encounter.def.scavenge.flatMap((rule) => rule.colors), palette);
     return;
   }

@@ -5,6 +5,7 @@ import type { AdventureSceneOptions } from './adventureScene';
 import { createAccessiblePuzzle } from './accessibility';
 import type { AccessibleControl } from './accessibility';
 import type { Conflict } from './engine';
+import { currentNode } from './adventure/engine';
 import type { AdventureEvent, AdventureState, ItemDef, SlotState } from './adventure/engine';
 import {
   applyExplanation, beginStroke, canHint, completedUnits, doubleTap, enterHypothesis, type ExplainPage, explain,
@@ -1291,14 +1292,16 @@ class PuzzleScene extends Phaser.Scene {
     if (wait > 0) {
       parts.push(add(this.add.text(x + w - 4 * u, y + 3 * u, `${wait}`, this.textStyle(13)).setOrigin(1, 0)));
     }
-    if (!slot.ready || wait > 0) {
+    // Treasure groves idle everything but forage gear; the saved ready flag is untouched for the next fight.
+    const idle = currentNode(state)?.kind === 'forage' && item.effect !== 'forage';
+    if (!slot.ready || wait > 0 || idle) {
       parts.forEach((part) => (part as unknown as Phaser.GameObjects.Components.AlphaSingle).setAlpha(0.35));
     }
     const name = `slot${index}`;
-    const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
+    const label = `${item.id[0].toUpperCase()}${item.id.slice(1)}, ${idle ? 'idle in this grove' : slot.ready ? 'ready' : 'not ready'}${wait > 0 ? `, cooling down ${wait}` : ''}`;
     this.controls.set(name, {
       view: { name, label, bounds: [x / u, y / u, w / u, h / u], disabled: false, details: !!this.options.adventure?.inspect },
-      onTap: () => this.options.adventure?.setReady(index, !slot.ready),
+      onTap: () => { if (!idle) this.options.adventure?.setReady(index, !slot.ready); },
       onHold: () => this.options.adventure?.inspect?.(index),
     });
     back.setInteractive();

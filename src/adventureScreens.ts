@@ -221,7 +221,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     const encounter = state.encounter;
     if (encounter) {
       page.cards.push({ id: 'encounter', title: name(encounter.def.id), colors: encounter.def.scavenge.flatMap((rule) => rule.colors),
-        body: node?.kind === 'forage' ? 'A single puzzle of harvest. Every color becomes supplies; gear stays idle and earns no experience.'
+        body: node?.kind === 'forage' ? 'A single puzzle of harvest. Every color becomes supplies, and readied forage gear adds its yield. Other gear stays idle and earns no experience.'
           : encounter.phase === 'scavenge' ? 'Harvesting. Readied gear takes matching colors as experience; healing and forage gear still work. Unready gear to collect harvest colors as supplies.'
             : encounter.type === 'enemy' ? `${Math.max(0, encounter.health)}/${encounter.def.health} health\nNext hit: ${encounter.def.intents[encounter.intent].damage} in ${encounter.countdown} reveals. Your pulse lands first.\n${encounter.def.budget?.fleeAfter ? `Escapes after ${encounter.def.budget.fleeAfter} puzzles.` : `Enrages by ${encounter.def.budget?.enrage ?? 0} damage per extra puzzle.`}` : 'A single puzzle of harvest. Every color becomes supplies.',
         actions: encounter.type === 'enemy' && encounter.phase === 'active' ? [action('flee', `Flee · take ${encounter.def.intents[encounter.intent].damage} damage`, () => send({ type: 'flee' }), !between || !!encounter.def.budget?.boss)] : [],

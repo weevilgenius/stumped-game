@@ -200,6 +200,13 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       const loss = state.campaign?.encounterRounds ?? 0;
       const bands = rule.bands.map((band) => ({ ...band, value: Math.max(0, band.value - loss) }));
       addResource(rule.resource, bands, collect.amount);
+      // Treasure groves idle all gear except forage items, which add their yield on top of the harvest.
+      const forager = currentNode(state)?.kind === 'forage'
+        ? state.slots.findIndex((slot) => slot.item.effect === 'forage' && eligible(slot, collect.color, turn)) : -1;
+      if (forager >= 0) {
+        events.push({ type: 'pulse-routed', slot: forager, item: state.slots[forager].item.id });
+        activate(forager, state.slots[forager], collect.amount, turn);
+      }
     }
     else events.push({ type: 'pulse-discarded' });
   };
