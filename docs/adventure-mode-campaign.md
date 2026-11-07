@@ -26,7 +26,8 @@ for explicitly labeled comparisons.
 
 Four ordered equipment slots route each pulse to the first eligible readied
 item. Three pack slots hold reserve items, and three consumable slots hold
-emergency healing, block or damage. Readiness is free during puzzles. Equipment
+emergency healing, block or damage. Consumables are rare: shops, elites (one
+per kill) and some events are the only sources. Readiness is free during puzzles. Equipment
 swaps and reordering are allowed between puzzles, including during unfinished
 fights; the whole item state moves with the item. Countdown continuity and normal
 round resets still apply. Movement and shopping wait until combat is over.
