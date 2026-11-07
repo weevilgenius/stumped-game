@@ -232,7 +232,8 @@ export class AdventureScene extends Phaser.Scene {
     });
     const buttonWidth = (width - 24 - (Math.min(perRow, actions.length) - 1) * 6) / Math.max(1, Math.min(perRow, actions.length));
     if (card.gearActions) {
-      const detailsWidth = width - 24 - 3 * 50;
+      // Icon buttons sit flush right so every card's remove button lines up.
+      const detailsWidth = width - 24 - (actions.length - 1) * 50;
       actions.forEach((action, index) => this.button(action, x + 12 + (index ? detailsWidth + 6 + (index - 1) * 50 : 0), actionTop, index ? 44 : detailsWidth, 44, false, false));
     } else actions.forEach((action, index) => this.button(action, x + 12 + index % perRow * (buttonWidth + 6), actionTop + Math.floor(index / perRow) * 48, buttonWidth, 44, false, false));
     return height;

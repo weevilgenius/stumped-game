@@ -379,6 +379,17 @@ describe('hybrid regressions', () => {
     expect(updated.encounter).toMatchObject({ health: maximum - 3 });
   });
 
+  it('drops a consumable as reclaimable loot, making room for another', () => {
+    let state = start();
+    state.campaign!.potions = [{ id: 'healing-potion', value: 9 }, { id: 'block-potion', value: 10 }, { id: 'damage-potion', value: 10 }];
+    state = issue(state, { type: 'drop-potion', potion: 1 });
+    expect(state.campaign!.potions.map((potion) => potion.id)).toEqual(['healing-potion', 'damage-potion']);
+    const dropped = state.campaign!.loot.find((offer) => offer.potion?.id === 'block-potion')!;
+    state = issue(state, { type: 'take-loot', offer: dropped.id });
+    expect(state.campaign!.potions).toHaveLength(3);
+    expect(state.campaign!.loot).toHaveLength(0);
+  });
+
   it('refreshes dropped gear as well as its offer before it can be reclaimed', () => {
     let state = start();
     const slot = structuredClone(state.slots[0]);

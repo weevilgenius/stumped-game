@@ -230,7 +230,9 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
       actions: gearActions(index), gearActions: true,
     }));
     page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL} · Reserve item; does not receive pulses.`, colors: slot.item.colors, actions: gearActions(index, true), gearActions: true })));
-    page.cards.push(...(campaign?.potions ?? []).map((potion, index) => ({ id: `potion-${index}`, title: name(potion.id), body: `Instant ${potion.value} ${potion.id.split('-')[0]}. No tactical turn.`, actions: [action(`use-potion-${index}`, 'Use potion', () => send({ type: 'use-potion', potion: index }), potion.id !== 'healing-potion' && (state.encounter?.type !== 'enemy' || state.encounter.phase !== 'active'))] })));
+    page.cards.push(...(campaign?.potions ?? []).map((potion, index) => ({ id: `potion-${index}`, title: name(potion.id), body: `Instant ${potion.value} ${potion.id.split('-')[0]}. No tactical turn.`, gearActions: true,
+      actions: [action(`use-potion-${index}`, 'Use potion', () => send({ type: 'use-potion', potion: index }), potion.id !== 'healing-potion' && (state.encounter?.type !== 'enemy' || state.encounter.phase !== 'active')),
+        { ...action(`remove-potion-${index}`, '🗑', () => send({ type: 'drop-potion', potion: index }), !between), ariaLabel: `Drop ${name(potion.id)}` }] })));
   } else {
     page.title = node ? name(node.kind) : name(state.character);
     const encounter = state.encounter;

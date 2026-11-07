@@ -102,6 +102,7 @@ export type CampaignCommand =
   | { readonly type: 'unequip'; readonly slot: number }
   | { readonly type: 'drop'; readonly slot: number; readonly pack?: boolean }
   | { readonly type: 'use-potion'; readonly potion: number }
+  | { readonly type: 'drop-potion'; readonly potion: number }
   | { readonly type: 'flee' }
   | { readonly type: 'abandon' };
 
