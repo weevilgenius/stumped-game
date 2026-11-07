@@ -222,11 +222,18 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     page.title = node ? name(node.kind) : name(state.character);
     const encounter = state.encounter;
     if (encounter) {
+      const combatActions: AdventureAction[] = [];
+      if (encounter.type === 'enemy' && encounter.phase === 'active') {
+        const fightLabel = (campaign?.encounterRounds ?? 0) > 0 ? 'Continue Fight' : 'Fight';
+        combatActions.push(action('play', between ? fightLabel : 'Resume puzzle', () => { void controller.playAdventure(); }),
+          action('flee', `Flee · take ${encounter.def.intents[encounter.intent].damage} damage`, () => send({ type: 'flee' }), !between || !!encounter.def.budget?.boss));
+        page.primary = undefined;
+      }
       page.cards.push({ id: 'encounter', title: name(encounter.def.id), colors: encounter.def.scavenge.flatMap((rule) => rule.colors),
         body: node?.kind === 'forage' ? 'A single puzzle of harvest. Every color becomes supplies, and readied forage gear adds its yield. Other gear stays idle and earns no experience.'
           : encounter.phase === 'scavenge' ? 'Harvesting. Readied gear takes matching colors as experience; healing and forage gear still work. Unready gear to collect harvest colors as supplies.'
             : encounter.type === 'enemy' ? `${Math.max(0, encounter.health)}/${encounter.def.health} health\nNext hit: ${encounter.def.intents[encounter.intent].damage} in ${encounter.countdown} reveals. Your pulse lands first.\n${encounter.def.budget?.fleeAfter ? `Escapes after ${encounter.def.budget.fleeAfter} puzzles.` : `Enrages by ${encounter.def.budget?.enrage ?? 0} damage per extra puzzle.`}` : 'A single puzzle of harvest. Every color becomes supplies.',
-        actions: encounter.type === 'enemy' && encounter.phase === 'active' ? [action('flee', `Flee · take ${encounter.def.intents[encounter.intent].damage} damage`, () => send({ type: 'flee' }), !between || !!encounter.def.budget?.boss)] : [],
+        actions: combatActions,
       });
     }
     if (campaign?.loot.length) page.cards.push({ id: 'loot-heading', title: 'Loot here', body: 'Take what you need before moving on. Inspect gear to compare it; replaced and dropped gear stays here.' }, ...offerCards(campaign.loot, false));
