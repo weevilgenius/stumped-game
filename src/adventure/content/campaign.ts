@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 3;
+export const CONTENT_VERSION = 4;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */

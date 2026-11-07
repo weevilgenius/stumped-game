@@ -279,7 +279,8 @@ describe('capacity and updates', () => {
     expect(replacement.campaign!.pack).toHaveLength(3);
     state = replacement;
     state.campaign!.potions = Array.from({ length: 3 }, () => ({ id: 'healing-potion', value: 9 }));
-    const potion = state.campaign!.loot.find((offer) => offer.potion)!;
+    const potion = { id: 'potion', price: 0, item: null, potion: { id: 'block-potion', value: 10 } };
+    state.campaign!.loot.push(potion);
     expect(step(state, { type: 'take-loot', offer: potion.id }).state).toBe(state);
   });
 
@@ -334,6 +335,14 @@ describe('hybrid regressions', () => {
     const value = bandOf(bands, 9, MAX_ITEM_LEVEL).value;
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'ability-activated', value }));
     expect(result.state.resources.supplies).toBe(value);
+  });
+
+  it('only elites drop consumables', () => {
+    expect(solve(strong(enter())).campaign!.loot.some((offer) => offer.potion)).toBe(false);
+    const state = start();
+    const elite = state.campaign!.map.find((node) => node.kind === 'elite' && node.lane === 0)!;
+    state.campaign!.node = `${elite.column - 1}-0`;
+    expect(solve(strong(issue(state, { type: 'travel', node: elite.id }))).campaign!.loot.filter((offer) => offer.potion)).toHaveLength(1);
   });
 
   it('elites are tougher, and about half also hit harder', () => {

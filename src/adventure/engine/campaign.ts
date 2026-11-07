@@ -89,8 +89,8 @@ export function campaignKill(state: AdventureState, events: AdventureEvent[]): v
   campaign.wins++;
   const count = node.kind === 'elite' || node.kind === 'boss' ? 3 + roll(campaign, 2) : 2 + roll(campaign, 3);
   campaign.loot = Array.from({ length: count }, () => rollOffer(campaign, node.tier));
-  // Each enemy also drops a consumable; gear count remains two to four.
-  campaign.loot.push(rollOffer(campaign, node.tier, 0, true));
+  // Consumables are rare: only elites drop one (plus shops and events).
+  if (node.kind === 'elite') campaign.loot.push(rollOffer(campaign, node.tier, 0, true));
   const amount = Math.round(templateAt(campaign, node).supplies * (node.kind === 'elite' ? 1.5 : 1));
   state.resources.supplies = (state.resources.supplies ?? 0) + amount;
   campaign.earned += amount;
