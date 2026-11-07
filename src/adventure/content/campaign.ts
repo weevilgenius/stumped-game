@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 2;
+export const CONTENT_VERSION = 3;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -88,15 +88,19 @@ export const ENEMIES: readonly EnemyTemplate[] = [
   enemy('bandit', 2, 18, [{ delay: 3, damage: 4 }, { delay: 2, damage: 3 }], { enrage: 6 }, 7),
   enemy('bear', 2, 22, [{ delay: 4, damage: 5 }], { enrage: 6 }, 7),
   enemy('wisp', 2, 16, [{ delay: 2, damage: 3 }], { flee: 2 }, 6),
-  enemy('troll', 3, 30, [{ delay: 3, damage: 5 }, { delay: 3, damage: 6 }], { enrage: 6 }, 10),
-  enemy('wraith', 3, 24, [{ delay: 2, damage: 4 }], { flee: 3 }, 10),
+  enemy('troll', 3, 45, [{ delay: 3, damage: 5 }, { delay: 3, damage: 6 }], { enrage: 6 }, 10),
+  enemy('wraith', 3, 36, [{ delay: 2, damage: 4 }], { flee: 3 }, 10),
 ];
 
 /** The run's last fight. */
-export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 3, 48, [{ delay: 3, damage: 5 }, { delay: 2, damage: 4 }, { delay: 4, damage: 8 }], { enrage: 6 }, 0), boss: true };
+export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 3, 90, [{ delay: 3, damage: 5 }, { delay: 2, damage: 4 }, { delay: 4, damage: 8 }], { enrage: 6 }, 0), boss: true };
 
 /** Elites: an enemy of the next tier up, tougher, with better and more loot. */
-export const ELITE_HEALTH = 1.25;
+export const ELITE_HEALTH = 1.6;
+/** Share of elites that also hit harder. */
+export const FIERCE_ELITES = 0.5;
+/** Damage multiplier for those fierce elites, rounded up. */
+export const FIERCE_DAMAGE = 1.5;
 
 /** A between-round event: a short text choice without a puzzle. */
 export interface EventDef {

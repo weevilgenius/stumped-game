@@ -1,4 +1,4 @@
-import { BOSS, CONTENT_VERSION, ELITE_HEALTH, ENEMIES, EVENTS, ITEMS, MAX_ITEM_LEVEL, POTIONS, STARTERS } from '../content/campaign';
+import { BOSS, CONTENT_VERSION, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, ITEMS, MAX_ITEM_LEVEL, POTIONS, STARTERS } from '../content/campaign';
 import type { AdventureEvent, AdventureState, EncounterDef, ItemDef, RejectReason, SlotState } from './types';
 import { currentNode, type CampaignCommand, type CampaignState, type Offer, type RouteNode } from './campaignTypes';
 
@@ -153,9 +153,10 @@ const makeEncounter = (campaign: CampaignState, node: RouteNode): EncounterDef =
     const j = roll(stream, i + 1);
     [colors[i], colors[j]] = [colors[j], colors[i]];
   }
+  const fierce = node.kind === 'elite' && random({ ...campaign, rng: deriveSeed(campaign.seed, `elite/${node.id}`) }) < FIERCE_ELITES;
   return { type: 'enemy', id: template.id,
     health: Math.round(template.health * (node.kind === 'elite' ? ELITE_HEALTH : 1)),
-    intents: template.intents,
+    intents: fierce ? template.intents.map((intent) => ({ ...intent, damage: Math.ceil(intent.damage * FIERCE_DAMAGE) })) : template.intents,
     budget: { fleeAfter: template.flee, enrage: template.enrage, boss: template.boss },
     scavenge: [{ colors: colors.slice(0, node.kind === 'elite' || node.kind === 'boss' ? 3 : 2), resource: 'supplies',
       bands: [{ min: 1, value: 1 }, { min: 8, value: 2 }, { min: 15, value: 3 }] }],

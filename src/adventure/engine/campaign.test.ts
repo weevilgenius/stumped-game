@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTENT_VERSION, MAX_ITEM_LEVEL, STARTERS } from '../content/campaign';
+import { CONTENT_VERSION, ELITE_HEALTH, ENEMIES, MAX_ITEM_LEVEL, STARTERS } from '../content/campaign';
 import { createCampaign, deriveSeed, levelItem, routeChoices } from './campaign';
 import { currentNode } from './campaignTypes';
 import { bandOf, startRun, step } from './step';
@@ -291,6 +291,23 @@ describe('hybrid regressions', () => {
     const value = bandOf(bands, 9, MAX_ITEM_LEVEL).value;
     expect(result.events).toContainEqual(expect.objectContaining({ type: 'ability-activated', value }));
     expect(result.state.resources.supplies).toBe(value);
+  });
+
+  it('elites are tougher, and about half also hit harder', () => {
+    let fierce = 0, plain = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const state = start(seed);
+      const elite = state.campaign!.map.find((node) => node.kind === 'elite' && node.lane === 0 && node.column === 10);
+      if (!elite) continue;
+      state.campaign!.node = '9-0';
+      const { encounter } = issue(state, { type: 'travel', node: elite.id });
+      if (encounter?.type !== 'enemy') throw new Error('Expected enemy');
+      const template = ENEMIES.find((entry) => entry.id === encounter.def.id && entry.tier === elite.tier)!;
+      expect(encounter.def.health).toBe(Math.round(template.health * ELITE_HEALTH));
+      if (encounter.def.intents[0].damage > template.intents[0].damage) fierce++; else plain++;
+    }
+    expect(fierce).toBeGreaterThan(2);
+    expect(plain).toBeGreaterThan(2);
   });
 
   it('treasure groves idle all gear except forage gear, which adds its yield to the harvest', () => {
