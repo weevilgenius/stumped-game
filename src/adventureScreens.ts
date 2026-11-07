@@ -221,8 +221,8 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
       const icon = (id: string, label: string, ariaLabel: string, onSelect: () => void, disabled: boolean): AdventureAction => ({ ...action(id, label, onSelect, disabled), ariaLabel });
       const id = `${pack ? 'pack' : 'slot'}-${index}`;
       return [action(`inspect-${id}`, 'Details', () => inspect(index, pack)),
-        icon(`up-${id}`, '↑', `Move ${itemName} earlier`, () => send({ type: 'move-gear', slot: index, pack, direction: -1 }), !between || !campaign || (!pack && index === 0)),
-        icon(`down-${id}`, '↓', `Move ${itemName} later`, () => send({ type: 'move-gear', slot: index, pack, direction: 1 }), !between || !campaign || (pack && index === campaign.pack.length - 1)),
+        icon(`up-${id}`, '▲', `Move ${itemName} earlier`, () => send({ type: 'move-gear', slot: index, pack, direction: -1 }), !between || !campaign || (!pack && index === 0)),
+        icon(`down-${id}`, '▼', `Move ${itemName} later`, () => send({ type: 'move-gear', slot: index, pack, direction: 1 }), !between || !campaign || (pack && index === campaign.pack.length - 1)),
         icon(`remove-${id}`, shop ? '💰' : '🗑', `${shop ? 'Sell' : 'Drop'} ${itemName}`, () => send(shop ? pack ? { type: 'sell', pack: index } : { type: 'sell', slot: index } : { type: 'drop', slot: index, pack }), !between || !campaign || (shop && !!state.encounter))];
     };
     page.cards = state.slots.map((slot, index) => ({ id: `equipped-${slot.item.instance ?? slot.item.id}`, title: `${index + 1}. ${name(slot.item.id)} · ${slot.ready ? 'Ready' : 'Unready'}`,
