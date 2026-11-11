@@ -125,7 +125,7 @@ Each agent was run at high or extra high effort level.
 
 ### Notes
 
-All of the agents had to create their own "X" sprites with mediochre results. I used
+All of the agents had to create their own "X" sprites with mediocre results. I used
 screenshots from the original game while crafting the PRD and to extract useful region
 colors, but I did not give the agents any screenshots to work with. Giving each agent
 a screenshot utility to inspect its work was critical to getting good results without
