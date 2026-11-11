@@ -12,27 +12,31 @@
  *    pnpm screenshot [options]                              *
  *                                                           *
  *  Options:                                                 *
- *    --path <p>      Route to capture          (default /)  *
- *    --out <file>    Output path       (default screenshots/screenshot.png,
- *                                      screenshots/screenshot.pdf with --print
- *                                      unless --png is set)
- *    --theme <t>     light | dark              (default light)
- *    --device <d>    Playwright device name, e.g. "iPhone 15"
- *    --width <n>     Viewport width  (default 1280, ignored with --device)
- *    --height <n>    Viewport height (default 800, ignored with --device)
- *    --full-page     Capture the full scrollable page         *
- *    --print         Output a print-formatted PDF             *
- *    --png           Output PNG when used with --print        *
- *    --pages <range> PDF page ranges, e.g. "1-5, 8"           *
- *    --url <base>    Base URL to use; disables auto-start      *
- *    --wait <sel>    Wait for a CSS selector before capturing  *
- *    --delay <ms>    Extra settle delay before capturing       *
+ *    --path <p>          Route to capture      (default /)  *
+ *    --out <file>        Output path   (default screenshots/screenshot.png,
+ *                                       screenshots/screenshot.pdf with --print
+ *                                       unless --png is set)
+ *    --theme <t>         light | dark          (default light)
+ *    --device <d>        Playwright device name, e.g. "iPhone 15"
+ *    --orientation <o>   portrait | landscape (swaps viewport dimensions)
+ *    --width <n>         Viewport width  (default 1280, ignored with --device)
+ *    --height <n>        Viewport height (default 800, ignored with --device)
+ *    --code <seedCode>   Start a specific puzzle seed code  *
+ *    --screen <s>        main | puzzle | settings | times   *
+ *    --state <st>        marks | hypothesis | explain | won | lost
+ *    --full-page         Capture the full scrollable page   *
+ *    --print             Output a print-formatted PDF       *
+ *    --png               Output PNG when used with --print  *
+ *    --pages <range>     PDF page ranges, e.g. "1-5, 8"     *
+ *    --url <base>        Base URL to use; disables auto-start
+ *    --wait <sel>        Wait for a CSS selector before capturing
+ *    --delay <ms>        Extra settle delay before capturing
 \* ========================================================= */
 
-import { parseArgs } from 'node:util';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
+import { parseArgs } from 'node:util';
 import { chromium, devices } from '@playwright/test';
 import { createServer } from 'vite';
 
@@ -51,8 +55,12 @@ const { values } = parseArgs({
     out: { type: 'string' },
     theme: { type: 'string', default: 'light' },
     device: { type: 'string' },
+    orientation: { type: 'string' },
     width: { type: 'string', default: '1280' },
     height: { type: 'string', default: '800' },
+    code: { type: 'string' },
+    screen: { type: 'string' },
+    state: { type: 'string' },
     'full-page': { type: 'boolean', default: false },
     print: { type: 'boolean', default: false },
     png: { type: 'boolean', default: false },
@@ -105,6 +113,17 @@ if (deviceName && !deviceDescriptor) {
   process.exit(1);
 }
 
+// Compute effective viewport dimensions, applying --orientation if specified
+let baseViewport = printPng
+  ? PRINT_PNG_VIEWPORT
+  : (deviceDescriptor?.viewport ?? { width: Number(values.width), height: Number(values.height) });
+
+if (values.orientation === 'landscape' && baseViewport.width < baseViewport.height) {
+  baseViewport = { width: baseViewport.height, height: baseViewport.width };
+} else if (values.orientation === 'portrait' && baseViewport.width > baseViewport.height) {
+  baseViewport = { width: baseViewport.height, height: baseViewport.width };
+}
+
 // Decide whether to reuse an existing server or start our own.
 const explicitUrl = values.url;
 const baseUrl = explicitUrl ?? DEFAULT_BASE_URL;
@@ -129,10 +148,7 @@ try {
   const context = await browser.newContext({
     colorScheme: theme,
     ...(printPng ? {} : deviceDescriptor),
-    // An explicit --width/--height overrides the device viewport.
-    ...(printPng
-      ? { viewport: PRINT_PNG_VIEWPORT }
-      : values.device ? {} : { viewport: { width: Number(values.width), height: Number(values.height) } }),
+    viewport: baseViewport,
   });
   const page = await context.newPage();
 
@@ -141,6 +157,102 @@ try {
   }
 
   await page.goto(targetUrl, { waitUntil: 'networkidle' });
+
+  // Wait for Phaser and Stumped automation bridge to finish booting
+  await page.waitForFunction(
+    () => Boolean((window as unknown as { __STUMPED__?: { ready?: boolean } }).__STUMPED__?.ready),
+    { timeout: 10_000 },
+  ).catch(() => undefined);
+
+  // Apply optional --code, --state, and --screen orchestration
+  if (values.code || values.state || values.screen) {
+    await page.evaluate(
+      ({ code, state, screen }) => {
+        const bridge = window.__STUMPED__;
+        if (!bridge) {
+          return;
+        }
+        if (code) {
+          bridge.playSeed(code);
+        } else if ((screen === 'puzzle' || state) && bridge.getActiveSceneKey() !== 'PuzzleScene') {
+          bridge.appController.startNewPuzzle();
+          bridge.game.scene.stop('MainScene');
+          bridge.game.scene.start('PuzzleScene');
+        }
+
+        const session = bridge.getSession();
+        if (session && state) {
+          const { size, solution } = session.puzzle;
+          if (state === 'marks') {
+            bridge.doubleTapCell(solution[0]);
+            for (let c = 0; c < Math.min(4, size); c++) {
+              if (c !== solution[0]) {
+                bridge.tapCell(c);
+              }
+            }
+          } else if (state === 'hypothesis') {
+            bridge.doubleTapCell(solution[0]);
+            const whatIfBtn = document.querySelector<HTMLButtonElement>('[data-testid="what-if-btn"]');
+            whatIfBtn?.click();
+            const openCells: number[] = [];
+            for (let c = 0; c < size * size; c++) {
+              if (c !== solution[0]) {
+                openCells.push(c);
+              }
+            }
+            if (openCells.length >= 4) {
+              bridge.tapCell(openCells[0]);
+              bridge.tapCell(openCells[1]);
+              // Place two tentative stumps in the same row or touching to trigger conflict line
+              bridge.doubleTapCell(openCells[2]);
+              bridge.doubleTapCell(openCells[3]);
+            }
+          } else if (state === 'explain') {
+            const explainBtn = document.querySelector<HTMLButtonElement>('[data-testid="hint-explain-btn"]');
+            explainBtn?.click();
+          } else if (state === 'won') {
+            const solSet = new Set(solution);
+            for (let c = 0; c < size * size; c++) {
+              if (!solSet.has(c)) {
+                bridge.tapCell(c);
+              }
+            }
+            for (const s of solution) {
+              bridge.doubleTapCell(s);
+            }
+          } else if (state === 'lost') {
+            const solSet = new Set(solution);
+            for (let c = 0; c < size * size && session.getStatus() === 'in_progress'; c++) {
+              if (!solSet.has(c)) {
+                session.revealCell(c);
+              }
+            }
+            bridge.appController.persistSession();
+          }
+        }
+
+        if (screen === 'main') {
+          bridge.goToMain();
+        } else if (screen === 'settings') {
+          bridge.openSettings();
+        } else if (screen === 'times') {
+          bridge.openBestTimes();
+        }
+      },
+      { code: values.code, state: values.state, screen: values.screen },
+    );
+  }
+
+  // Wait two animation frames for Phaser canvas to settle
+  await page.evaluate(
+    () => new Promise<void>((r) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          r();
+        });
+      });
+    }),
+  );
 
   if (values.wait) {
     await page.waitForSelector(values.wait);
@@ -163,7 +275,7 @@ try {
     await page.screenshot({ path: outPath, fullPage });
   }
 
-  console.log(`Captured ${targetUrl} (${theme}${deviceName ? `, ${deviceName}` : ''}${print ? ', print' : ''}${printPng ? ' PNG' : ''}) -> ${outPath}`);
+  console.log(`Captured ${targetUrl} (${theme}${deviceName ? `, ${deviceName}` : ''}${values.orientation ? `, ${values.orientation}` : ''}${print ? ', print' : ''}${printPng ? ' PNG' : ''}) -> ${outPath}`);
 } finally {
   await browser.close();
   if (server) {

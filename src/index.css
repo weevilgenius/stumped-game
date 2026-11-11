@@ -1,8 +1,419 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  display: grid;
-  place-content: center;
-  min-height: 100vh;
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #24160d;
+  color: #f8f4e8;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+#game-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#game-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ========================================================= *\
+ *  Synchronized Accessibility & Input Overlay               *
+\* ========================================================= */
+
+#a11y-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.a11y-btn {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+  color: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.a11y-btn:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+.a11y-btn:focus-visible {
+  outline: 3px solid #f5c542;
+  outline-offset: 2px;
+}
+
+.seed-code-input {
+  position: absolute;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  background: #23150b;
+  color: #f8f4e8;
+  border: 2px solid #754e2b;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  outline: none;
+}
+
+.seed-code-input::placeholder {
+  color: #9e8b74;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.seed-code-input:focus {
+  border-color: #e4bb49;
+  box-shadow: 0 0 0 2px rgba(228, 187, 73, 0.3);
+}
+
+/* ========================================================= *\
+ *  Modals & Toasts                                          *
+\* ========================================================= */
+
+#modal-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(16, 10, 5, 0.76);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 540px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: #362214;
+  border: 2px solid #7a5230;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65);
+  color: #f8f4e8;
+  touch-action: pan-y;
+}
+
+.modal-card-sm {
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #593a1e;
+}
+
+.modal-title {
+  margin: 0;
+  font-family: 'Trebuchet MS', 'Avenir Next', system-ui, sans-serif;
+  font-size: 22px;
+  color: #f8f4e8;
+}
+
+.modal-message {
+  margin: 10px 0 20px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #dccb9e;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.wood-btn {
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: background-color 0.12s ease, transform 0.08s ease;
+}
+
+.wood-btn:active {
+  transform: translateY(1px);
+}
+
+.wood-btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.wood-btn-primary {
+  background: #4e8c45;
+  border-color: #2d5927;
+  color: #f8f4e8;
+}
+
+.wood-btn-primary:hover {
+  background: #5ca152;
+}
+
+.wood-btn-secondary {
+  background: #593a22;
+  border-color: #825836;
+  color: #f8f4e8;
+}
+
+.wood-btn-secondary:hover {
+  background: #6b4629;
+}
+
+/* ========================================================= *\
+ *  Settings Controls                                        *
+\* ========================================================= */
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.setting-row {
+  background: #28180d;
+  border: 1px solid #54371d;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.setting-header {
+  margin-bottom: 8px;
+}
+
+.setting-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: #f5c542;
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: #c2b08b;
+  margin-top: 2px;
+}
+
+.segment-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.segment-btn {
+  flex: 1 1 auto;
+  min-width: 58px;
+  background: #422916;
+  color: #dccb9e;
+  border: 1.5px solid #6b4628;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment-btn:hover {
+  background: #52341c;
+}
+
+.segment-btn.active {
+  background: #e4bb49;
+  color: #2b1b0e;
+  border-color: #9e781e;
+  font-weight: 700;
+}
+
+/* ========================================================= *\
+ *  Best Times List                                          *
+\* ========================================================= */
+
+.best-times-legend {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #c2b08b;
+  line-height: 1.4;
+}
+
+.best-times-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.best-times-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.best-times-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: #b5a17c;
+  font-size: 14px;
+  background: #28180d;
+  border-radius: 10px;
+  border: 1px dashed #593a1e;
+}
+
+.best-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #28180d;
+  border: 1px solid #54371d;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.best-time-rank {
+  font-weight: 700;
+  color: #c2b08b;
+  min-width: 28px;
+}
+
+.best-time-duration {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8f4e8;
+  min-width: 56px;
+}
+
+.best-time-quals {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qual-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.qual-acorns-lost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f28b82;
+}
+
+.best-time-star {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.best-time-star.clean {
+  background: rgba(245, 197, 66, 0.18);
+  color: #f5c542;
+  border: 1px solid rgba(245, 197, 66, 0.45);
+}
+
+.best-time-star.assisted {
+  background: rgba(194, 176, 139, 0.12);
+  color: #c2b08b;
+}
+
+.best-time-code {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #9e8b74;
+}
+
+/* ========================================================= *\
+ *  Toast Notification                                       *
+\* ========================================================= */
+
+.stumped-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 16px);
+  background: #1c1109;
+  color: #f8f4e8;
+  border: 2px solid #e4bb49;
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.stumped-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
