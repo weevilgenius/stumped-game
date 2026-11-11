@@ -103,7 +103,7 @@ See [CHANGELOG.md](CHANGELOG.md)
 
 ## Agent bake-off
 
-Four agents independently built the game from clean copies of the same commit,
+Five agents independently built the game from clean copies of the same commit,
 with dependencies installed and the project assets, tests, screenshot utility,
 and Phaser 4 guidance available. Each received the prompt:
 
@@ -121,6 +121,7 @@ Each agent was run at high or extra high effort level.
 | Grok 4.7 | [grok](https://github.com/weevilgenius/stumped-game/tree/grok) | [Play](https://weevilgenius.github.io/stumped-game/grok/) | 16.2 million | $6.00 |
 | Fable 5.1 | [fable](https://github.com/weevilgenius/stumped-game/tree/fable) | [Play](https://weevilgenius.github.io/stumped-game/fable/) | 21.4 million | $26.40 |
 | GPT 6 Astra | [astra](https://github.com/weevilgenius/stumped-game/tree/astra) | [Play](https://weevilgenius.github.io/stumped-game/astra/) | 8.3 million | $14.99 |
+| Gemini 4 Argon | [argon](https://github.com/weevilgenius/stumped-game/tree/argon) | [Play](https://weevilgenius.github.io/stumped-game/argon/) | 21.3 million | $5.95 |
 
 ### Notes
 
@@ -138,6 +139,9 @@ up building the core engine separately and providing it to the agents. Grok's re
 was servicable but not stand out. Fable's implementation had the best animations and
 game play interaction. Astra leaned hard into the theme and built a very elaborate
 (and amusing) home screen.
+
+I finally got access to Gemini 4 Argon and added it to the bake off. Game seems
+perfectly functional, and better animations than Gemini 3.8 Flash.
 
 ### Running the agent versions
 
