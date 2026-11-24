@@ -1,6 +1,10 @@
-allowBuilds:
-  esbuild: true
+permissions:
+  esbuild:
+    build: true
 autoDedupe: true
 saveTypes: true
 lockfile:
   includeResolutionSettings: true
+skills:
+  dirs:
+    - .agents/skills
