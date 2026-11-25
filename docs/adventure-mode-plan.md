@@ -403,6 +403,13 @@ Expand content only where testing exposes a missing strategic role. Finish the c
 
 Tier 4 (wyvern, hag, golem; greatsword, longbow, aegis, amrita) covers columns 19 onward, with tiers 2 and 3 starting at columns 8 and 14. The Warden is a tier 4 fight with 100 health and one resisted color. The boar is gentler (10 health, enrage 3). Complete-run sim, coverage gear, planned policy: Ranger 33%, Sentinel 25%, Herbalist 25%, Duelist 28% (content 5: Ranger 43%, Sentinel 10%, Herbalist 35%). Deaths in the first two columns fell from about 20% to 0–11% across starters and policies (Sentinel highest); most losses now come in tiers 3 and 4. A within-tier health ramp of 10–20% made columns 6 to 10 too deadly and was dropped. Barry's runs set the absolute level from here.
 
+### Playtest review: first balance pass (2026-11-25)
+
+Barry played a Sentinel run on content version 6 and died in the 16th puzzle, at column 14 of 23, to an elite golem. Verdict: the balance feels better and decisions felt like they mattered. Fighting the late elite was a bad idea, where before an elite only meant better loot.
+
+- Columns 0 to 13 rarely threatened: health was full or nearly full entering almost every fight. The one real fight was an elite troll at column 10 (71 health, ambush), won over three puzzles with all three potions.
+- The golem was a tier 4 elite in tier 3's first column: 94 health, an ambush, fierce (14 per hit), and resisting the spear's color 3. Enrage took its hit to 20 and then 26 against 28 maximum health. Fleeing after the second puzzle would have cost one 20 hit at 24 health, so the loss came from a choice, as intended.
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
