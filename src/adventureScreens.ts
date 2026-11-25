@@ -167,7 +167,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
   }
   const inspect = (slot: number, pack = false): void => { view.detail = { type: 'item', slot, pack }; onChange(); };
   const offerCards = (offers: readonly Offer[], shop: boolean): AdventureCard[] => offers.map((offer) => ({ id: offer.id, title: `${name(offer.item?.id ?? offer.potion!.id)}${shop ? ` · ${offer.price} supplies` : ''}`,
-    body: offer.item ? `${name(offer.item.effect)} · ${offer.item.charge ? 'Charged' : 'Immediate'}\n${itemBands(offer.item, offer.slot?.level)}` : `Instant ${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. No tactical turn.`,
+    body: offer.item ? `${name(offer.item.effect)} · ${offer.item.charge ? 'Charged' : 'Immediate'}\n${itemBands(offer.item, offer.slot?.level)}` : `${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. Instant.`,
     colors: offer.item?.colors,
     actions: [action(`inspect-offer-${offer.id}`, 'Details', () => { view.detail = { type: 'offer', offer: offer.id }; onChange(); }),
       action(`take-${offer.id}`, shop ? 'Buy' : 'Take', () => send(shop ? { type: 'buy', offer: offer.id } : { type: 'take-loot', offer: offer.id }),
@@ -179,7 +179,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
     const offer = [...(campaign?.loot ?? []), ...(campaign?.stock ?? [])].find((offer) => offer.id === offerId);
     if (!offer) { view.detail = null; return adventurePage(controller, view, false, onChange); }
     page.title = name(offer.item?.id ?? offer.potion!.id); page.tabs = [];
-    page.cards = offer.item ? itemCards(offer.item, offer.slot) : [{ id: 'potion', title: page.title, body: `Instant ${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. No tactical turn.` }];
+    page.cards = offer.item ? itemCards(offer.item, offer.slot) : [{ id: 'potion', title: page.title, body: `${offer.potion!.value} ${offer.potion!.id.split('-')[0]}. Instant.` }];
     return page;
   }
   if (view.detail?.type === 'item') {
@@ -235,7 +235,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
       actions: gearActions(index), gearActions: true,
     }));
     page.cards.push(...(campaign?.pack ?? []).map((slot, index) => ({ id: `packed-${slot.item.instance ?? slot.item.id}`, title: `Pack: ${name(slot.item.id)}`, body: `${name(slot.item.effect)} · ${itemBands(slot.item, slot.level)}\nLevel ${slot.level ?? 0}/${MAX_ITEM_LEVEL} · Reserve item; does not receive pulses.`, colors: slot.item.colors, actions: gearActions(index, true), gearActions: true })));
-    page.cards.push(...(campaign?.potions ?? []).map((potion, index) => ({ id: `potion-${index}`, title: name(potion.id), body: `Instant ${potion.value} ${potion.id.split('-')[0]}. No tactical turn.`, gearActions: true,
+    page.cards.push(...(campaign?.potions ?? []).map((potion, index) => ({ id: `potion-${index}`, title: name(potion.id), body: `${potion.value} ${potion.id.split('-')[0]}. Instant.`, gearActions: true,
       actions: [action(`use-potion-${index}`, 'Use potion', () => send({ type: 'use-potion', potion: index }), potion.id !== 'healing-potion' && (state.encounter?.type !== 'enemy' || state.encounter.phase !== 'active')),
         { ...action(`remove-potion-${index}`, '🗑', () => send({ type: 'drop-potion', potion: index }), !between), ariaLabel: `Drop ${name(potion.id)}` }] })));
   } else {
