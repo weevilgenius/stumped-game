@@ -235,7 +235,10 @@ describe('campaign transitions and finite rewards', () => {
     state = issue(state, { type: 'travel', node: '3-0' });
     const stock = structuredClone(state.campaign!.stock);
     const offer = stock[0];
-    expect(stock.filter((entry) => entry.item)).toHaveLength(3);
+    expect(stock.filter((entry) => entry.item)).toHaveLength(4);
+    const premium = stock.filter((entry) => entry.item).at(-1)!;
+    expect(premium.item!.tier).toBe(2);
+    expect(premium.price).toBe(Math.round(premium.item!.price! * 2.5));
     expect(stock.filter((entry) => entry.potion)).toHaveLength(3);
     expect(step(state, { type: 'buy', offer: offer.id }).state).toBe(state);
     state.resources.supplies = 100;
