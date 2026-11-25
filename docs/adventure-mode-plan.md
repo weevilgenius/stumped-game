@@ -399,6 +399,7 @@ Expand content only where testing exposes a missing strategic role. Finish the c
 - **Active-run compatibility:** Content updates keep refreshing active runs in place, as in phase 7, even for structural changes, while Barry is the main tester. Retiring runs on structural updates can be revisited if more people test.
 - **Leveling healing gear:** After a kill, readied healing gear takes its colors as experience when health is full and heals otherwise, so it can level like other gear (found in the first balance playtest: healing gear could never level).
 - **Late shop:** One optional shop at column 16, on an outer lane, so the player has to route toward it. It stocks tier 3 and 4 gear (45 to 55 supplies) plus the usual potions and paid healing, giving late supplies a use (content version 7).
+- **Premium shop gear:** Foraging gear was underpowered, because supplies had little use. Every shop now also sells one premium item, one tier above its stock (the top-tier late shop adds a level instead), at 2.5 times the normal price (about 90 to 140 supplies). Most players cannot afford it; foraging is the way to plan for it (content version 8).
 - **Release:** Adventure mode stays behind Settings > Show adventure mode for now. Changelog entries for it stay general ("Updates to experimental adventure mode").
 
 ### First balance pass (content version 6)
