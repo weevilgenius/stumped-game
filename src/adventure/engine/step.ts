@@ -161,7 +161,9 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       const slot = state.slots[index];
       if (slot) {
         events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
-        if (slot.item.effect === 'heal' || slot.item.effect === 'forage') activate(index, slot, collect.amount, turn);
+        // Healing gear heals when there is anything to heal; at full health it levels like any other gear.
+        const heals = slot.item.effect === 'heal' && state.health < state.maxHealth;
+        if (heals || slot.item.effect === 'forage') activate(index, slot, collect.amount, turn);
         else {
           const id = slot.item.instance ?? slot.item.id;
           slot.experience = Math.min(XP_PER_LEVEL, (slot.experience ?? 0) + collect.amount);
