@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 5;
+export const CONTENT_VERSION = 6;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -10,21 +10,30 @@ export const XP_PER_LEVEL = 10;
 const bands = (a: number, b: number, c: number, d: number): readonly Band[] => [
   { min: 1, value: a }, { min: 4, value: b }, { min: 8, value: c }, { min: 15, value: d },
 ];
-/** Conventional two-ability starters, followed by a victory unlock. */
+/** Conventional two-ability starters, followed by victory unlocks. */
 export const STARTERS: readonly CharacterDef[] = [
   { id: 'ranger', health: 24, loadout: [
     { id: 'shortbow', effect: 'attack', colors: [0, 1], bands: bands(2, 3, 4, 5) },
     { id: 'parry', effect: 'block', colors: [2], bands: bands(3, 4, 6, 8) },
   ] },
   { id: 'sentinel', health: 28, loadout: [
-    { id: 'spear', effect: 'attack', colors: [3], bands: bands(3, 4, 6, 8) },
-    { id: 'brace', effect: 'block', colors: [3, 4], bands: bands(3, 4, 6, 8) },
+    // Tough but slow: the spear needs a turn's rest between thrusts.
+    { id: 'spear', effect: 'attack', colors: [3, 4], cooldown: 1, bands: bands(3, 4, 6, 8) },
+    { id: 'brace', effect: 'block', colors: [5], bands: bands(3, 4, 6, 8) },
   ] },
   { id: 'herbalist', health: 22, loadout: [
     { id: 'thorn', effect: 'attack', colors: [5, 6], bands: bands(2, 3, 4, 5) },
     { id: 'remedy', effect: 'heal', colors: [7], bands: bands(2, 3, 5, 7) },
   ] },
+  { id: 'duelist', health: 22, loadout: [
+    { id: 'saber', effect: 'attack', colors: [1, 6], bands: bands(2, 3, 4, 5) },
+    { id: 'dirk', effect: 'attack', colors: [3, 8], bands: bands(2, 3, 5, 7) },
+  ] },
 ];
+/** Starters a new player can choose without winning first. */
+export const OPEN_STARTERS: readonly string[] = ['ranger', 'sentinel'];
+/** Unlocks: winning with any listed character (empty = any) unlocks the key. */
+export const UNLOCKS: Readonly<Record<string, readonly string[]>> = { herbalist: [], duelist: ['herbalist'] };
 /** Fixed emergency options; stronger than one ordinary pulse. */
 export const POTIONS: readonly Potion[] = [
   { id: 'healing-potion', value: 9 }, { id: 'block-potion', value: 10 }, { id: 'damage-potion', value: 10 },
@@ -54,6 +63,10 @@ export const ITEMS: readonly ItemTemplate[] = [
   template({ id: 'axe', effect: 'attack', bands: bands(4, 6, 8, 11), tier: 3 }, 2, 3),
   template({ id: 'tower shield', effect: 'block', bands: bands(5, 7, 9, 12), tier: 3 }, 2, 3),
   template({ id: 'elixir', effect: 'heal', bands: bands(4, 5, 7, 10), tier: 3 }, 2, 3),
+  template({ id: 'greatsword', effect: 'attack', bands: bands(5, 7, 10, 13), tier: 4 }, 2, 3),
+  template({ id: 'longbow', effect: 'attack', bands: bands(4, 5, 7, 9), tier: 4 }, 4),
+  template({ id: 'aegis', effect: 'block', bands: bands(6, 8, 11, 14), tier: 4 }, 2, 3),
+  template({ id: 'amrita', effect: 'heal', bands: bands(5, 7, 9, 12), tier: 4 }, 2, 3),
 ];
 
 /** An enemy template. Harvest colors are rolled per fight. */
@@ -74,26 +87,45 @@ export interface EnemyTemplate {
   readonly flee?: number;
   /** Final encounter. */
   readonly boss?: boolean;
+  /** Colors rolled per fight that deal half damage to it. */
+  readonly resists?: number;
+  /** Colors rolled per fight that do nothing while it lives. */
+  readonly smothers?: number;
 }
 
-const enemy = (id: string, tier: number, health: number, intents: readonly Intent[], bound: { enrage?: number; flee?: number }, supplies: number): EnemyTemplate => ({
-  id, tier, health, intents, supplies, ...bound,
+interface EnemyTraits {
+  readonly enrage?: number;
+  readonly flee?: number;
+  readonly resists?: number;
+  readonly smothers?: number;
+}
+
+const enemy = (id: string, tier: number, health: number, intents: readonly Intent[], traits: EnemyTraits, supplies: number): EnemyTemplate => ({
+  id, tier, health, intents, supplies, ...traits,
 });
 
 /** Enemies by tier. Each is bounded thematically: beasts and brutes enrage, skittish things flee. */
 export const ENEMIES: readonly EnemyTemplate[] = [
   enemy('wolf', 1, 10, [{ delay: 3, damage: 2 }, { delay: 2, damage: 3 }], { flee: 3 }, 4),
-  enemy('boar', 1, 12, [{ delay: 4, damage: 4 }], { enrage: 6 }, 4),
+  enemy('boar', 1, 10, [{ delay: 4, damage: 4 }], { enrage: 3 }, 4),
   enemy('rats', 1, 8, [{ delay: 2, damage: 2 }], { flee: 2 }, 3),
   enemy('bandit', 2, 18, [{ delay: 3, damage: 4 }, { delay: 2, damage: 3 }], { enrage: 6 }, 7),
   enemy('bear', 2, 22, [{ delay: 4, damage: 5 }], { enrage: 6 }, 7),
   enemy('wisp', 2, 16, [{ delay: 2, damage: 3 }], { flee: 2 }, 6),
   enemy('troll', 3, 45, [{ delay: 3, damage: 5 }, { delay: 3, damage: 6 }], { enrage: 6 }, 10),
   enemy('wraith', 3, 36, [{ delay: 2, damage: 4 }], { flee: 3 }, 10),
+  enemy('wyvern', 4, 48, [{ delay: 3, damage: 7 }, { delay: 2, damage: 5 }], { enrage: 6, resists: 2 }, 14),
+  enemy('hag', 4, 40, [{ delay: 2, damage: 5 }], { flee: 3, smothers: 2 }, 14),
+  enemy('golem', 4, 56, [{ delay: 4, damage: 9 }], { enrage: 6, resists: 2 }, 14),
 ];
 
 /** The run's last fight. */
-export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 3, 90, [{ delay: 3, damage: 5 }, { delay: 2, damage: 4 }, { delay: 4, damage: 8 }], { enrage: 6 }, 0), boss: true };
+export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 4, 100, [{ delay: 3, damage: 6 }, { delay: 2, damage: 5 }, { delay: 4, damage: 10 }], { enrage: 6, resists: 1 }, 0), boss: true };
+
+/** First route column of each danger tier; elites fight one tier up. Tier 4 is the run's peak. */
+export const TIER_STARTS: readonly number[] = [0, 8, 14, 19];
+/** Random spread of ordinary and elite enemy health, either way. */
+export const HEALTH_SPREAD = 0.15;
 
 /** Elites: an enemy of the next tier up, tougher, with better and more loot. */
 export const ELITE_HEALTH = 1.6;

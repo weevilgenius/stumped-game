@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.0
+- Updates to experimental adventure mode.
+
 ## 0.18.1
 - Limit the game to 30 frames per second and stop saving on every timer tick to reduce battery use.
 

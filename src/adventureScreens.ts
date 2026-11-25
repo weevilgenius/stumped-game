@@ -96,6 +96,11 @@ export function newAdventureScreen(): AdventureScreenState {
 export function adventureName(id: string): string {
   return id.replaceAll('-', ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
+const STARTER_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  sentinel: 'Tough but slow: extra health and a heavy spear that rests a turn between thrusts.',
+  herbalist: 'Healing replaces defense. Win a campaign to unlock.',
+  duelist: 'Two blades and no defense: win by killing fast. Win with the Herbalist to unlock.',
+};
 const action = (name: string, label: string, onSelect: () => void, disabled = false): AdventureAction => ({ name, label, onSelect, disabled });
 const itemBands = (item: ItemDef, level = 0): string => `${item.bands.map((band) => bandOf(item.bands, band.min, level).value).join(' / ')} by size band`;
 const itemCards = (item: ItemDef, slot?: SlotState): AdventureCard[] => [
@@ -123,7 +128,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
         view.sandbox = sandbox; view.character = (sandbox ? LOADOUTS : STARTERS)[0].id; view.detail = null; onChange();
       })), selectedTab: view.sandbox ? 'sandbox' : 'campaign',
       cards: characters.map((definition) => ({ id: definition.id, title: `${name(definition.id)}${locked(definition) ? ' · Locked' : ''}`,
-        body: `${definition.health} health · ${definition.loadout.map((item) => name(item.id)).join(' / ')}\n${LOADOUT_DESCRIPTIONS[definition.id] ?? (definition.id === 'herbalist' ? 'Healing replaces defense. Win a campaign to unlock.' : 'Two starting abilities. Find equipment, widen your colors, and reach the Warden.')}`,
+        body: `${definition.health} health · ${definition.loadout.map((item) => name(item.id)).join(' / ')}\n${LOADOUT_DESCRIPTIONS[definition.id] ?? STARTER_DESCRIPTIONS[definition.id] ?? 'Two starting abilities. Find equipment, widen your colors, and reach the Warden.'}`,
         colors: [...new Set(definition.loadout.flatMap((item) => item.colors))], selected: character.id === definition.id,
         actions: [action(`select-${definition.id}`, `Choose ${name(definition.id)}`, () => { view.character = definition.id; onChange(); }, locked(definition)),
           action(`inspect-${definition.id}`, 'Details', () => { view.character = definition.id; view.detail = { type: 'character' }; onChange(); })],
@@ -243,6 +248,10 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
         combatActions.push(action('play', between ? fightLabel : 'Resume puzzle', () => { void controller.playAdventure(); }),
           action('flee', `Flee · take ${encounter.def.intents[encounter.intent].damage} damage`, () => send({ type: 'flee' }), !between || !!encounter.def.budget?.boss));
         page.primary = undefined;
+      }
+      if (encounter.type === 'enemy' && encounter.phase === 'active') {
+        if (encounter.def.resists?.length) page.cards.push({ id: 'resists', title: 'Resists', colors: encounter.def.resists, body: 'Attacks with these colors deal half damage.' });
+        if (encounter.def.smothers?.length) page.cards.push({ id: 'smothers', title: 'Smothers', colors: encounter.def.smothers, body: 'These colors do nothing while it lives: no attack, block, or healing.' });
       }
       page.cards.push({ id: 'encounter', title: name(encounter.def.id), colors: encounter.def.scavenge.flatMap((rule) => rule.colors),
         body: node?.kind === 'forage' ? 'A single puzzle of harvest. Every color becomes supplies, and readied forage gear adds its yield. Other gear stays idle and earns no experience.'

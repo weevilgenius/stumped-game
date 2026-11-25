@@ -91,6 +91,10 @@ export type EncounterDef =
     readonly intents: readonly Intent[];
     /** Rules for the scavenge phase after it is defeated. */
     readonly scavenge: readonly ScavengeRule[];
+    /** Colors whose attacks deal half damage to it, rounded down. */
+    readonly resists?: readonly ColorId[];
+    /** Colors that do nothing while it is alive. */
+    readonly smothers?: readonly ColorId[];
   }
   | {
     readonly type: 'objective';

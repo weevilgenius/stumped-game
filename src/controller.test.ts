@@ -1131,6 +1131,18 @@ describe('bounded campaign controller', () => {
     await fresh.startAdventure('herbalist');
     expect(fresh.adventure!.state.character).toBe('herbalist');
   });
+
+  it('unlocks the Duelist only by winning with the Herbalist', async () => {
+    const { fake } = setup();
+    fake.store.set('adventureUnlocks', JSON.stringify(['ranger', 'sentinel', 'herbalist']));
+    const restored = setup(fake.store).controller;
+    expect(restored.adventureUnlocks).not.toContain('duelist');
+    await restored.startAdventure('herbalist');
+    const saved = parseAdventure(fake.store.get('adventure')!)!;
+    saved.state.campaign!.victory = true;
+    fake.store.set('adventure', JSON.stringify(saved));
+    expect(setup(fake.store).controller.adventureUnlocks).toContain('duelist');
+  });
 });
 
 describe('campaign round boundary reload', () => {

@@ -1,4 +1,7 @@
-import { BOSS, CONTENT_VERSION, ELITE_AMBUSH, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, ITEMS, LATE_AMBUSH, MAX_ITEM_LEVEL, POTIONS, STARTERS } from '../content/campaign';
+import {
+  BOSS, CONTENT_VERSION, ELITE_AMBUSH, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, HEALTH_SPREAD, ITEMS, LATE_AMBUSH,
+  MAX_ITEM_LEVEL, POTIONS, STARTERS, TIER_STARTS,
+} from '../content/campaign';
 import type { AdventureEvent, AdventureState, EncounterDef, ItemDef, RejectReason, SlotState } from './types';
 import { currentNode, type CampaignCommand, type CampaignState, type Offer, type RouteNode } from './campaignTypes';
 
@@ -33,7 +36,7 @@ export function createCampaign(seed: number): CampaignState {
       // Optional risk/recovery choices without increasing the two-forage budget.
       if (lane > 0 && kind === 'rest') kind = 'event';
       campaign.map.push({ id: `${column}-${lane}`, column, lane, kind, hidden: kind === 'event' && roll(campaign, 2) === 0,
-        tier: Math.min(3, 1 + Math.floor(column / 8) + Number(kind === 'elite')), next: [] });
+        tier: Math.min(TIER_STARTS.length, TIER_STARTS.findLastIndex((first) => column >= first) + 1 + Number(kind === 'elite')), next: [] });
     }
   }
   for (const node of campaign.map) {
@@ -154,11 +157,18 @@ const makeEncounter = (campaign: CampaignState, node: RouteNode): EncounterDef =
     [colors[i], colors[j]] = [colors[j], colors[i]];
   }
   const fierce = node.kind === 'elite' && random({ ...campaign, rng: deriveSeed(campaign.seed, `elite/${node.id}`) }) < FIERCE_ELITES;
+  const harvest = node.kind === 'elite' || node.kind === 'boss' ? 3 : 2;
+  // Resisted and smothered colors come after the harvest colors, so they never overlap.
+  const resists = colors.slice(harvest, harvest + (template.resists ?? 0)).sort((a, b) => a - b);
+  const smothers = colors.slice(harvest + resists.length, harvest + resists.length + (template.smothers ?? 0)).sort((a, b) => a - b);
+  // A seeded spread around each template's health; the boss is fixed.
+  const spread = node.kind === 'boss' ? 1 : 1 + HEALTH_SPREAD * (2 * random({ ...campaign, rng: deriveSeed(campaign.seed, `spread/${node.id}`) }) - 1);
   return { type: 'enemy', id: template.id,
-    health: Math.round(template.health * (node.kind === 'elite' ? ELITE_HEALTH : 1)),
+    health: Math.round(template.health * (node.kind === 'elite' ? ELITE_HEALTH : 1) * spread),
+    ...(resists.length ? { resists } : {}), ...(smothers.length ? { smothers } : {}),
     intents: fierce ? template.intents.map((intent) => ({ ...intent, damage: Math.ceil(intent.damage * FIERCE_DAMAGE) })) : template.intents,
     budget: { fleeAfter: template.flee, enrage: template.enrage, boss: template.boss },
-    scavenge: [{ colors: colors.slice(0, node.kind === 'elite' || node.kind === 'boss' ? 3 : 2), resource: 'supplies',
+    scavenge: [{ colors: colors.slice(0, harvest), resource: 'supplies',
       bands: [{ min: 1, value: 1 }, { min: 8, value: 2 }, { min: 15, value: 3 }] }],
   };
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTENT_VERSION, ELITE_HEALTH, ENEMIES, MAX_ITEM_LEVEL, STARTERS } from '../content/campaign';
+import { CONTENT_VERSION, ELITE_HEALTH, ENEMIES, HEALTH_SPREAD, MAX_ITEM_LEVEL, STARTERS } from '../content/campaign';
 import { createCampaign, deriveSeed, levelItem, routeChoices } from './campaign';
 import { currentNode } from './campaignTypes';
 import { bandOf, startRun, step } from './step';
@@ -372,11 +372,40 @@ describe('hybrid regressions', () => {
       const { encounter } = issue(state, { type: 'travel', node: elite.id });
       if (encounter?.type !== 'enemy') throw new Error('Expected enemy');
       const template = ENEMIES.find((entry) => entry.id === encounter.def.id && entry.tier === elite.tier)!;
-      expect(encounter.def.health).toBe(Math.round(template.health * ELITE_HEALTH));
+      const base = template.health * ELITE_HEALTH;
+      expect(encounter.def.health).toBeGreaterThanOrEqual(Math.floor(base * (1 - HEALTH_SPREAD)));
+      expect(encounter.def.health).toBeLessThanOrEqual(Math.ceil(base * (1 + HEALTH_SPREAD)));
       if (encounter.def.intents[0].damage > template.intents[0].damage) fierce++; else plain++;
     }
     expect(fierce).toBeGreaterThan(2);
     expect(plain).toBeGreaterThan(2);
+  });
+
+  it('late enemies resist some colors and smother others, apart from their harvest colors', () => {
+    let state = enter();
+    const encounter = state.encounter!;
+    if (encounter.type !== 'enemy') throw new Error('Expected enemy');
+    Object.assign(encounter, { health: 100, countdown: 50, def: { ...encounter.def, health: 100, resists: [0], smothers: [1] } });
+    state.slots = [{ item: { id: 'blade', effect: 'attack', colors: [0, 1, 2], bands: [{ min: 1, value: 7 }] }, ready: true, readyAt: 0, charged: [], chargedAmount: 0 }];
+    state = issue(state, { type: 'begin-round', round: manifest() });
+    const hit = (color: number): number => {
+      const before = (state.encounter as { health: number }).health;
+      state = issue(state, { type: 'turn', collect: { color, amount: 9 } });
+      return before - (state.encounter as { health: number }).health;
+    };
+    expect(hit(0)).toBe(3);
+    expect(hit(1)).toBe(0);
+    expect(hit(2)).toBe(7);
+    for (let seed = 1; seed <= 30; seed++) {
+      const campaign = createCampaign(seed);
+      for (const node of campaign.map.filter((entry) => entry.tier === 4 && entry.kind !== 'boss')) {
+        const fight = issue({ ...startRun(STARTERS[0]), campaign: { ...campaign, node: campaign.map.find((entry) => entry.next.includes(node.id))!.id } }, { type: 'travel', node: node.id }).encounter;
+        if (fight?.type !== 'enemy') continue;
+        const twisted = [...fight.def.resists ?? [], ...fight.def.smothers ?? []];
+        expect(twisted.length).toBeGreaterThan(0);
+        expect(twisted.some((color) => fight.def.scavenge[0].colors.includes(color))).toBe(false);
+      }
+    }
   });
 
   it('treasure groves idle all gear except forage gear, which adds its yield to the harvest', () => {
