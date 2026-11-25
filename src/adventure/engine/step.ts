@@ -123,12 +123,14 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
     && !slot.charged.includes(color)
     && useful(slot);
 
-  const activate = (index: number, slot: SlotState, amount: number, turn: number): void => {
+  const activate = (index: number, slot: SlotState, amount: number, turn: number, color?: number): void => {
     const { item } = slot;
-    const { band, value } = bandOf(item.bands, amount, slot.level);
+    const { band, value: full } = bandOf(item.bands, amount, slot.level);
+    const encounter = state.encounter;
+    const resisted = item.effect === 'attack' && encounter?.type === 'enemy' && color !== undefined && encounter.def.resists?.includes(color);
+    const value = resisted ? Math.floor(full / 2) : full;
     events.push({ type: 'ability-activated', slot: index, item: item.id, effect: item.effect, value, band });
     slot.readyAt = turn + (item.cooldown ?? 0) + 1;
-    const encounter = state.encounter;
     if (encounter?.phase === 'active' && encounter.type === 'objective' && encounter.def.accepts.includes(item.effect)) {
       encounter.progress += value;
       events.push({
@@ -172,13 +174,18 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
         return;
       }
     }
+    const foe = state.encounter;
+    if (foe?.type === 'enemy' && foe.phase === 'active' && foe.def.smothers?.includes(collect.color)) {
+      events.push({ type: 'pulse-discarded' });
+      return;
+    }
     const index = campaign && state.encounter?.phase === 'scavenge' ? -1
       : state.slots.findIndex((slot) => eligible(slot, collect.color, turn));
     const slot = state.slots[index];
     if (slot) {
       events.push({ type: 'pulse-routed', slot: index, item: slot.item.id });
       if (!slot.item.charge) {
-        activate(index, slot, collect.amount, turn);
+        activate(index, slot, collect.amount, turn, collect.color);
         return;
       }
       slot.charged.push(collect.color);
@@ -187,7 +194,8 @@ const resolver = (state: AdventureState, events: AdventureEvent[]) => {
       events.push({ type: 'ability-charged', slot: index, item: slot.item.id, missing });
       // A completed charge fires at once, sized by everything it took.
       if (missing.length === 0) {
-        activate(index, slot, slot.chargedAmount, turn);
+        // A charge is resisted only when its completing color is.
+        activate(index, slot, slot.chargedAmount, turn, collect.color);
         slot.charged = [];
         slot.chargedAmount = 0;
       }

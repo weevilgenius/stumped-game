@@ -6,7 +6,7 @@ import { type GameStats, initialStats, LEGACY_KEYS, migrateSave, newSave, parseS
 import type { Generate } from './generator';
 import type { Choices, SilverMode } from './settings';
 import { MAX_SOLVES, parseSolves, type Solve, solveOf } from './solves';
-import { STARTERS } from './adventure/content/campaign';
+import { OPEN_STARTERS, STARTERS, UNLOCKS } from './adventure/content/campaign';
 import { currentNode } from './adventure/engine';
 import type { AdventureCommand, AdventureEvent, AdventureState } from './adventure/engine';
 import { type AdventureSave, beginRound, command, newAdventure, parseAdventure, recordPuzzle, sync } from './adventurePlay';
@@ -234,10 +234,17 @@ export function createController(deps: ControllerDeps): Controller {
   \* ------------------------------------------------------- */
 
   let adventure: AdventureSave | null = null;
-  const adventureUnlocks = ['ranger', 'sentinel'];
+  const adventureUnlocks = [...OPEN_STARTERS];
+  /** Unlock every character a victory with this one earns; true if any is new. */
+  const unlockFrom = (state: AdventureState): boolean => {
+    if (state.outcome !== 'victory' && !state.campaign?.victory) return false;
+    const earned = Object.entries(UNLOCKS).filter(([id, by]) => !adventureUnlocks.includes(id) && (!by.length || by.includes(state.character)));
+    adventureUnlocks.push(...earned.map(([id]) => id));
+    return earned.length > 0;
+  };
   try {
     const unlocked: unknown = JSON.parse(deps.storage.getItem('adventureUnlocks') ?? '[]');
-    if (Array.isArray(unlocked) && unlocked.includes('herbalist')) adventureUnlocks.push('herbalist');
+    if (Array.isArray(unlocked)) adventureUnlocks.push(...Object.keys(UNLOCKS).filter((id) => unlocked.includes(id)));
     else if (unlocked && typeof unlocked === 'object' && 'wins' in unlocked && typeof unlocked.wins === 'number' && unlocked.wins > 0) adventureUnlocks.push('herbalist');
   } catch { /* An unreadable unlock record never prevents ordinary play. */ }
 
@@ -254,7 +261,7 @@ export function createController(deps: ControllerDeps): Controller {
       } else {
         adventure = parsed;
         adventureSaved = parsed !== null;
-        if (parsed?.state.campaign?.victory && !adventureUnlocks.includes('herbalist')) adventureUnlocks.push('herbalist');
+        if (parsed) unlockFrom(parsed.state);
       }
     } catch {
       writable = false;
@@ -354,8 +361,7 @@ export function createController(deps: ControllerDeps): Controller {
     try {
       deps.storage.setItem('save', JSON.stringify({ version: 1, settings, game, results, stats, played, open: data.open }));
       if (adventure) recordPuzzle(adventure);
-      if (adventure?.state.outcome === 'victory' || adventure?.state.campaign?.victory) {
-        if (!adventureUnlocks.includes('herbalist')) adventureUnlocks.push('herbalist');
+      if (adventure && (unlockFrom(adventure.state) || adventure.state.campaign?.victory)) {
         deps.storage.setItem('adventureUnlocks', JSON.stringify(adventureUnlocks));
       }
       if (adventureSaved) {

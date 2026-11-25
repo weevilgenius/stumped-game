@@ -390,6 +390,19 @@ Expand content only where testing exposes a missing strategic role. Finish the c
 - Active-run compatibility when balance or content changes.
 - Whether release begins as an explicitly experimental mode.
 
+### Decisions
+
+- **Target victory rates:** Normal difficulty targets about 50% victories for a careful player who plans reveals. A player who reveals as they solve wins less often but almost never dies in the first fight (under 5%, as in phase 4). An easy mode can come later if needed. The simulator's bots play worse than a careful human, so the sim compares changes against one another and human runs set the absolute level.
+- **Unavoidable versus preventable losses:** Keep plenty of raw luck, as in FTL: some runs are simply doomed, and a run that comes together should feel rare and satisfying. First-reveal ambushes stay unblockable, and loot has no pity timer. A starter that cannot win its early fights is a bug, not luck.
+- **Launch content:** Widen the tiers rather than adding zones. Enemies and gear gain a fourth tier for the end of the route. Enemy health carries a seeded random spread (±15%); the tiers themselves provide the ramp, since an extra within-tier ramp made the middle of the route too deadly in the sim. Late enemies add twists: some colors deal half damage (resistance), and some do nothing while the enemy lives (smothering). Loot ramps with the tiers, tuned by testing. Zones and acts stay in Ideas for later, since they are much more complicated. Enemy groups also wait.
+- **Starting characters:** Four for the balance pass. Ranger and Sentinel are open from the start. The Sentinel is fixed as the tough but slow starter: extra health, and a two-color spear with a one-turn cooldown beside a brace on its own color. Winning with either starter unlocks the Herbalist. Winning with the Herbalist unlocks the Duelist: two small blades on different colors and no defense. Once balance holds, many more unlockable characters become the main replay incentive.
+- **Active-run compatibility:** Content updates keep refreshing active runs in place, as in phase 7, even for structural changes, while Barry is the main tester. Retiring runs on structural updates can be revisited if more people test.
+- **Release:** Adventure mode stays behind Settings > Show adventure mode for now. Changelog entries for it stay general ("Updates to experimental adventure mode").
+
+### First balance pass (content version 6)
+
+Tier 4 (wyvern, hag, golem; greatsword, longbow, aegis, amrita) covers columns 19 onward, with tiers 2 and 3 starting at columns 8 and 14. The Warden is a tier 4 fight with 100 health and one resisted color. The boar is gentler (10 health, enrage 3). Complete-run sim, coverage gear, planned policy: Ranger 33%, Sentinel 25%, Herbalist 25%, Duelist 28% (content 5: Ranger 43%, Sentinel 10%, Herbalist 35%). Deaths in the first two columns fell from about 20% to 0–11% across starters and policies (Sentinel highest); most losses now come in tiers 3 and 4. A within-tier health ramp of 10–20% made columns 6 to 10 too deadly and was dropped. Barry's runs set the absolute level from here.
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
