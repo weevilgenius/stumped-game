@@ -1,6 +1,6 @@
 import {
   BOSS, CONTENT_VERSION, ELITE_AMBUSH, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, HEALTH_SPREAD, ITEMS, LATE_AMBUSH,
-  MAX_ITEM_LEVEL, POTIONS, STARTERS, TIER_STARTS,
+  LATE_SHOP_COLUMN, MAX_ITEM_LEVEL, POTIONS, STARTERS, TIER_STARTS,
 } from '../content/campaign';
 import type { AdventureEvent, AdventureState, EncounterDef, ItemDef, RejectReason, SlotState } from './types';
 import { currentNode, type CampaignCommand, type CampaignState, type Offer, type RouteNode } from './campaignTypes';
@@ -35,8 +35,11 @@ export function createCampaign(seed: number): CampaignState {
       if (lane > 0 && ['fight', 'elite'].includes(kind) && column > 0) kind = roll(campaign, 3) ? 'fight' : 'elite';
       // Optional risk/recovery choices without increasing the two-forage budget.
       if (lane > 0 && kind === 'rest') kind = 'event';
+      // One late shop on an outer lane, so reaching it takes planning; it stocks top-tier gear.
+      const lateShop = column === LATE_SHOP_COLUMN && lane === count - 1;
+      if (lateShop) kind = 'shop';
       campaign.map.push({ id: `${column}-${lane}`, column, lane, kind, hidden: kind === 'event' && roll(campaign, 2) === 0,
-        tier: Math.min(TIER_STARTS.length, TIER_STARTS.findLastIndex((first) => column >= first) + 1 + Number(kind === 'elite')), next: [] });
+        tier: lateShop ? TIER_STARTS.length : Math.min(TIER_STARTS.length, TIER_STARTS.findLastIndex((first) => column >= first) + 1 + Number(kind === 'elite')), next: [] });
     }
   }
   for (const node of campaign.map) {

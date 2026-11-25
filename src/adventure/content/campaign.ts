@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 6;
+export const CONTENT_VERSION = 7;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -124,6 +124,8 @@ export const BOSS: EnemyTemplate = { ...enemy('ancient-warden', 4, 100, [{ delay
 
 /** First route column of each danger tier; elites fight one tier up. Tier 4 is the run's peak. */
 export const TIER_STARTS: readonly number[] = [0, 8, 14, 19];
+/** Route column of the optional late shop, on one outer lane, stocked at the top tier. */
+export const LATE_SHOP_COLUMN = 16;
 /** Random spread of ordinary and elite enemy health, either way. */
 export const HEALTH_SPREAD = 0.15;
 

@@ -398,6 +398,18 @@ describe('hybrid regressions', () => {
     expect(plain).toBeGreaterThan(2);
   });
 
+  it('one late shop sits on an outer lane, stocked at the top tier, and other routes skip it', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const { map } = createCampaign(seed);
+      const column = map.filter((node) => node.column === 16);
+      const shops = column.filter((node) => node.kind === 'shop');
+      expect(shops).toHaveLength(1);
+      expect(shops[0].lane).toBe(column.length - 1);
+      expect(shops[0].tier).toBe(4);
+      expect(column.length).toBeGreaterThan(1);
+    }
+  });
+
   it('late enemies resist some colors and smother others, apart from their harvest colors', () => {
     let state = enter();
     const encounter = state.encounter!;

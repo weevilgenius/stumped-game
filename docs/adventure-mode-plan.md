@@ -398,6 +398,7 @@ Expand content only where testing exposes a missing strategic role. Finish the c
 - **Starting characters:** Four for the balance pass. Ranger and Sentinel are open from the start. The Sentinel is fixed as the tough but slow starter: extra health, and a two-color spear with a one-turn cooldown beside a brace on its own color. Winning with either starter unlocks the Herbalist. Winning with the Herbalist unlocks the Duelist: two small blades on different colors and no defense. Once balance holds, many more unlockable characters become the main replay incentive.
 - **Active-run compatibility:** Content updates keep refreshing active runs in place, as in phase 7, even for structural changes, while Barry is the main tester. Retiring runs on structural updates can be revisited if more people test.
 - **Leveling healing gear:** After a kill, readied healing gear takes its colors as experience when health is full and heals otherwise, so it can level like other gear (found in the first balance playtest: healing gear could never level).
+- **Late shop:** One optional shop at column 16, on an outer lane, so the player has to route toward it. It stocks tier 3 and 4 gear (45 to 55 supplies) plus the usual potions and paid healing, giving late supplies a use (content version 7).
 - **Release:** Adventure mode stays behind Settings > Show adventure mode for now. Changelog entries for it stay general ("Updates to experimental adventure mode").
 
 ### First balance pass (content version 6)
