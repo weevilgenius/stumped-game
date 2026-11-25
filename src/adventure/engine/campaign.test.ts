@@ -211,6 +211,23 @@ describe('campaign transitions and finite rewards', () => {
     }
   });
 
+  it('after a kill, healing gear heals when hurt and gains experience at full health', () => {
+    let state = strong(enter());
+    const herbs = { id: 'herbs', effect: 'heal' as const, colors: [8], bands: [{ min: 1, value: 3 }] };
+    state.slots.push({ item: herbs, ready: true, readyAt: 0, charged: [], chargedAmount: 0, level: 0, experience: 0 });
+    state = { ...state, maxHealth: 1000 };
+    state = issue(state, { type: 'begin-round', round: manifest() });
+    state = issue(state, { type: 'turn', collect: { color: 0, amount: 9 } });
+    expect(state.encounter?.phase).toBe('scavenge');
+    // The strong weapon takes every color, so set it aside for the harvest.
+    state = issue(state, { type: 'set-ready', slot: 0, ready: false });
+    const hurt = structuredClone(state);
+    hurt.health = 990;
+    expect(issue(hurt, { type: 'turn', collect: { color: 8, amount: 9 } }).health).toBe(993);
+    const full = issue(state, { type: 'turn', collect: { color: 8, amount: 9 } });
+    expect(full.slots.find((slot) => slot.item.id === 'herbs')!.experience).toBe(9);
+  });
+
   it('shops have fixed finite stock; inventory limits, price and selling enforce atomic choices', () => {
     let state = start();
     // Enter a genuine shop through the same travel command with a legal preceding node.
