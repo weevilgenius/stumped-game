@@ -47,6 +47,14 @@ const enemyInfo = (parent: HTMLElement, state: AdventureState, palette: readonly
     const budget = encounter.def.budget;
     text(parent, budget?.fleeAfter ? `Escapes without loot after ${budget.fleeAfter} puzzles; ${state.campaign?.encounterRounds ?? 0} finished.`
       : `Each new puzzle adds ${budget?.enrage ?? 0} damage to every hit. Attack countdown carries over.`);
+    if (encounter.def.resists?.length) {
+      text(parent, 'Resists (attacks deal half damage):');
+      swatches(parent, encounter.def.resists, palette);
+    }
+    if (encounter.def.smothers?.length) {
+      text(parent, 'Smothers (these colors do nothing while it lives):');
+      swatches(parent, encounter.def.smothers, palette);
+    }
   }
   if (currentNode(state)?.kind === 'forage') {
     // Groves idle all gear but forage items (route() in the engine), so no experience or healing here.
@@ -56,11 +64,11 @@ const enemyInfo = (parent: HTMLElement, state: AdventureState, palette: readonly
   }
   text(parent, 'Harvest colors (unready gear to collect supplies):');
   swatches(parent, encounter.def.scavenge.flatMap((rule) => rule.colors), palette);
-  text(parent, 'After a kill: matching readied gear earns experience; healing gear heals. Other matching colors harvest supplies. Each extra combat puzzle reduces harvest by 1 per color. One level per item per fight.');
+  text(parent, 'After a kill: matching readied gear earns experience; healing gear heals unless you are at full health. Other matching colors harvest supplies. Each extra combat puzzle reduces harvest by 1 per color. One level per item per fight.');
 };
 
 const renderPotions = (parent: HTMLElement, state: AdventureState, issue: (command: AdventureCommand) => void): void => {
-  text(parent, `Consumables · ${state.campaign!.potions.length}/3 · instant, no turn`, 'h3');
+  text(parent, `Consumables · ${state.campaign!.potions.length}/3 · instant`, 'h3');
   state.campaign!.potions.forEach((potion, index) => button(parent, `Use ${title(potion.id)} · ${potion.value}`, () => issue({ type: 'use-potion', potion: index }), potion.id !== 'healing-potion' && state.encounter?.phase !== 'active'));
 };
 
