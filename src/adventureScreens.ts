@@ -1,7 +1,7 @@
 import type { Controller } from './controller';
 import { bandOf, currentNode, eventAt, routeChoices } from './adventure/engine';
 import type { AdventureCommand, CharacterDef, ItemDef, Offer, RouteNode, SlotState } from './adventure/engine';
-import { MAX_ITEM_LEVEL, STARTERS, XP_PER_LEVEL } from './adventure/content/campaign';
+import { MAX_ITEM_LEVEL, STARTERS, UNLOCKS, XP_PER_LEVEL } from './adventure/content/campaign';
 import { LOADOUTS, LOADOUT_DESCRIPTIONS } from './adventure/content/loadouts';
 
 /** Controller surface used by the scene's presentation model. */
@@ -96,6 +96,12 @@ export function newAdventureScreen(): AdventureScreenState {
 export function adventureName(id: string): string {
   return id.replaceAll('-', ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
+/** Characters a victory with this one unlocks, skipping itself and those needed to play it. */
+const unlockNote = (character: string): string => {
+  const earned = Object.entries(UNLOCKS).filter(([id, by]) => id !== character && !(UNLOCKS[character] ?? []).includes(id)
+    && (!by.length || by.includes(character))).map(([id]) => adventureName(id));
+  return earned.length ? `\n${earned.join(' and ')} unlocked for future campaigns.` : '';
+};
 const STARTER_DESCRIPTIONS: Readonly<Record<string, string>> = {
   sentinel: 'Tough but slow: extra health and a heavy spear that rests a turn between thrusts.',
   herbalist: 'Healing replaces defense. Win a campaign to unlock.',
@@ -162,7 +168,7 @@ export function adventurePage(controller: AdventureScreenController, view: Adven
   if (ended) {
     page.tabs = [];
     page.cards = [{ id: 'summary', title: { victory: 'The Warden is defeated!', death: 'You were defeated', failed: 'Stumped', abandoned: 'You gave up' }[state.outcome ?? 'abandoned'],
-      body: `${state.rounds} completed puzzles${campaign ? `\n${campaign.imported ? 'Since import: ' : ''}${campaign.wins} fights won · ${campaign.fled} escaped\n${campaign.gear} gear acquired · ${campaign.upgrades} upgrades\nSupplies ${campaign.earned} earned / ${campaign.spent} spent${campaign.victory ? '\nHerbalist unlocked for future campaigns.' : ''}` : ''}` }];
+      body: `${state.rounds} completed puzzles${campaign ? `\n${campaign.imported ? 'Since import: ' : ''}${campaign.wins} fights won · ${campaign.fled} escaped\n${campaign.gear} gear acquired · ${campaign.upgrades} upgrades\nSupplies ${campaign.earned} earned / ${campaign.spent} spent${campaign.victory ? unlockNote(state.character) : ''}` : ''}` }];
     return page;
   }
   const inspect = (slot: number, pack = false): void => { view.detail = { type: 'item', slot, pack }; onChange(); };

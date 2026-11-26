@@ -128,3 +128,16 @@ it('lists resisted and smothered colors in the enemy details', () => {
   expect(dialog.textContent).toContain('Resists');
   expect(dialog.textContent).toContain('Smothers');
 });
+
+it('names the character a victory actually unlocks', () => {
+  const { save, controller, view } = setup();
+  const summary = (character: string): string => {
+    Object.assign(save.state, { character, phase: 'ended', outcome: 'victory' });
+    save.state.campaign!.victory = true;
+    return adventurePage(controller, view, false, vi.fn()).cards.map((card) => card.body).join('\n');
+  };
+  expect(summary('ranger')).toContain('Herbalist unlocked');
+  expect(summary('herbalist')).toContain('Duelist unlocked');
+  expect(summary('herbalist')).not.toContain('Herbalist unlocked');
+  expect(summary('duelist')).not.toContain('unlocked');
+});
