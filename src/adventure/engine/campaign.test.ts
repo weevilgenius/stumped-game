@@ -106,8 +106,8 @@ describe('seeded route contracts', () => {
     const wonB = solve(strong(b));
     expect(wonA.campaign!.loot).toEqual(wonB.campaign!.loot);
     const gear = wonA.campaign!.loot.filter((offer) => offer.item);
-    expect(gear.length).toBeGreaterThanOrEqual(2);
-    expect(gear.length).toBeLessThanOrEqual(4);
+    // A first-column kill is tier 1: at most one item, often none.
+    expect(gear.length).toBeLessThanOrEqual(1);
     expect(new Set(gear.map((offer) => offer.id)).size).toBe(gear.length);
   });
 });

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.19.1
+- Updates to experimental adventure mode.
+
 ## 0.19.0
 - Updates to experimental adventure mode.
 

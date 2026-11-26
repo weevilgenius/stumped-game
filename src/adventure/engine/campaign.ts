@@ -1,6 +1,6 @@
 import {
   BOSS, CONTENT_VERSION, ELITE_AMBUSH, ELITE_HEALTH, ENEMIES, FIERCE_DAMAGE, FIERCE_ELITES, EVENTS, HEALTH_SPREAD, ITEMS, LATE_AMBUSH,
-  LATE_SHOP_COLUMN, MAX_ITEM_LEVEL, POTIONS, PREMIUM_PRICE, STARTERS, TIER_STARTS,
+  EARLY_PRESSURE, LATE_SHOP_COLUMN, LOOT_BY_TIER, MAX_ITEM_LEVEL, POTIONS, PREMIUM_PRICE, STARTERS, TIER_STARTS,
 } from '../content/campaign';
 import type { AdventureEvent, AdventureState, EncounterDef, ItemDef, RejectReason, SlotState } from './types';
 import { currentNode, type CampaignCommand, type CampaignState, type Offer, type RouteNode } from './campaignTypes';
@@ -72,11 +72,13 @@ export function rollOffer(campaign: CampaignState, tier: number, price = 0, poti
     const j = roll(campaign, i + 1);
     [colors[i], colors[j]] = [colors[j], colors[i]];
   }
-  const item: ItemDef = { ...base, instance: id, price: 25 + (at - 1) * 10,
+  const item: ItemDef = { ...base, instance: id, price: gearPrice(at),
     colors: colors.slice(0, count).sort((a, b) => a - b) };
   return { id, price: price ? item.price! : 0, item, potion: null };
 }
 const MAX_TIER = TIER_STARTS.length;
+/** Base gear price by tier; shops charge it and sell back at half. */
+const gearPrice = (tier: number): number => 30 + (tier - 1) * 10;
 const slotOf = (item: ItemDef): SlotState => ({ item, ready: true, readyAt: 0, charged: [], chargedAmount: 0, level: 0, experience: 0 });
 
 /** Upgrade band effects once; caps keep equipment and the enrage budget bounded. */
@@ -94,7 +96,9 @@ export function campaignKill(state: AdventureState, events: AdventureEvent[]): v
   if (!campaign) return;
   const node = currentNode(state)!;
   campaign.wins++;
-  const count = node.kind === 'elite' || node.kind === 'boss' ? 3 + roll(campaign, 2) : 2 + roll(campaign, 3);
+  const [fewest, most] = LOOT_BY_TIER[Math.min(node.tier, LOOT_BY_TIER.length) - 1];
+  const bonus = node.kind === 'elite' || node.kind === 'boss' ? 1 : 0;
+  const count = fewest + bonus + roll(campaign, most - fewest + 1);
   campaign.loot = Array.from({ length: count }, () => rollOffer(campaign, node.tier));
   // Consumables are rare: only elites drop one (plus shops and events).
   if (node.kind === 'elite') campaign.loot.push(rollOffer(campaign, node.tier, 0, true));
@@ -166,11 +170,13 @@ const makeEncounter = (campaign: CampaignState, node: RouteNode): EncounterDef =
   const resists = colors.slice(harvest, harvest + (template.resists ?? 0)).sort((a, b) => a - b);
   const smothers = colors.slice(harvest + resists.length, harvest + resists.length + (template.smothers ?? 0)).sort((a, b) => a - b);
   // A seeded spread around each template's health; the boss is fixed.
+  // Ordinary fights between the opening and the first elites start the pressure early.
+  const pressure = node.kind === 'fight' && node.column >= EARLY_PRESSURE.from && node.column <= EARLY_PRESSURE.to ? EARLY_PRESSURE.factor : 1;
   const spread = node.kind === 'boss' ? 1 : 1 + HEALTH_SPREAD * (2 * random({ ...campaign, rng: deriveSeed(campaign.seed, `spread/${node.id}`) }) - 1);
   return { type: 'enemy', id: template.id,
-    health: Math.round(template.health * (node.kind === 'elite' ? ELITE_HEALTH : 1) * spread),
+    health: Math.round(template.health * (node.kind === 'elite' ? ELITE_HEALTH : 1) * spread * pressure),
     ...(resists.length ? { resists } : {}), ...(smothers.length ? { smothers } : {}),
-    intents: fierce ? template.intents.map((intent) => ({ ...intent, damage: Math.ceil(intent.damage * FIERCE_DAMAGE) })) : template.intents,
+    intents: template.intents.map((intent) => ({ ...intent, damage: Math.ceil(intent.damage * (fierce ? FIERCE_DAMAGE : 1) * pressure) })),
     budget: { fleeAfter: template.flee, enrage: template.enrage, boss: template.boss },
     scavenge: [{ colors: colors.slice(0, harvest), resource: 'supplies',
       bands: [{ min: 1, value: 1 }, { min: 8, value: 2 }, { min: 15, value: 3 }] }],
@@ -250,7 +256,7 @@ export function applyCampaign(state: AdventureState, command: CampaignCommand, e
         scavenge: [{ colors: [0, 1, 2, 3, 4, 5, 6, 7, 8], resource: 'supplies', bands: [{ min: 1, value: 1 }, { min: 8, value: 2 }] }] };
       state.encounter = { type: 'objective', def, phase: 'scavenge', progress: 1, countdown: 100 };
     } else if (target.kind === 'shop') {
-      campaign.stock = [1, 2, 3].map(() => rollOffer(campaign, target.tier, 25 + (target.tier - 1) * 10));
+      campaign.stock = [1, 2, 3].map(() => rollOffer(campaign, target.tier, 1));
       // One premium piece a tier up (top-tier shops add a level instead), priced out of reach without foraging.
       const premium = rollOffer(campaign, Math.min(MAX_TIER, target.tier + 1), 1, false, true);
       premium.price = Math.round(premium.item!.price! * PREMIUM_PRICE);
