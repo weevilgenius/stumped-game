@@ -273,7 +273,6 @@ class PuzzleScene extends Phaser.Scene {
     if (seconds !== this.shownSeconds) {
       this.shownSeconds = seconds;
       this.timerText?.setText(formatTime(elapsed));
-      this.options.onChange();
     }
   }
 
@@ -1441,6 +1440,7 @@ const canvasGame = (parent: HTMLElement, theme: Theme): Phaser.Game => {
   const game = phaser = new Phaser.Game({
     type: Phaser.AUTO, parent, backgroundColor: theme.background, banner: false, disableContextMenu: true,
     audio: { noAudio: true }, input: { keyboard: false },
+    fps: { limit: 30 },
     scale: { mode: Phaser.Scale.NONE, expandParent: false, ...size() },
   });
   new ResizeObserver(() => {
