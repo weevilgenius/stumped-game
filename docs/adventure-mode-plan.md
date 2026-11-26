@@ -419,6 +419,16 @@ Third run (Herbalist, content version 8): victory in 28 puzzles, 14 fights won (
 
 Fourth run (Duelist, content version 9, after swapping the saber and dirk bands): victory in 22 puzzles and about 42 minutes, 14 fights won. Barry: the Duelist is viable. The first five fights were all rats or a wisp and never cost health; the real danger came from elites (6/22 against a wraith at column 10, 12/22 against the golem at column 19) and the Warden (12/22). Supplies now get spent: 263 of 367, including the second shop's premium tower shield (113) and two tier 4 items at the late shop. Across four runs Barry has won three, above the 50% target, and the first third of the route stays calm.
 
+### Tightening pass (content version 10)
+
+After three wins in four runs, with a calm first third and an optimal color setup reached too quickly (and rats dropping four good items), Barry asked for a tightening pass:
+
+- **Loot by tier:** an ordinary kill drops 0–1 items at tier 1, 1–2 at tier 2, 2–3 at tier 3 and 2–4 at tier 4; elites and the boss drop one more. Supplies still drop from every kill.
+- **Early pressure:** ordinary fights in columns 4 to 9 get 20% more health and damage. The opening fights are unchanged.
+- **Prices:** base gear prices rise by 5 (30, 40, 50, 60 by tier), so premium items cost 100 to 150.
+
+Short sim comparison (5 recorded and 20 generated seeds, coverage gear, planned policy) against content version 9: colors covered by column 8 fell from 7.2 to 5.9 on average; wins fell slightly (Ranger 20% to 15%, Duelist 10% to 5%, Sentinel 10% unchanged, Herbalist 0% both). Reveal-as-you-go bots now die earlier, around puzzle 11 instead of 16.
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
