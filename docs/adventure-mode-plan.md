@@ -417,6 +417,8 @@ Second run (Ranger, same content): victory in 30 puzzles and about 53 minutes, 1
 
 Third run (Herbalist, content version 8): victory in 28 puzzles, 14 fights won (five elites), none fled. Barry likes the premium shop item: often out of reach, but worth saving for, and it adds variety. He bought the late shop's premium aegis (tier 4, level 1, 138 supplies) and still finished with 138 unspent of 319 earned. Health never fell below 15/22 and was back to full after almost every fight, mostly from in-fight healing (143 healed, 27 of it after kills). Across the three runs: two wins in three, close to the 50% target, though this one was comfortable.
 
+Fourth run (Duelist, content version 9, after swapping the saber and dirk bands): victory in 22 puzzles and about 42 minutes, 14 fights won. Barry: the Duelist is viable. The first five fights were all rats or a wisp and never cost health; the real danger came from elites (6/22 against a wraith at column 10, 12/22 against the golem at column 19) and the Warden (12/22). Supplies now get spent: 263 of 367, including the second shop's premium tower shield (113) and two tier 4 items at the late shop. Across four runs Barry has won three, above the 50% target, and the first third of the route stays calm.
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
