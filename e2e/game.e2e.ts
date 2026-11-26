@@ -344,6 +344,15 @@ test('time advances during play, explanations and feedback, but pauses in the me
   await openPuzzle(page);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   const elapsed = async (): Promise<number> => (await model(page)).elapsed;
+  const savedElapsed = (): Promise<number> => page.evaluate(() => {
+    const save = JSON.parse(localStorage.getItem('stumped-main.save')!) as { game: Pick<Game, 'elapsed'> };
+    return save.game.elapsed;
+  });
+  const beforeIdle = await elapsed();
+  const savedBeforeIdle = await savedElapsed();
+  await page.clock.runFor(1200);
+  expect(await elapsed()).toBeGreaterThan(beforeIdle + 1100);
+  expect(await savedElapsed()).toBe(savedBeforeIdle);
   const advances = async (): Promise<void> => {
     const before = await elapsed();
     await page.clock.runFor(500);
@@ -356,6 +365,7 @@ test('time advances during play, explanations and feedback, but pauses in the me
   await press(page, 'back');
   await page.clock.runFor(100);
   const paused = await elapsed();
+  expect(await savedElapsed()).toBe(paused);
   await page.clock.fastForward(5000);
   expect(await elapsed()).toBe(paused);
   await page.locator('#thumb').click();
