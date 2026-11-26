@@ -415,6 +415,8 @@ Barry played a Sentinel run on content version 6 and died in the 16th puzzle, at
 
 Second run (Ranger, same content): victory in 30 puzzles and about 53 minutes, 15 fights won, none fled. Barry: getting better; early color coverage was lucky, and a double shield build turned out viable. Lowest health came against the two hags (8/24 as a tier 4 elite at column 14, 9/24 at column 20); the boss took three puzzles. The sword, axe and aegis all reached the level cap, and a tier 4 greatsword stayed in the pack. Supplies piled up again: 236 earned, 64 spent, 172 unspent, because the only shops are at columns 3 and 11 and nothing after column 11 can spend them.
 
+Third run (Herbalist, content version 8): victory in 28 puzzles, 14 fights won (five elites), none fled. Barry likes the premium shop item: often out of reach, but worth saving for, and it adds variety. He bought the late shop's premium aegis (tier 4, level 1, 138 supplies) and still finished with 138 unspent of 319 earned. Health never fell below 15/22 and was back to full after almost every fight, mostly from in-fight healing (143 healed, 27 of it after kills). Across the three runs: two wins in three, close to the 50% target, though this one was comfortable.
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
