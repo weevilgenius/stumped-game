@@ -3,6 +3,8 @@ import { command, newAdventure } from './adventurePlay';
 import { adventurePage, newAdventureScreen } from './adventureScreens';
 import type { AdventureScreenController } from './adventureScreens';
 import { createAccessibleAdventure } from './adventureAccessibility';
+import { inspectAdventure } from './adventureMenu';
+import { routeChoices } from './adventure/engine';
 
 const setup = () => {
   const save = newAdventure('ranger');
@@ -112,4 +114,17 @@ it('preserves semantic focus as canvas controls redraw and removes old scene con
   expect(onSelect).toHaveBeenCalledTimes(1);
   menu.destroy();
   expect(document.querySelector('.accessible-adventure')).toBeNull();
+});
+
+it('lists resisted and smothered colors in the enemy details', () => {
+  const { save, controller } = setup();
+  controller.adventureCommand({ type: 'travel', node: routeChoices(save.state)[0].id });
+  const encounter = save.state.encounter;
+  if (encounter?.type !== 'enemy') throw new Error('Expected enemy');
+  Object.assign(encounter, { def: { ...encounter.def, resists: [1], smothers: [2, 3] } });
+  const dialog = document.body.appendChild(document.createElement('dialog'));
+  dialog.showModal = vi.fn();
+  inspectAdventure(dialog, controller, [0, 1, 2, 3, 4, 5, 6, 7, 8], undefined);
+  expect(dialog.textContent).toContain('Resists');
+  expect(dialog.textContent).toContain('Smothers');
 });
