@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 8;
+export const CONTENT_VERSION = 9;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -26,8 +26,8 @@ export const STARTERS: readonly CharacterDef[] = [
     { id: 'remedy', effect: 'heal', colors: [7], bands: bands(2, 3, 5, 7) },
   ] },
   { id: 'duelist', health: 22, loadout: [
-    { id: 'saber', effect: 'attack', colors: [1, 6], bands: bands(2, 3, 4, 5) },
-    { id: 'dirk', effect: 'attack', colors: [3, 8], bands: bands(2, 3, 5, 7) },
+    { id: 'saber', effect: 'attack', colors: [1, 6], bands: bands(2, 3, 5, 7) },
+    { id: 'dirk', effect: 'attack', colors: [3, 8], bands: bands(2, 3, 4, 5) },
   ] },
 ];
 /** Starters a new player can choose without winning first. */
