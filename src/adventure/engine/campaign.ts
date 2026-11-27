@@ -78,7 +78,7 @@ export function rollOffer(campaign: CampaignState, tier: number, price = 0, poti
 }
 const MAX_TIER = TIER_STARTS.length;
 /** Base gear price by tier; shops charge it and sell back at half. */
-const gearPrice = (tier: number): number => 30 + (tier - 1) * 10;
+const gearPrice = (tier: number): number => 25 + (tier - 1) * 10;
 const slotOf = (item: ItemDef): SlotState => ({ item, ready: true, readyAt: 0, charged: [], chargedAmount: 0, level: 0, experience: 0 });
 
 /** Upgrade band effects once; caps keep equipment and the enrage budget bounded. */

@@ -2,7 +2,7 @@ import type { Band, CharacterDef, ItemDef, Intent } from '../engine/types';
 import type { Potion } from '../engine/campaignTypes';
 
 /** Increment when campaign content changes; saves and reports retain provenance. */
-export const CONTENT_VERSION = 10;
+export const CONTENT_VERSION = 11;
 /** Maximum improvements an individual item can receive. */
 export const MAX_ITEM_LEVEL = 3;
 /** Harvested squares needed for one improvement. */
@@ -127,7 +127,7 @@ export const TIER_STARTS: readonly number[] = [0, 8, 14, 19];
 /** Route column of the optional late shop, on one outer lane, stocked at the top tier. */
 export const LATE_SHOP_COLUMN = 16;
 /** Gear dropped by an ordinary kill, fewest and most, by danger tier; elites and the boss drop one more. */
-export const LOOT_BY_TIER: readonly (readonly [number, number])[] = [[0, 1], [1, 2], [2, 3], [2, 4]];
+export const LOOT_BY_TIER: readonly (readonly [number, number])[] = [[1, 1], [1, 2], [2, 3], [2, 4]];
 /** Ordinary fights in these columns get this much more health and damage. */
 export const EARLY_PRESSURE = { from: 4, to: 9, factor: 1.2 } as const;
 /** Price multiplier for each shop's one premium item. */

@@ -429,6 +429,8 @@ After three wins in four runs, with a calm first third and an optimal color setu
 
 Short sim comparison (5 recorded and 20 generated seeds, coverage gear, planned policy) against content version 9: colors covered by column 8 fell from 7.2 to 5.9 on average; wins fell slightly (Ranger 20% to 15%, Duelist 10% to 5%, Sentinel 10% unchanged, Herbalist 0% both). Reveal-as-you-go bots now die earlier, around puzzle 11 instead of 16.
 
+Playtest on content version 10 (two Sentinel runs): both died at column 6 or 7 to the first elite (a bear), after seven tier 1 kills that dropped no gear at all (about a 1% chance at 0–1 items each, but the expected half an item per kill left too little room). The first shop's gear cost 30 against 21–22 supplies, with nothing to sell. Three cuts at once (fewer drops, higher prices, tougher fights) stalled the starting loadout. Content version 11: tier 1 kills drop exactly one item, and base gear prices return to 25/35/45/55 (premium 63 to 138). Early pressure stays. A short sim shows 6.2 colors covered by column 8 (7.2 in version 9, 5.9 in version 10).
+
 ### Completion criteria
 
 Complete-run simulations and human playtests support the intended difficulty. Save recovery and offline behavior work. Screenshots have been captured and inspected on the preferred devices. Relevant e2e tests, `pnpm run check`, and the production build pass.
