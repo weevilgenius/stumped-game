@@ -1152,32 +1152,38 @@ class PuzzleScene extends Phaser.Scene {
     let enemy: Phaser.GameObjects.Rectangle | undefined;
     if (encounter) {
       const won = encounter.phase === 'scavenge';
-      const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
+      const enemyType = encounter.type === 'enemy';
+      const inset = 6 * u;
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      const title = add(this.add.text(ex + 6 * u, enemyTop, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
-      title.setScale(Math.min(1, (ew - 12 * u) / title.width));
+      if (!enemyType) {
+        const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
+        const title = add(this.add.text(ex + inset, enemyTop, won ? `${name} ✓` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+        title.setScale(Math.min(1, (ew - 2 * inset) / title.width));
+      }
       if (state.campaign) {
         this.controls.set('enemy', {
           view: { name: 'enemy', label: 'Inspect encounter and consumables', bounds: [ex / u, r.y / u, ew / u, r.h / u], disabled: false },
           onTap: () => view.inspect?.(),
         });
         enemy.setInteractive().on('pointerdown', () => this.activateControl('enemy'));
-        const harvest = encounter.def.scavenge.flatMap((rule) => rule.colors);
+      }
+      const harvest = state.campaign ? encounter.def.scavenge.flatMap((rule) => rule.colors) : [];
+      const harvestH = enemyType && harvest.length ? 12 * u * k : 0;
+      const bodyBottom = r.y + r.h - harvestH;
+      if (harvest.length) {
         const dots = add(this.add.graphics());
-        // Reserve a row below the title, even when all nine colors can be harvested.
+        const harvestY = enemyType ? bodyBottom + harvestH / 2 : enemyTop + 21 * u * k;
         const spacing = Math.min(9 * u * k, (ew - 12 * u) / harvest.length);
         const radius = Math.min(3 * u * k, spacing / 3);
         harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color])
-          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, enemyTop + 21 * u * k, radius));
+          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, harvestY, radius));
       }
-      const enemyType = encounter.type === 'enemy';
-      const barY = enemyTop + (state.campaign ? 28 : 20) * u * k;
+      const barY = enemyType ? top : enemyTop + (state.campaign ? 28 : 20) * u * k;
       const bodyTop = won ? barY : barY + barH + 2 * u;
-      const bodyH = r.y + r.h - bodyTop;
+      const bodyH = bodyBottom - bodyTop;
       const stacked = enemyType && bodyH >= 74 * u;
       const footerH = 20 * u;
       const spriteSize = stacked ? Math.min(ew, bodyH - footerH) : Math.min(ew * 0.43, bodyH);
-      const inset = 6 * u;
       let textX = ex + inset;
       let textY = enemyTop + (state.campaign ? 44 : 38) * u * k;
       if (enemyType) {
@@ -1187,7 +1193,7 @@ class PuzzleScene extends Phaser.Scene {
         if (sprite) {
           add(sprite);
           textX += stacked ? 0 : spriteSize;
-          textY = stacked ? r.y + r.h - footerH : spriteY - 15 * u;
+          textY = stacked ? bodyBottom - footerH : spriteY - 15 * u;
         }
       }
       if (won) {
@@ -1249,7 +1255,7 @@ class PuzzleScene extends Phaser.Scene {
       }
     }
     this.markers(add, mine, r.x + left / 2, top + barH / 2);
-    this.markers(add, theirs, ex + ew / 2, enemyTop + 20 * u * k + barH / 2);
+    this.markers(add, theirs, ex + ew / 2, (encounter?.type === 'enemy' ? top : enemyTop + 20 * u * k) + barH / 2);
   }
 
   /**
