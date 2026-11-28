@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.20.0
+- An animated traveler now idles, attacks, blocks, recoils from hits, and forages beside your equipment in adventure puzzles.
+
 ## 0.19.1
 - Updates to experimental adventure mode.
 

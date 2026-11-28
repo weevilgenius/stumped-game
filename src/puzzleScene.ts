@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bindItemPress } from './itemPress';
+import { drawCharacter, preloadCharacter } from './adventureCharacter';
 import { AdventureScene } from './adventureScene';
 import type { AdventureSceneOptions } from './adventureScene';
 import { createAccessiblePuzzle } from './accessibility';
@@ -209,6 +210,7 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
+    if (this.options.adventure) preloadCharacter(this);
     // Each theme's art is loaded once, under its own keys, and kept for the next puzzle.
     for (const [key, url] of Object.entries(this.theme.icons)) {
       if (/\.svg($|\?)/.test(url)) {
@@ -1115,10 +1117,14 @@ class PuzzleScene extends Phaser.Scene {
     }
     const chipY = top + barH + 6 * u;
     const chipH = r.y + r.h - chipY;
-    const gap = 6 * u;
     const count = state.slots.length;
-    const chipW = Math.min((left - gap * (count - 1)) / count, chipH * 1.3);
-    const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i, r.x + i * (chipW + gap), chipY, chipW, chipH));
+    const size = Math.min(chipH, left / (Math.max(1, count) + 1));
+    add(drawCharacter(this, r.x + size / 2, chipY + chipH / 2, size, events));
+    const gap = 3 * u;
+    const chipW = Math.min(52 * u, (left - size) / Math.max(1, count) - gap);
+    const tileH = Math.min(chipH, Math.max(44 * u, chipW));
+    const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i,
+      r.x + size + gap + i * (chipW + gap), chipY + (chipH - tileH) / 2, chipW, tileH));
 
     // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
     const ex = r.x + left + 12 * u;
@@ -1269,15 +1275,16 @@ class PuzzleScene extends Phaser.Scene {
       const step = (Math.PI * 2) / item.colors.length;
       item.colors.forEach((color, i) => {
         g.fillStyle(this.theme.palette[color])
-          .slice(x + w / 2, y + h * 0.72 + 6 * u, r, i * step - Math.PI / 2, (i + 1) * step - Math.PI / 2)
+          .slice(x + w / 2, y + h * 0.74, r, i * step - Math.PI / 2, (i + 1) * step - Math.PI / 2)
           .fillPath();
       });
     }
-    const size = Math.min(12 * u, (w - 8 * u) / item.colors.length - 3 * u);
-    const sx = x + (w - item.colors.length * (size + 3 * u) + 3 * u) / 2;
+    const swatchGap = Math.min(3 * u, w / (item.colors.length * 4));
+    const size = Math.min(12 * u, (w - 4 * u) / item.colors.length - swatchGap);
+    const sx = x + (w - item.colors.length * (size + swatchGap) + swatchGap) / 2;
     (wild ? [] : item.colors).forEach((color, i) => {
-      const cx = sx + i * (size + 3 * u);
-      const cy = y + h * 0.72;
+      const cx = sx + i * (size + swatchGap);
+      const cy = y + h * 0.74 - size / 2;
       if (!item.charge || slot.charged.includes(color)) {
         g.fillStyle(this.theme.palette[color]).fillRoundedRect(cx, cy, size, size, 2 * u);
       } else {
