@@ -1471,10 +1471,11 @@ class PuzzleScene extends Phaser.Scene {
       const cell = cells[i % cells.length];
       const x = this.boardX + (cell % n + 0.2 + Math.random() * 0.6) * cellSize;
       const y = this.boardY + (Math.floor(cell / n) + 0.2 + Math.random() * 0.6) * cellSize;
-      const radius = (3 + Math.random() * 2) * u;
+      // A small diamond: a square turned 45 degrees.
+      const side = (5 + Math.random() * 3) * u;
       // Filled halo rather than a stroke, so the particle shows over squares of its own color.
-      const halo = this.add.circle(x, y, radius + 1.5 * u, this.theme.cream, 0.85).setDepth(8);
-      const dot = this.add.circle(x, y, radius, color).setDepth(8);
+      const halo = this.add.rectangle(x, y, side + 3 * u, side + 3 * u, this.theme.cream, 0.85).setAngle(45).setDepth(8);
+      const dot = this.add.rectangle(x, y, side, side, color).setAngle(45).setDepth(8);
       const spin = Math.random() * Math.PI * 2;
       const turn = (Math.random() < 0.5 ? -1 : 1) * Math.PI * 3;
       const reach = cellSize * (0.5 + Math.random() * 0.5);
