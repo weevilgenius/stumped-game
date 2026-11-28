@@ -73,6 +73,8 @@ const MARKER_HOLD_MS = 1400;
 const PARTICLES_PER_CELL = 3;
 const MIN_PARTICLES = 12;
 const MAX_PARTICLES = 36;
+/** Largest growth of particles from pulses too big to send more of them. */
+const MAX_PARTICLE_GROWTH = 1.75;
 /** How long one particle takes from the board to its item, in ms. */
 const FLIGHT_MS = 650;
 /** Spread of particle start times, in ms; the strip plays the turn once the last one lands. */
@@ -1467,12 +1469,14 @@ class PuzzleScene extends Phaser.Scene {
     const { u, cellSize } = this;
     const n = this.model.puzzle.size;
     const count = Phaser.Math.Clamp(cells.length * PARTICLES_PER_CELL, MIN_PARTICLES, MAX_PARTICLES);
+    // Past the particle cap, bigger pulses send bigger particles instead.
+    const growth = Phaser.Math.Clamp(cells.length * PARTICLES_PER_CELL / MAX_PARTICLES, 1, MAX_PARTICLE_GROWTH);
     for (let i = 0; i < count; i++) {
       const cell = cells[i % cells.length];
       const x = this.boardX + (cell % n + 0.2 + Math.random() * 0.6) * cellSize;
       const y = this.boardY + (Math.floor(cell / n) + 0.2 + Math.random() * 0.6) * cellSize;
       // A small diamond: a square turned 45 degrees.
-      const side = (5 + Math.random() * 3) * u;
+      const side = (5 + Math.random() * 3) * growth * u;
       // Filled halo rather than a stroke, so the particle shows over squares of its own color.
       const halo = this.add.rectangle(x, y, side + 3 * u, side + 3 * u, this.theme.cream, 0.85).setAngle(45).setDepth(8);
       const dot = this.add.rectangle(x, y, side, side, color).setAngle(45).setDepth(8);
