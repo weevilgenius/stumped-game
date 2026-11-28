@@ -1,6 +1,6 @@
 {
   "name": "stumped-game",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "Stump family Sudoku game",
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
