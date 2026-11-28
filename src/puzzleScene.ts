@@ -1137,7 +1137,7 @@ class PuzzleScene extends Phaser.Scene {
     const playerWidth = roomy ? Math.max(equalShare, left - columns * (52 * u + gap)) : equalShare;
     const size = Math.min(chipH, playerWidth);
     const playerX = r.x + left - size / 2;
-    add(drawCharacter(this, playerX, chipY + chipH / 2, size, events));
+    add(drawCharacter(this, playerX, chipY + chipH / 2, size, state.outcome, events));
     const chipW = Math.min(52 * u, (left - size) / columns - gap);
     const tileH = Math.min((chipH - (rows - 1) * gap) / rows, Math.max(44 * u, chipW));
     const gearY = chipY + (chipH - rows * tileH - (rows - 1) * gap) / 2;

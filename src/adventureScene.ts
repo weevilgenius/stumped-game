@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawCharacter, preloadCharacter } from './adventureCharacter';
 import { bindItemPress } from './itemPress';
 import type { Controller } from './controller';
 import type { AccessibleControl } from './accessibility';
@@ -65,6 +66,8 @@ export class AdventureScene extends Phaser.Scene {
     this.press = null;
     this.cameras.main.setScroll(0, 0);
   }
+
+  preload(): void { preloadCharacter(this); }
 
   create(): void {
     const resize = (): void => { this.dirty = true; };
@@ -209,10 +212,17 @@ export class AdventureScene extends Phaser.Scene {
 
   private drawCard(card: AdventureCard, x: number, y: number, width: number): number {
     const theme = this.options.theme;
-    const title = this.label(card.title, x + 12, y + 12, 16, width - 24, theme.cream, false);
+    const ending = card.id === 'summary' ? this.options.controller.adventure?.state.outcome : null;
+    const portrait = ending === 'death' || ending === 'victory' ? 64 : 0;
+    if (portrait && ending) {
+      drawCharacter(this, (x + 12 + portrait / 2) * this.u, (y + 12 + portrait / 2) * this.u, portrait * this.u, ending);
+    }
+    const textX = x + 12 + (portrait ? portrait + 8 : 0);
+    const textWidth = x + width - 12 - textX;
+    const title = this.label(card.title, textX, y + 12, 16, textWidth, theme.cream, false);
     const bodyY = y + 18 + title.height / this.u;
-    const body = this.label(card.body, x + 12, bodyY, 14, width - 24, theme.cream, false);
-    const swatchY = bodyY + body.height / this.u + 10;
+    const body = this.label(card.body, textX, bodyY, 14, textWidth, theme.cream, false);
+    const swatchY = Math.max(bodyY + body.height / this.u, y + 12 + portrait) + 10;
     const actions = card.actions ?? [];
     const perRow = card.gearActions ? 4 : width >= 360 ? 3 : 2;
     const actionTop = swatchY + (card.colors?.length ? 30 : 0);

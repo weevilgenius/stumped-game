@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.20.0
+- The traveler falls when defeated and celebrates a campaign victory.
 - Adventure enemies now idle, strike, and recoil when hit.
 - An animated traveler now idles, attacks, blocks, recoils from hits, and forages beside your equipment in adventure puzzles.
 
