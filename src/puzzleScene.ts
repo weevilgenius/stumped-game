@@ -69,6 +69,14 @@ const HIT_TIERS = [4, 7];
 const MARKER_STAGGER_MS = 250;
 /** How long a lingering effect marker stays before fading, in ms. */
 const MARKER_HOLD_MS = 1400;
+/** Particles each region square sends when its pulse is collected, and the fewest and most one pulse sends. */
+const PARTICLES_PER_CELL = 3;
+const MIN_PARTICLES = 12;
+const MAX_PARTICLES = 36;
+/** How long one particle takes from the board to its item, in ms. */
+const FLIGHT_MS = 650;
+/** Spread of particle start times, in ms; the strip plays the turn once the last one lands. */
+const FLIGHT_STAGGER_MS = 300;
 
 /** One lingering effect marker on the adventure strip. */
 interface Marker {
@@ -189,6 +197,10 @@ class PuzzleScene extends Phaser.Scene {
   private fullscreenPending = false;
   /** Where the adventure strip goes, and what is drawn there now. */
   private strip: { r: Rect; parts: Phaser.GameObjects.GameObject[] } | null = null;
+  /** Where collected pulses fly on the strip as last drawn: each equipment chip's center, and the character's. */
+  private stripTargets: { chips: { x: number; y: number }[]; player: { x: number; y: number } } | null = null;
+  /** A turn waiting for its particles to land before the strip plays it. */
+  private pendingStrip: { events: readonly AdventureEvent[]; timer: Phaser.Time.TimerEvent } | null = null;
 
   constructor() {
     super('puzzle');
@@ -210,6 +222,8 @@ class PuzzleScene extends Phaser.Scene {
     this.complete = new Set(completedUnits(this.model).keys());
     this.shownSeconds = -1;
     this.fullscreenPending = false;
+    this.stripTargets = null;
+    this.pendingStrip = null;
   }
 
   preload(): void {
@@ -1143,6 +1157,7 @@ class PuzzleScene extends Phaser.Scene {
     const gearY = chipY + (chipH - rows * tileH - (rows - 1) * gap) / 2;
     const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i,
       r.x + i % columns * (chipW + gap), gearY + Math.floor(i / columns) * (tileH + gap), chipW, tileH));
+    this.stripTargets = { chips: chips.map(({ x, y }) => ({ x, y })), player: { x: playerX, y: chipY + chipH / 2 } };
 
     // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
     const ex = r.x + left + 12 * u;
@@ -1397,8 +1412,92 @@ class PuzzleScene extends Phaser.Scene {
    * @param events the engine's events, in order
    */
   adventureChanged(events: readonly AdventureEvent[]): void {
-    this.drawStrip(events);
-    this.syncAccessible();
+    // A turn still waiting on its particles plays together with this one, so its effects are not lost.
+    const pending = this.pendingStrip;
+    pending?.timer.remove();
+    this.pendingStrip = null;
+    const all = pending ? [...pending.events, ...events] : events;
+    const play = (): void => {
+      this.pendingStrip = null;
+      this.drawStrip(all);
+      this.syncAccessible();
+    };
+    const landing = this.infuse(events);
+    if (landing > 0) {
+      this.pendingStrip = { events: all, timer: this.time.delayedCall(landing, play) };
+    } else {
+      play();
+    }
+  }
+
+  /**
+   * Sends each usable collected pulse as particles from its color's squares to the item that takes
+   * it, or to the character for a harvest. Fizzled pulses send nothing.
+   * @returns ms until the last particle lands, or 0 if none flew
+   */
+  private infuse(events: readonly AdventureEvent[]): number {
+    const targets = this.stripTargets;
+    if (!targets) {
+      return 0;
+    }
+    const { regions, colors } = this.model.puzzle;
+    let landing = 0;
+    events.forEach((event, i) => {
+      if (event.type !== 'collected') {
+        return;
+      }
+      const next = events.slice(i + 1).find((e) => e.type === 'collected' || e.type === 'pulse-routed'
+        || e.type === 'pulse-discarded' || e.type === 'resource-changed');
+      const to = next?.type === 'pulse-routed' ? targets.chips[next.slot]
+        : next?.type === 'resource-changed' ? targets.player : undefined;
+      const region = colors.indexOf(event.color);
+      const cells = regions.flatMap((r, cell) => (r === region ? [cell] : []));
+      if (to && cells.length) {
+        landing = Math.max(landing, this.swirl(cells, this.theme.palette[event.color], to));
+      }
+    });
+    return landing;
+  }
+
+  /**
+   * Particles that spiral up from board squares and shrink into a point on the strip.
+   * @returns ms until the last one lands
+   */
+  private swirl(cells: readonly number[], color: number, to: { x: number; y: number }): number {
+    const { u, cellSize } = this;
+    const n = this.model.puzzle.size;
+    const count = Phaser.Math.Clamp(cells.length * PARTICLES_PER_CELL, MIN_PARTICLES, MAX_PARTICLES);
+    for (let i = 0; i < count; i++) {
+      const cell = cells[i % cells.length];
+      const x = this.boardX + (cell % n + 0.2 + Math.random() * 0.6) * cellSize;
+      const y = this.boardY + (Math.floor(cell / n) + 0.2 + Math.random() * 0.6) * cellSize;
+      const radius = (3 + Math.random() * 2) * u;
+      // Filled halo rather than a stroke, so the particle shows over squares of its own color.
+      const halo = this.add.circle(x, y, radius + 1.5 * u, this.theme.cream, 0.85).setDepth(8);
+      const dot = this.add.circle(x, y, radius, color).setDepth(8);
+      const spin = Math.random() * Math.PI * 2;
+      const turn = (Math.random() < 0.5 ? -1 : 1) * Math.PI * 3;
+      const reach = cellSize * (0.5 + Math.random() * 0.5);
+      this.tweens.addCounter({
+        from: 0, to: 1, duration: FLIGHT_MS, delay: (i / count) * FLIGHT_STAGGER_MS, ease: 'Sine.easeInOut',
+        onUpdate: (tween) => {
+          const t = tween.getValue() ?? 0;
+          // The spiral widens off the board and closes again onto the target.
+          const angle = spin + turn * t;
+          const swing = reach * Math.sin(Math.PI * t);
+          const px = x + (to.x - x) * t + Math.cos(angle) * swing;
+          const py = y + (to.y - y) * t + Math.sin(angle) * swing;
+          const scale = 1 - 0.6 * t;
+          halo.setPosition(px, py).setScale(scale);
+          dot.setPosition(px, py).setScale(scale);
+        },
+        onComplete: () => {
+          halo.destroy();
+          dot.destroy();
+        },
+      });
+    }
+    return FLIGHT_STAGGER_MS + FLIGHT_MS;
   }
 
   /** The run ended mid-puzzle: the character died. The board locks under a banner, then returns to the main screen. */

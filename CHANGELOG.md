@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.21.0
+- In adventure puzzles, a collected color swirls up from the board into the equipment that uses it (or to the traveler when harvested) before its attack, block, or heal plays.
+
 ## 0.20.0
 - The traveler falls when defeated and celebrates a campaign victory.
 - Adventure enemies now idle, strike, and recoil when hit.
