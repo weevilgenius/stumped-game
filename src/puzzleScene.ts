@@ -51,9 +51,11 @@ const STROKE_SOUNDS: Record<NonNullable<StrokeMode>, Sound> = { place: 'x', eras
 const MAX_PIXEL_RATIO = 3;
 /** Size vector icons are drawn at before they are scaled down to fit a square. */
 const VECTOR_ICON_PX = 512;
-/** Height of the adventure strip, in CSS pixels, and the most it grows to when the screen has room. */
+/** Base strip height and the stacked height targeted by compacting the controls, in CSS pixels. */
 const STRIP_PX = 88;
-const STRIP_MAX_PX = 124;
+const STRIP_TARGET_PX = 124;
+/** Extra portrait space can accommodate the player next to two rows of equipment. */
+const STRIP_TALL_PX = 180;
 /** Height the compact button rows give up, in CSS pixels: two rows of 40px with 8px gaps instead of 52px with 10px. */
 const COMPACT_SAVES_PX = 28;
 /** Character and enemy health bar colors. */
@@ -316,7 +318,7 @@ class PuzzleScene extends Phaser.Scene {
       // Stacked, the strip grows into height the board cannot use. On the shortest
       // phones, the buttons under the board shrink to give it more.
       const spare = (): number => height - bar - strip - below - pad - (width - 2 * pad);
-      const want = (STRIP_MAX_PX - STRIP_PX) * u;
+      const want = (STRIP_TARGET_PX - STRIP_PX) * u;
       // Whatever the smaller buttons save goes to the strip, not the board.
       const saved = spare() < want ? COMPACT_SAVES_PX * u : 0;
       this.compact = saved > 0;
@@ -329,6 +331,11 @@ class PuzzleScene extends Phaser.Scene {
     let status: Rect;
     let controls: Rect;
     if (tall >= wide) {
+      if (strip && width < height) {
+        // Measure after sizing the grid so only the margins above and below it are reclaimed.
+        const spare = Math.max(0, height - bar - strip - board - below - pad);
+        strip = Math.min(STRIP_TALL_PX * u, strip + spare);
+      }
       this.boardX = Math.round((width - board) / 2);
       this.boardY = Math.round(bar + strip + (height - bar - strip - board - below) / 2);
       status = { x: pad, y: 0, w: width - 2 * pad, h: bar };
@@ -1102,7 +1109,7 @@ class PuzzleScene extends Phaser.Scene {
     };
     const left = r.w * 0.62;
     // A strip that grew into spare height scales its bars, text, and pips with it.
-    const k = r.h / ((STRIP_PX - 8) * u);
+    const k = Math.min(r.h / u, STRIP_TARGET_PX - 8) / (STRIP_PX - 8);
     const barH = 12 * u * k;
     const top = r.y + 4 * u;
 
@@ -1118,24 +1125,31 @@ class PuzzleScene extends Phaser.Scene {
     const chipY = top + barH + 6 * u;
     const chipH = r.y + r.h - chipY;
     const count = state.slots.length;
-    const size = Math.min(chipH, left / (Math.max(1, count) + 1));
-    add(drawCharacter(this, r.x + size / 2, chipY + chipH / 2, size, events));
     const gap = 3 * u;
-    const chipW = Math.min(52 * u, (left - size) / Math.max(1, count) - gap);
-    const tileH = Math.min(chipH, Math.max(44 * u, chipW));
+    const roomy = r.h > (STRIP_TARGET_PX - 8) * u && chipH >= 2 * 44 * u + gap;
+    const columns = Math.max(1, roomy ? Math.min(count, 2) : count);
+    const rows = Math.max(1, Math.ceil(count / columns));
+    const equalShare = left / (columns + 1);
+    const playerWidth = roomy ? Math.max(equalShare, left - columns * (52 * u + gap)) : equalShare;
+    const size = Math.min(chipH, playerWidth);
+    add(drawCharacter(this, r.x + size / 2, chipY + chipH / 2, size, events));
+    const chipW = Math.min(52 * u, (left - size) / columns - gap);
+    const tileH = Math.min((chipH - (rows - 1) * gap) / rows, Math.max(44 * u, chipW));
+    const gearY = chipY + (chipH - rows * tileH - (rows - 1) * gap) / 2;
     const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i,
-      r.x + size + gap + i * (chipW + gap), chipY + (chipH - tileH) / 2, chipW, tileH));
+      r.x + size + gap + i % columns * (chipW + gap), gearY + Math.floor(i / columns) * (tileH + gap), chipW, tileH));
 
     // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
     const ex = r.x + left + 12 * u;
     const ew = r.x + r.w - ex;
+    const enemyTop = top + (r.h - (STRIP_PX - 8) * u * k) / 2;
     const encounter = state.encounter;
     let enemy: Phaser.GameObjects.Rectangle | undefined;
     if (encounter) {
       const won = encounter.phase === 'scavenge';
       const name = encounter.def.id[0].toUpperCase() + encounter.def.id.slice(1);
       enemy = add(this.add.rectangle(ex + ew / 2, r.y + r.h / 2, ew, r.h, this.theme.ink).setRounded(8 * u));
-      const title = add(this.add.text(ex + 6 * u, top, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
+      const title = add(this.add.text(ex + 6 * u, enemyTop, won ? `${name} \u2713` : name, this.textStyle(13 * k)).setOrigin(0, 0));
       title.setScale(Math.min(1, (ew - 12 * u) / title.width));
       if (state.campaign) {
         this.controls.set('enemy', {
@@ -1149,14 +1163,14 @@ class PuzzleScene extends Phaser.Scene {
         const spacing = Math.min(9 * u * k, (ew - 12 * u) / harvest.length);
         const radius = Math.min(3 * u * k, spacing / 3);
         harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color])
-          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, top + 21 * u * k, radius));
+          .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, enemyTop + 21 * u * k, radius));
       }
       if (won) {
         enemy.setAlpha(0.5);
         add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
-        this.healthBar(add, ex + 6 * u, top + (state.campaign ? 28 : 20) * u * k, ew - 12 * u, barH, fill,
+        this.healthBar(add, ex + 6 * u, enemyTop + (state.campaign ? 28 : 20) * u * k, ew - 12 * u, barH, fill,
           encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
@@ -1165,9 +1179,9 @@ class PuzzleScene extends Phaser.Scene {
         const now = encounter.countdown <= 1;
         const enemyType = encounter.type === 'enemy';
         const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
-        add(this.add.text(ex + 6 * u, top + (state.campaign ? 44 : 38) * u * k, due,
+        add(this.add.text(ex + 6 * u, enemyTop + (state.campaign ? 44 : 38) * u * k, due,
           now ? { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13 * k), fontStyle: 'normal' }));
-        add(this.add.text(ex + 6 * u, top + (state.campaign ? 60 : 56) * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
+        add(this.add.text(ex + 6 * u, enemyTop + (state.campaign ? 60 : 56) * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
       }
     }
 
@@ -1206,7 +1220,7 @@ class PuzzleScene extends Phaser.Scene {
       }
     }
     this.markers(add, mine, r.x + left / 2, top + barH / 2);
-    this.markers(add, theirs, ex + ew / 2, top + 20 * u * k + barH / 2);
+    this.markers(add, theirs, ex + ew / 2, enemyTop + 20 * u * k + barH / 2);
   }
 
   /**
