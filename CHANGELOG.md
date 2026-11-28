@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.20.0
+- Adventure enemies now idle, strike, and recoil when hit.
 - An animated traveler now idles, attacks, blocks, recoils from hits, and forages beside your equipment in adventure puzzles.
 
 ## 0.19.1

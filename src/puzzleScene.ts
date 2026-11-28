@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bindItemPress } from './itemPress';
+import { drawEnemy, preloadEnemies } from './adventureEnemy';
 import { drawCharacter, preloadCharacter } from './adventureCharacter';
 import { AdventureScene } from './adventureScene';
 import type { AdventureSceneOptions } from './adventureScene';
@@ -212,7 +213,10 @@ class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
-    if (this.options.adventure) preloadCharacter(this);
+    if (this.options.adventure) {
+      preloadCharacter(this);
+      preloadEnemies(this);
+    }
     // Each theme's art is loaded once, under its own keys, and kept for the next puzzle.
     for (const [key, url] of Object.entries(this.theme.icons)) {
       if (/\.svg($|\?)/.test(url)) {
@@ -1143,7 +1147,7 @@ class PuzzleScene extends Phaser.Scene {
     // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
     const ex = r.x + left + 12 * u;
     const ew = r.x + r.w - ex;
-    const enemyTop = top + (r.h - (STRIP_PX - 8) * u * k) / 2;
+    const enemyTop = state.encounter?.type === 'enemy' ? top : top + (r.h - (STRIP_PX - 8) * u * k) / 2;
     const encounter = state.encounter;
     let enemy: Phaser.GameObjects.Rectangle | undefined;
     if (encounter) {
@@ -1166,23 +1170,47 @@ class PuzzleScene extends Phaser.Scene {
         harvest.forEach((color, i) => dots.fillStyle(this.theme.palette[color])
           .fillCircle(ex + ew / 2 + (i - (harvest.length - 1) / 2) * spacing, enemyTop + 21 * u * k, radius));
       }
+      const enemyType = encounter.type === 'enemy';
+      const barY = enemyTop + (state.campaign ? 28 : 20) * u * k;
+      const bodyTop = won ? barY : barY + barH + 2 * u;
+      const bodyH = r.y + r.h - bodyTop;
+      const stacked = enemyType && bodyH >= 74 * u;
+      const footerH = 20 * u;
+      const spriteSize = stacked ? Math.min(ew, bodyH - footerH) : Math.min(ew * 0.43, bodyH);
+      const inset = 6 * u;
+      let textX = ex + inset;
+      let textY = enemyTop + (state.campaign ? 44 : 38) * u * k;
+      if (enemyType) {
+        const spriteX = stacked ? ex + ew / 2 : ex + spriteSize / 2;
+        const spriteY = bodyTop + (stacked ? bodyH - footerH : bodyH) / 2;
+        const sprite = drawEnemy(this, encounter.def.id, won, spriteX, spriteY, spriteSize, events);
+        if (sprite) {
+          add(sprite);
+          textX += stacked ? 0 : spriteSize;
+          textY = stacked ? r.y + r.h - footerH : spriteY - 15 * u;
+        }
+      }
       if (won) {
         enemy.setAlpha(0.5);
-        add(this.add.text(ex + ew / 2, r.y + r.h * 0.65, 'Scavenging', this.textStyle(12)).setOrigin(0.5));
+        const label = add(this.add.text(enemyType ? textX : ex + ew / 2, enemyType ? textY : r.y + r.h * 0.65,
+          'Scavenging', this.textStyle(12)).setOrigin(enemyType ? 0 : 0.5));
+        if (enemyType) label.setScale(Math.min(1, (ex + ew - textX - inset) / label.width));
       } else {
         const fill = encounter.type === 'enemy' ? encounter.health / encounter.def.health : encounter.progress / encounter.def.goal;
-        this.healthBar(add, ex + 6 * u, enemyTop + (state.campaign ? 28 : 20) * u * k, ew - 12 * u, barH, fill,
-          encounter.type === 'enemy' ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
+        this.healthBar(add, ex + inset, barY, ew - 2 * inset, barH, fill,
+          enemyType ? ENEMY_COLOR : OBJECTIVE_COLOR, '');
         const hit = encounter.type === 'enemy' ? encounter.def.intents[encounter.intent].damage : encounter.def.failDamage;
         const tier = HIT_TIERS.filter((min) => hit >= min).length + 1;
         const pips = '\u25cf'.repeat(tier) + '\u25cb'.repeat(3 - tier);
         // The last countdown step gets urgent wording: the next reveal still resolves before it lands.
         const now = encounter.countdown <= 1;
-        const enemyType = encounter.type === 'enemy';
         const due = now ? (enemyType ? 'Attacking!' : 'Falling!') : `${enemyType ? 'Hits' : 'Falls'} in ${encounter.countdown}`;
-        add(this.add.text(ex + 6 * u, enemyTop + (state.campaign ? 44 : 38) * u * k, due,
-          now ? { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) } : { ...this.textStyle(13 * k), fontStyle: 'normal' }));
-        add(this.add.text(ex + 6 * u, enemyTop + (state.campaign ? 60 : 56) * u * k, pips, { ...this.textStyle(13 * k), color: cssColor(ENEMY_COLOR) }));
+        const font = this.textStyle(enemyType ? 13 : 13 * k);
+        const warning = add(this.add.text(textX, textY, due,
+          now ? { ...font, color: cssColor(ENEMY_COLOR) } : { ...font, fontStyle: 'normal' }));
+        const dots = add(this.add.text(stacked ? ex + ew - inset : textX, stacked ? textY : textY + (enemyType ? 15 * u : (state.campaign ? 16 : 18) * u * k),
+          pips, { ...font, color: cssColor(ENEMY_COLOR) }).setOrigin(stacked ? 1 : 0, 0));
+        warning.setScale(Math.min(1, (ex + ew - inset - textX - (stacked ? dots.width + 3 * u : 0)) / warning.width));
       }
     }
 
