@@ -1132,12 +1132,13 @@ class PuzzleScene extends Phaser.Scene {
     const equalShare = left / (columns + 1);
     const playerWidth = roomy ? Math.max(equalShare, left - columns * (52 * u + gap)) : equalShare;
     const size = Math.min(chipH, playerWidth);
-    add(drawCharacter(this, r.x + size / 2, chipY + chipH / 2, size, events));
+    const playerX = r.x + left - size / 2;
+    add(drawCharacter(this, playerX, chipY + chipH / 2, size, events));
     const chipW = Math.min(52 * u, (left - size) / columns - gap);
     const tileH = Math.min((chipH - (rows - 1) * gap) / rows, Math.max(44 * u, chipW));
     const gearY = chipY + (chipH - rows * tileH - (rows - 1) * gap) / 2;
     const chips = state.slots.map((slot, i) => this.chip(add, state, slot, i,
-      r.x + size + gap + i % columns * (chipW + gap), gearY + Math.floor(i / columns) * (tileH + gap), chipW, tileH));
+      r.x + i % columns * (chipW + gap), gearY + Math.floor(i / columns) * (tileH + gap), chipW, tileH));
 
     // The encounter: an enemy's health and next attack, or an objective's progress and deadline.
     const ex = r.x + left + 12 * u;
@@ -1200,7 +1201,7 @@ class PuzzleScene extends Phaser.Scene {
       } else if (event.type === 'pulse-discarded') {
         // The pulse fizzles at the character's side.
         const size = 18 * u;
-        const fizzle = add(this.add.rectangle(r.x + size, chipY + chipH / 2, size, size, this.theme.palette[color])
+        const fizzle = add(this.add.rectangle(playerX, chipY + chipH / 2, size, size, this.theme.palette[color])
           .setRounded(4 * u).setDepth(4));
         this.tweens.add({ targets: fizzle, alpha: 0, scale: 0.3, y: `-=${chipH / 2}`, duration: 500, ease: 'Quad.easeIn' });
       } else if (event.type === 'damage-applied') {
